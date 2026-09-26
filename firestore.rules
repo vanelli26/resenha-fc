@@ -1,0 +1,329 @@
+rules_version = '2';
+
+// ===============================================================
+// ResenhaFC — Security Rules (Fases 0 e 1)
+// Fonte: DIRETRIZES.md, seções 3 e 4. Negar tudo por padrão; liberar por coleção.
+// Protótipo: revisar e endurecer a cada fase antes de ampliar o público.
+// ===============================================================
+//
+// Modelo de dados assumido
+//
+// usuarios/{uid}
+//   nome: string (0..100) · email: string (<= 254, = token.email) · fotoUrl: https string (<= 2048) | null
+//   criadoEm: timestamp (= request.time na criação, imutável)
+//   adminGeral: bool (opcional; só console/Admin SDK — o client nunca escreve)
+//
+// times/{timeId}                       timeId = slug
+//   nome: string (1..60) · slug: string (= timeId, imutável) · cor: nome de paleta (lista fixa)
+//   escudo: data URL base64 de imagem webp/png/jpeg (<= 120000 caracteres) | null · criadoEm: timestamp (imutável)
+//   (campo antigo `tema` só pode ser removido)
+//   financeiro: map (Fase 2; na Fase 1 só o valor padrão na criação, imutável)
+//
+// times/{timeId}/acessos/{uid}
+//   uid (= path) · timeId (= path) · timeNome (= times.nome) · nome: string (1..100)
+//   papeis: list 1..3 de 'jogador' | 'diretoria' | 'tesouraria' · atletaId: string (atleta existente) | null
+//   concedidoPor: string (= request.auth.uid) · atualizadoEm: timestamp (= request.time)
+//
+// times/{timeId}/atletas/{atletaId}
+//   nome (1..100) · apelido (0..40) · telefone? (1..20) · fotoUrl? (https) · uid: string | null
+//   modalidade: 'mensal' | 'semestral' | 'avulso' | 'isento' · posicoes: list 0..6 das posições fixas
+//   numeroCamisa?: int 0..999 · status: 'ativo' | 'afastado' | 'inativo'
+//   criadoEm (imutável) · atualizadoEm (= request.time)
+//
+// times/{timeId}/convites/{codigo}     codigo: 10..32 [A-Za-z0-9]
+//   timeNome (= times.nome) · ativo: bool · expiraEm: timestamp (até 90 dias) · criadoPor · criadoEm
+//
+// times/{timeId}/solicitacoes/{uid}
+//   nome (0..100) · email (= token.email) · status: 'pendente' | 'aprovada' | 'recusada'
+//   convite: código de um convite ativo e não expirado · criadoEm (= request.time)
+//
+// Demais coleções (cobranças, lançamentos, eventos...) entram nas próximas fases e ficam negadas.
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isAdminGeral() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('adminGeral', false) == true;
+    }
+
+    function acessoPath(timeId) {
+      return /databases/$(database)/documents/times/$(timeId)/acessos/$(request.auth.uid);
+    }
+
+    function temAcesso(timeId) {
+      return isAuthenticated() && exists(acessoPath(timeId));
+    }
+
+    function temPapel(timeId, papel) {
+      return temAcesso(timeId) && papel in get(acessoPath(timeId)).data.papeis;
+    }
+
+    function ehDiretoria(timeId) {
+      return temPapel(timeId, 'diretoria');
+    }
+
+    function ehTesouraria(timeId) {
+      return temPapel(timeId, 'tesouraria');
+    }
+
+    function podeGerir(timeId) {
+      return ehDiretoria(timeId) || isAdminGeral();
+    }
+
+    // Jogador editando o próprio atleta: vínculo nos dois lados (acesso.atletaId e atleta.uid)
+    // e só os campos pessoais, incluindo a foto do Google (nome, modalidade, status e uid continuam com a diretoria).
+    function ehProprioAtleta(timeId, atletaId) {
+      return temAcesso(timeId)
+        && get(acessoPath(timeId)).data.atletaId == atletaId
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['apelido', 'telefone', 'posicoes', 'numeroCamisa', 'fotoUrl', 'atualizadoEm']);
+    }
+
+    function nomeDoTime(timeId) {
+      return get(/databases/$(database)/documents/times/$(timeId)).data.nome;
+    }
+
+    function isValidUrl(url) {
+      return url is string && url.size() <= 2048 && url.matches('^https://.*');
+    }
+
+    function textoOpcional(data, campo, min, max) {
+      return !(campo in data) || (data[campo] is string && data[campo].size() >= min && data[campo].size() <= max);
+    }
+
+    function inalterados(campos) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // ---------------------------------------------------------------
+    // Validadores de domínio (usados em create e update)
+    // ---------------------------------------------------------------
+    function isValidUsuario(data) {
+      return data.keys().hasAll(['nome', 'email', 'fotoUrl', 'criadoEm'])
+        && data.keys().hasOnly(['nome', 'email', 'fotoUrl', 'criadoEm', 'adminGeral'])
+        && data.nome is string && data.nome.size() <= 100
+        && data.email is string && data.email.size() <= 254
+        && data.email == request.auth.token.email
+        && (data.fotoUrl == null || isValidUrl(data.fotoUrl))
+        && data.criadoEm is timestamp
+        && (!('adminGeral' in data) || data.adminGeral is bool);
+    }
+
+    function financeiroPadrao() {
+      return {
+        'mensal': { 'ativo': false, 'valorCentavos': 0, 'diaVencimento': 10 },
+        'semestral': { 'ativo': false, 'valorCentavos': 0, 'diaVencimento': 10, 'mesVencimentoS1': 1, 'mesVencimentoS2': 7 },
+        'avulso': { 'ativo': false, 'valorCentavos': 0 },
+        'despesasRecorrentes': []
+      };
+    }
+
+    function isValidTime(data, timeId) {
+      return data.keys().hasAll(['nome', 'slug', 'cor', 'escudo', 'criadoEm', 'financeiro'])
+        && data.keys().hasOnly(['nome', 'slug', 'cor', 'escudo', 'criadoEm', 'financeiro'])
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 60
+        && data.slug == timeId && timeId.matches('^[a-z0-9-]{2,40}$')
+        && data.cor in ['preto', 'red', 'rose', 'pink', 'fuchsia', 'purple', 'violet', 'indigo', 'blue', 'sky',
+          'cyan', 'teal', 'emerald', 'green', 'lime', 'yellow', 'amber', 'orange']
+        && (data.escudo == null
+          || (data.escudo is string && data.escudo.size() <= 120000
+            && data.escudo.matches('^data:image/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$')))
+        && data.criadoEm is timestamp
+        && data.financeiro is map;
+    }
+
+    function isValidAcesso(data, timeId, uid) {
+      return data.keys().hasAll(['uid', 'timeId', 'timeNome', 'nome', 'papeis', 'atletaId', 'concedidoPor', 'atualizadoEm'])
+        && data.keys().hasOnly(['uid', 'timeId', 'timeNome', 'nome', 'papeis', 'atletaId', 'concedidoPor', 'atualizadoEm'])
+        && data.uid == uid
+        && data.timeId == timeId
+        && data.timeNome is string && data.timeNome.size() <= 60
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 100
+        && data.papeis is list && data.papeis.size() >= 1 && data.papeis.size() <= 3
+        && data.papeis.hasOnly(['jogador', 'diretoria', 'tesouraria'])
+        && (data.atletaId == null
+          || (data.atletaId is string && data.atletaId.size() <= 40
+            && existsAfter(/databases/$(database)/documents/times/$(timeId)/atletas/$(data.atletaId))))
+        && data.concedidoPor == request.auth.uid
+        && data.atualizadoEm == request.time;
+    }
+
+    function isValidAtleta(data) {
+      return data.keys().hasAll(['nome', 'apelido', 'uid', 'modalidade', 'posicoes', 'status', 'criadoEm', 'atualizadoEm'])
+        && data.keys().hasOnly(['nome', 'apelido', 'telefone', 'fotoUrl', 'uid', 'modalidade', 'posicoes',
+          'numeroCamisa', 'status', 'criadoEm', 'atualizadoEm'])
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 100
+        && data.apelido is string && data.apelido.size() <= 40
+        && textoOpcional(data, 'telefone', 1, 20)
+        && (!('fotoUrl' in data) || isValidUrl(data.fotoUrl))
+        && (data.uid == null || (data.uid is string && data.uid.size() <= 128))
+        && data.modalidade in ['mensal', 'semestral', 'avulso', 'isento']
+        && data.posicoes is list && data.posicoes.size() <= 6
+        && data.posicoes.hasOnly(['goleiro', 'fixo', 'ala_direita', 'ala_esquerda', 'meia', 'pivo'])
+        && (!('numeroCamisa' in data) || (data.numeroCamisa is int && data.numeroCamisa >= 0 && data.numeroCamisa <= 999))
+        && data.status in ['ativo', 'afastado', 'inativo']
+        && data.criadoEm is timestamp
+        && data.atualizadoEm == request.time;
+    }
+
+    function isValidConvite(data, codigo) {
+      return data.keys().hasAll(['timeNome', 'ativo', 'expiraEm', 'criadoPor', 'criadoEm'])
+        && data.keys().hasOnly(['timeNome', 'ativo', 'expiraEm', 'criadoPor', 'criadoEm'])
+        && codigo.matches('^[A-Za-z0-9]{10,32}$')
+        && data.timeNome is string && data.timeNome.size() <= 60
+        && data.ativo is bool
+        && data.expiraEm is timestamp
+        && data.criadoPor is string && data.criadoPor.size() <= 128
+        && data.criadoEm is timestamp;
+    }
+
+    function conviteVigente(timeId, codigo) {
+      let convite = get(/databases/$(database)/documents/times/$(timeId)/convites/$(codigo));
+      return convite != null && convite.data.ativo == true && convite.data.expiraEm > request.time;
+    }
+
+    // timeNome é cópia do nome do time. Na criação (ou se mudar) tem de bater com times.nome;
+    // se o time for renomeado, acessos antigos continuam editáveis sem reescrever o nome.
+    function timeNomeCoerente(timeId) {
+      return request.resource.data.timeNome == nomeDoTime(timeId)
+        || (resource != null && request.resource.data.timeNome == resource.data.timeNome);
+    }
+
+    function isValidSolicitacao(data) {
+      return data.keys().hasAll(['nome', 'email', 'status', 'convite', 'criadoEm'])
+        && data.keys().hasOnly(['nome', 'email', 'status', 'convite', 'criadoEm'])
+        && data.nome is string && data.nome.size() <= 100
+        && data.email is string && data.email.size() <= 254
+        && data.status in ['pendente', 'aprovada', 'recusada']
+        && data.convite is string && data.convite.matches('^[A-Za-z0-9]{10,32}$')
+        && data.criadoEm is timestamp;
+    }
+
+    // ---------------------------------------------------------------
+    // usuarios/{uid}
+    // Leitura: o próprio ou adminGeral. Escrita: só o próprio, sem tocar em adminGeral.
+    // ---------------------------------------------------------------
+    match /usuarios/{uid} {
+      allow read: if isOwner(uid) || isAdminGeral();
+
+      allow create: if isOwner(uid)
+        && isValidUsuario(request.resource.data)
+        && !('adminGeral' in request.resource.data)
+        && request.resource.data.criadoEm == request.time;
+
+      allow update: if isOwner(uid)
+        && isValidUsuario(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'email', 'fotoUrl']);
+
+      allow delete: if false;
+    }
+
+    // "Meus times": collection group em acessos filtrando uid == request.auth.uid.
+    match /{path=**}/acessos/{acessoUid} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------
+    // times/{timeId}
+    // Leitura: quem tem acesso ao time ou adminGeral. Escrita: adminGeral (financeiro: Fase 2).
+    // ---------------------------------------------------------------
+    match /times/{timeId} {
+      allow read: if temAcesso(timeId) || isAdminGeral();
+
+      allow create: if isAdminGeral()
+        && isValidTime(request.resource.data, timeId)
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.financeiro == financeiroPadrao();
+
+      allow update: if isAdminGeral()
+        && isValidTime(request.resource.data, timeId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema']);
+
+      allow delete: if false;
+
+      // Permissões do usuário no time. Diretoria concede e remove qualquer papel (DIRETRIZES, seção 10).
+      match /acessos/{uid} {
+        allow read: if isOwner(uid) || ehDiretoria(timeId) || ehTesouraria(timeId) || isAdminGeral();
+        allow create, update: if podeGerir(timeId)
+          && isValidAcesso(request.resource.data, timeId, uid)
+          && timeNomeCoerente(timeId);
+        allow delete: if podeGerir(timeId);
+      }
+
+      match /atletas/{atletaId} {
+        allow read: if temAcesso(timeId) || isAdminGeral();
+
+        allow create: if podeGerir(timeId)
+          && isValidAtleta(request.resource.data)
+          && request.resource.data.criadoEm == request.time;
+
+        allow update: if isValidAtleta(request.resource.data)
+          && inalterados(['criadoEm'])
+          && (podeGerir(timeId) || ehProprioAtleta(timeId, atletaId));
+
+        // Atleta sai do elenco via status 'inativo' (histórico financeiro depende dele).
+        allow delete: if false;
+      }
+
+      // Convite: qualquer logado lê por código (get); só a gestão lista.
+      match /convites/{codigo} {
+        allow get: if isAuthenticated();
+        allow list: if podeGerir(timeId);
+
+        allow create: if podeGerir(timeId)
+          && isValidConvite(request.resource.data, codigo)
+          && request.resource.data.ativo == true
+          && request.resource.data.timeNome == nomeDoTime(timeId)
+          && request.resource.data.criadoPor == request.auth.uid
+          && request.resource.data.criadoEm == request.time
+          && request.resource.data.expiraEm > request.time
+          && request.resource.data.expiraEm < request.time + duration.value(90, 'd');
+
+        // Só desativar.
+        allow update: if podeGerir(timeId)
+          && isValidConvite(request.resource.data, codigo)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo'])
+          && request.resource.data.ativo == false;
+
+        allow delete: if false;
+      }
+
+      // Pedido de entrada: criado pelo próprio com convite vigente; decidido pela gestão.
+      match /solicitacoes/{uid} {
+        allow read: if isOwner(uid) || podeGerir(timeId);
+
+        allow create: if isOwner(uid)
+          && isValidSolicitacao(request.resource.data)
+          && request.resource.data.status == 'pendente'
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.criadoEm == request.time
+          && conviteVigente(timeId, request.resource.data.convite);
+
+        allow update: if podeGerir(timeId)
+          && isValidSolicitacao(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && resource.data.status == 'pendente'
+          && request.resource.data.status in ['aprovada', 'recusada'];
+
+        // Permite à gestão apagar um pedido recusado para a pessoa tentar de novo.
+        allow delete: if podeGerir(timeId);
+      }
+    }
+
+    // Todo o resto: negado por padrão (sem regra = sem acesso).
+  }
+}

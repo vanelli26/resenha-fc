@@ -1,0 +1,37 @@
+<section class="cartao convite">
+  @let e = estado();
+  @switch (e.tipo) {
+    @case ('carregando') {
+      <p-progress-spinner ariaLabel="Carregando convite" />
+    }
+    @case ('invalido') {
+      <h2>Convite inválido</h2>
+      <p class="texto-suave">Este link expirou, foi desativado ou não existe. Peça um novo à diretoria do time.</p>
+      <p-button label="Ir para o início" routerLink="/" />
+    }
+    @case ('membro') {
+      <h2>{{ e.timeNome }}</h2>
+      <p class="texto-suave">Você já faz parte deste time.</p>
+      <p-button label="Abrir o time" [routerLink]="['/t', timeId()]" />
+    }
+    @case ('pendente') {
+      <h2>{{ e.timeNome }}</h2>
+      <p class="texto-suave">Pedido enviado. Assim que a diretoria aprovar, o time aparece em "Meus times".</p>
+      <p-button label="Ir para o início" [outlined]="true" routerLink="/" />
+    }
+    @case ('recusada') {
+      <h2>{{ e.timeNome }}</h2>
+      <p class="texto-suave">Seu pedido para este time foi recusado. Fale com a diretoria.</p>
+    }
+    @case ('pedir') {
+      <h2>{{ e.timeNome }}</h2>
+      <p class="texto-suave">
+        Você foi convidado para entrar no time. Convite válido até {{ e.expiraEm | date: 'dd/MM HH:mm' }}.
+      </p>
+      @if (erro(); as mensagem) {
+        <p-message severity="error">{{ mensagem }}</p-message>
+      }
+      <p-button label="Pedir para entrar" [loading]="enviando()" (onClick)="pedirEntrada()" />
+    }
+  }
+</section>

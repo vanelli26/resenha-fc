@@ -1,0 +1,76 @@
+<h2>Times</h2>
+
+<form class="cartao formulario form-time" (submit)="$event.preventDefault(); salvar()">
+  <h3>{{ editandoId() ? 'Editar time' : 'Novo time' }}</h3>
+
+  <label class="campo">
+    <span>Nome</span>
+    <input pInputText [formField]="formulario.nome" />
+    @if (formulario.nome().touched() && formulario.nome().invalid()) {
+      <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
+    }
+  </label>
+
+  <label class="campo">
+    <span>Identificador (URL)</span>
+    <input pInputText [formField]="formulario.slug" autocapitalize="off" />
+    <small class="campo__dica">Ex.: piratas. Não pode ser alterado depois.</small>
+    @if (formulario.slug().touched() && formulario.slug().invalid()) {
+      <small class="campo__erro">{{ formulario.slug().errors()[0].message }}</small>
+    }
+  </label>
+
+  <div class="campo">
+    <span>Escudo</span>
+    <div class="escudo">
+      <app-escudo class="escudo__previa" [src]="escudo() ?? ''" [nome]="modelo().nome || '?'" />
+      <label class="escudo__enviar">
+        <input type="file" accept="image/*" (change)="escolherEscudo($event)" />
+        <span class="p-button p-button-outlined p-button-sm">
+          {{ processandoImagem() ? 'Processando…' : escudo() ? 'Trocar imagem' : 'Enviar imagem' }}
+        </span>
+      </label>
+      @if (escudo()) {
+        <p-button label="Remover" size="small" [text]="true" severity="danger" type="button" (onClick)="escudo.set(null)" />
+      }
+    </div>
+    <small class="campo__dica">PNG, JPG, WebP ou SVG. A imagem é reduzida para 256px.</small>
+  </div>
+
+  <fieldset class="campo cores">
+    <legend>Cor predominante</legend>
+    <div class="cores__grade">
+      @for (c of cores; track c.cor) {
+        <label class="cores__opcao" [title]="c.rotulo">
+          <input type="radio" [value]="c.cor" [formField]="formulario.cor" />
+          <span class="cores__amostra" [style.background]="c.amostra"></span>
+          <span class="visualmente-oculto">{{ c.rotulo }}</span>
+        </label>
+      }
+    </div>
+    <small class="campo__dica">{{ rotuloCor[modelo().cor] }}</small>
+  </fieldset>
+
+  <div class="acoes">
+    @if (editandoId()) {
+      <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar()" />
+    }
+    <p-button label="Salvar" type="submit" [loading]="formulario().submitting()" [disabled]="processandoImagem()" />
+  </div>
+</form>
+
+<ul class="lista">
+  @for (time of times(); track time.id) {
+    <li class="cartao item">
+      <app-escudo [src]="time.escudo ?? ''" [nome]="time.nome" />
+      <div class="item__texto">
+        <strong>{{ time.nome }}</strong>
+        <small>/t/{{ time.id }}</small>
+      </div>
+      <p-button label="Membros" size="small" [text]="true" [routerLink]="['/t', time.id, 'membros']" />
+      <p-button label="Editar" size="small" [outlined]="true" (onClick)="editar(time)" />
+    </li>
+  } @empty {
+    <li class="texto-suave">Nenhum time cadastrado.</li>
+  }
+</ul>

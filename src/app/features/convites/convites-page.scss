@@ -1,0 +1,19 @@
+.dica {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.convite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.convite__texto {
+  flex: 1;
+  min-width: 10rem;
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+}

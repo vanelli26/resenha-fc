@@ -1,0 +1,114 @@
+<div class="cabecalho-secao">
+  <h2>Membros</h2>
+  @if (adminGeral()) {
+    <p-button label="Adicionar membro" size="small" (onClick)="adicionar()" />
+  }
+</div>
+
+<p class="texto-suave dica">Novos jogadores entram por convite. Aqui você ajusta papéis ou remove alguém do time.</p>
+
+@if (carregando() && membros().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4rem" />
+    <p-skeleton height="4rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (membro of membros(); track membro.id) {
+      <li class="cartao membro">
+        <div class="membro__texto">
+          <strong>{{ membro.nome }}</strong>
+          <span class="membro__papeis">
+            @for (papel of membro.papeis; track papel) {
+              <p-tag [value]="rotuloPapel[papel]" [severity]="papel === 'jogador' ? 'secondary' : 'info'" />
+            }
+            @if (membro.atletaId) {
+              <p-tag value="No elenco" severity="success" />
+            }
+          </span>
+        </div>
+        <p-button label="Editar" size="small" [text]="true" (onClick)="editar(membro)" />
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum membro ainda.</li>
+    }
+  </ul>
+}
+
+<p-dialog
+  [header]="tituloDialog()"
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [style]="{ width: 'min(28rem, 100vw - 2rem)' }"
+>
+  <form class="formulario" (submit)="$event.preventDefault(); salvar()">
+    @if (!emEdicao()) {
+      <label class="campo">
+        <span>Usuário</span>
+        <p-select
+          [formField]="formulario.uid"
+          [options]="usuarios()"
+          optionLabel="label"
+          optionValue="value"
+          [filter]="true"
+          placeholder="Escolha quem já entrou no app"
+          appendTo="body"
+        />
+        @if (formulario.uid().touched() && formulario.uid().invalid()) {
+          <small class="campo__erro">{{ formulario.uid().errors()[0].message }}</small>
+        }
+      </label>
+    }
+
+    <fieldset class="papeis">
+      <legend>Papéis</legend>
+      @for (papel of papeisTime; track papel) {
+        <label class="papeis__item">
+          <p-checkbox [formField]="formulario.papeis[papel]" [binary]="true" />
+          {{ rotuloPapel[papel] }}
+        </label>
+      }
+    </fieldset>
+
+    <label class="campo">
+      <span>Atleta no elenco</span>
+      <p-select
+        [formField]="formulario.atleta"
+        [options]="opcoesAtleta()"
+        optionLabel="label"
+        optionValue="value"
+        [filter]="true"
+        appendTo="body"
+      />
+      <small class="campo__dica">Vincula a conta a um atleta do elenco. Não altera os papéis.</small>
+    </label>
+
+    @if (!formulario.modalidade().hidden()) {
+      <label class="campo">
+        <span>Modalidade de cobrança do novo atleta</span>
+        <p-select
+          [formField]="formulario.modalidade"
+          [options]="opcoesModalidade"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+        />
+      </label>
+    }
+
+    <div class="acoes">
+      @if (emEdicao()) {
+        <p-button
+          label="Remover do time"
+          severity="danger"
+          [text]="true"
+          type="button"
+          class="acoes__remover"
+          [disabled]="salvando()"
+          (onClick)="remover()"
+        />
+      }
+      <p-button label="Salvar" type="submit" [loading]="salvando()" />
+    </div>
+  </form>
+</p-dialog>

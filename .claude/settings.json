@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "firebase@firebase": true
+  },
+  "extraKnownMarketplaces": {
+    "firebase": {
+      "source": {
+        "source": "github",
+        "repo": "firebase/agent-skills"
+      }
+    }
+  }
+}

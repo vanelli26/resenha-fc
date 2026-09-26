@@ -1,0 +1,36 @@
+<div class="cabecalho-secao">
+  <h2>Meus times</h2>
+  @if (adminGeral()) {
+    <p-button label="Gerenciar times" size="small" [outlined]="true" routerLink="/admin/times" />
+  }
+</div>
+
+@if (carregando() && meusTimes().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (time of meusTimes(); track time.timeId) {
+      <li>
+        <a class="item" [routerLink]="['/t', time.timeId]">
+          <app-escudo [src]="time.escudo ?? ''" [nome]="time.timeNome" />
+          <span class="item__texto">
+            <span class="item__nome">{{ time.timeNome }}</span>
+            <span class="item__papeis">
+              @for (papel of time.papeis; track papel) {
+                <span>{{ rotuloPapel[papel] }}</span>
+              } @empty {
+                <span>Administrador</span>
+              }
+            </span>
+          </span>
+          <svg class="item__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+        </a>
+      </li>
+    } @empty {
+      <li class="texto-suave">Você ainda não faz parte de nenhum time. Peça um link de convite à diretoria.</li>
+    }
+  </ul>
+}

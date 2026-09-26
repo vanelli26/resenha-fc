@@ -1,0 +1,23 @@
+.solicitacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.solicitacao__texto {
+  flex: 1;
+  min-width: 10rem;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.opcao {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+p {
+  margin: 0;
+}

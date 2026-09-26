@@ -1,0 +1,70 @@
+<div class="cabecalho-secao">
+  <h2>Elenco</h2>
+  @if (ehDiretoria()) {
+    <p-button label="Novo atleta" size="small" (onClick)="abrir(null)" />
+  }
+</div>
+
+@if (carregando() && atletas().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (atleta of atletas(); track atleta.id) {
+      <li class="cartao atleta" [class.atleta--inativo]="atleta.status !== 'ativo'">
+        <span class="atleta__foto">
+          <app-foto-pessoa [src]="atleta.fotoUrl" [nome]="atleta.apelido || atleta.nome" />
+          @if (atleta.numeroCamisa !== undefined) {
+            <span class="atleta__numero">{{ atleta.numeroCamisa }}</span>
+          }
+        </span>
+        <div class="atleta__texto">
+          <strong>
+            {{ atleta.apelido || atleta.nome }}
+            @if (atleta.id === meuAtletaId()) {
+              <p-tag value="Você" severity="info" />
+            }
+          </strong>
+          @if (atleta.apelido) {
+            <small class="texto-suave">{{ atleta.nome }}</small>
+          }
+          <small class="texto-suave">
+            @for (posicao of atleta.posicoes; track posicao; let ultima = $last) {
+              {{ rotuloPosicao[posicao] }}{{ ultima ? '' : ' · ' }}
+            }
+          </small>
+          @if (atleta.telefone) {
+            <a class="texto-suave" [href]="'tel:' + atleta.telefone">{{ atleta.telefone }}</a>
+          }
+        </div>
+        <div class="atleta__tags">
+          <p-tag [value]="rotuloModalidade[atleta.modalidade]" severity="secondary" />
+          @if (atleta.status !== 'ativo') {
+            <p-tag [value]="rotuloStatus[atleta.status]" severity="warn" />
+          }
+          @if (ehDiretoria()) {
+            <p-button label="Editar" size="small" [text]="true" (onClick)="abrir(atleta)" />
+          } @else if (atleta.id === meuAtletaId()) {
+            <p-button label="Meus dados" size="small" [text]="true" (onClick)="abrir(atleta)" />
+          }
+        </div>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum atleta cadastrado.</li>
+    }
+  </ul>
+}
+
+<p-dialog [header]="tituloDialog()" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(32rem, 100vw - 2rem)' }">
+  @if (dialogAberto()) {
+    <app-atleta-form
+      [atleta]="emEdicao()"
+      [modo]="modoForm()"
+      (salvar)="salvar($event)"
+      (cancelar)="dialogAberto.set(false)"
+    />
+  }
+</p-dialog>

@@ -1,0 +1,78 @@
+<div class="cabecalho-secao">
+  <h2>Solicitações</h2>
+</div>
+
+@if (carregando() && pendentes().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (s of pendentes(); track s.id) {
+      <li class="cartao solicitacao">
+        <div class="solicitacao__texto">
+          <strong>{{ s.nome }}</strong>
+          <small class="texto-suave">{{ s.email }}</small>
+          <small class="texto-suave">Pedido em {{ s.criadoEm.toDate() | date: 'dd/MM HH:mm' }}</small>
+        </div>
+        <p-button label="Recusar" size="small" severity="danger" [text]="true" [disabled]="processando()" (onClick)="recusar(s)" />
+        <p-button label="Aprovar" size="small" [disabled]="processando()" (onClick)="abrirAprovacao(s)" />
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhuma solicitação pendente.</li>
+    }
+  </ul>
+}
+
+<p-dialog header="Aprovar entrada" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(28rem, 100vw - 2rem)' }">
+  <form class="formulario" (submit)="$event.preventDefault(); aprovar()">
+    <p class="texto-suave">{{ emAprovacao()?.nome }} entra como jogador. Ele já está no elenco?</p>
+
+    <label class="opcao">
+      <p-radiobutton value="novo" [formField]="formulario.tipo" />
+      Não, criar novo atleta
+    </label>
+    @if (opcoesAtleta().length > 0) {
+      <label class="opcao">
+        <p-radiobutton value="existente" [formField]="formulario.tipo" />
+        Sim, vincular a um atleta cadastrado
+      </label>
+    }
+
+    @if (!formulario.modalidade().hidden()) {
+      <label class="campo">
+        <span>Modalidade de cobrança</span>
+        <p-select
+          [formField]="formulario.modalidade"
+          [options]="opcoesModalidade"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+        />
+      </label>
+    }
+
+    @if (!formulario.atletaId().hidden()) {
+      <label class="campo">
+        <span>Atleta</span>
+        <p-select
+          [formField]="formulario.atletaId"
+          [options]="opcoesAtleta()"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Escolha o atleta"
+          [filter]="true"
+          appendTo="body"
+        />
+        @if (formulario.atletaId().touched() && formulario.atletaId().invalid()) {
+          <small class="campo__erro">{{ formulario.atletaId().errors()[0].message }}</small>
+        }
+      </label>
+    }
+
+    <div class="acoes">
+      <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
+      <p-button label="Aprovar" type="submit" [loading]="processando()" />
+    </div>
+  </form>
+</p-dialog>

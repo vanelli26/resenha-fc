@@ -1,0 +1,43 @@
+<div class="cabecalho-secao">
+  <h2>Convites</h2>
+  <p-button label="Gerar convite" size="small" [loading]="gerando()" (onClick)="gerar()" />
+</div>
+
+<p class="texto-suave dica">
+  O link vale por {{ validadeDias }} dias e pode ser usado por várias pessoas. Cada uma faz login e pede para
+  entrar; você aprova em Solicitações.
+</p>
+
+@if (carregando() && lista().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (convite of lista(); track convite.codigo) {
+      <li class="cartao convite">
+        <div class="convite__texto">
+          <code>{{ convite.codigo }}</code>
+          @switch (convite.situacao) {
+            @case ('ativo') {
+              <small class="texto-suave">Válido até {{ convite.expiraEm | date: 'dd/MM HH:mm' }}</small>
+            }
+            @case ('expirado') {
+              <p-tag value="Expirado" severity="secondary" />
+            }
+            @case ('desativado') {
+              <p-tag value="Desativado" severity="secondary" />
+            }
+          }
+        </div>
+        @if (convite.situacao === 'ativo') {
+          <p-button label="Compartilhar" size="small" (onClick)="compartilhar(convite.link)" />
+          <p-button label="Copiar link" size="small" [outlined]="true" (onClick)="copiar(convite.link)" />
+          <p-button label="Desativar" size="small" severity="danger" [text]="true" (onClick)="desativar(convite.codigo)" />
+        }
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum convite gerado.</li>
+    }
+  </ul>
+}

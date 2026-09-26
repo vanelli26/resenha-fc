@@ -1,0 +1,21 @@
+<main class="login">
+  <section class="login__card">
+    <h1 class="login__titulo"><app-logo /></h1>
+    <p class="login__subtitulo">Elenco, caixa, agenda e resenha do seu time.</p>
+
+    @if (erro(); as mensagem) {
+      <p-message severity="error">{{ mensagem }}</p-message>
+    }
+
+    <p-button
+      label="Entrar com Google"
+      [loading]="entrando()"
+      [fluid]="true"
+      (onClick)="entrarComGoogle()"
+    >
+      <ng-template #icon>
+        <svg data-p-icon="google" [size]="18"></svg>
+      </ng-template>
+    </p-button>
+  </section>
+</main>

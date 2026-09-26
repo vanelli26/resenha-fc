@@ -1,0 +1,111 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+// Topo translúcido sobre o fundo do app; respeita o notch (viewport-fit=cover).
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--p-content-background) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.topo__interno {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 60rem;
+  min-height: 3.5rem;
+  margin: 0 auto;
+  padding: 0.5rem max(1rem, env(safe-area-inset-right)) 0.5rem max(1rem, env(safe-area-inset-left));
+}
+
+.topo__marca {
+  --logo-tamanho: 2rem;
+  display: inline-flex;
+  border-radius: var(--p-border-radius-md);
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.topo__time {
+  flex: 1;
+  min-width: 0;
+  max-width: 16rem;
+  margin-left: auto;
+}
+
+.topo__opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  --escudo-tamanho: 1.5rem;
+}
+
+.topo__opcao-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Área de toque de 44px, foto de 32px.
+.topo__usuario {
+  --foto-tamanho: 2rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.conteudo {
+  flex: 1;
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem max(1rem, env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+}
+
+// Celular estreito: só a marca, sobra espaço para o seletor de time.
+@media (max-width: 480px) {
+  .topo__marca {
+    --logo-nome: none;
+  }
+
+  .topo__time {
+    max-width: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .conteudo {
+    padding-top: 1.5rem;
+  }
+}

@@ -1,0 +1,43 @@
+@if (time(); as t) {
+  <header class="cabecalho">
+    <app-escudo [src]="t.escudo ?? ''" [nome]="t.nome" />
+    <h1 class="cabecalho__nome">{{ t.nome }}</h1>
+  </header>
+
+  <!-- Uma aba só (jogador) não precisa de navegação. No celular vira barra inferior. -->
+  @if (abas().length > 1) {
+    <nav class="abas" aria-label="Seções do time">
+      @for (aba of abas(); track aba.caminho) {
+        <a
+          class="abas__item"
+          [routerLink]="aba.caminho"
+          routerLinkActive="abas__item--ativa"
+          ariaCurrentWhenActive="page"
+        >
+          <span class="abas__icone">
+            @switch (aba.icone) {
+              @case ('elenco') {
+                <svg data-p-icon="users" [size]="20"></svg>
+              }
+              @case ('membros') {
+                <svg data-p-icon="id-card" [size]="20"></svg>
+              }
+              @case ('convites') {
+                <svg data-p-icon="link" [size]="20"></svg>
+              }
+              @case ('solicitacoes') {
+                <svg data-p-icon="user-plus" [size]="20"></svg>
+              }
+            }
+            @if (aba.selo) {
+              <span class="abas__selo" [attr.aria-label]="aba.selo + ' pendentes'">{{ aba.selo }}</span>
+            }
+          </span>
+          <span class="abas__rotulo">{{ aba.rotulo }}</span>
+        </a>
+      }
+    </nav>
+  }
+
+  <router-outlet />
+}

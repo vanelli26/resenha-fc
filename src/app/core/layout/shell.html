@@ -1,0 +1,63 @@
+<header class="topo">
+  <div class="topo__interno">
+    <a class="topo__marca" routerLink="/" aria-label="ResenhaFC, início">
+      <app-logo />
+    </a>
+
+    <p-select
+      class="topo__time"
+      [options]="meusTimes()"
+      optionLabel="timeNome"
+      optionValue="timeId"
+      [ngModel]="timeId()"
+      (ngModelChange)="trocarTime($event)"
+      placeholder="Selecione um time"
+      [disabled]="meusTimes().length === 0"
+      ariaLabel="Time atual"
+    >
+      <ng-template #selectedItem let-time>
+        <span class="topo__opcao">
+          <app-escudo [src]="time.escudo ?? ''" [nome]="time.timeNome" />
+          <span class="topo__opcao-nome">{{ time.timeNome }}</span>
+        </span>
+      </ng-template>
+      <ng-template #item let-time>
+        <span class="topo__opcao">
+          <app-escudo [src]="time.escudo ?? ''" [nome]="time.timeNome" />
+          <span class="topo__opcao-nome">{{ time.timeNome }}</span>
+        </span>
+      </ng-template>
+    </p-select>
+
+    <button type="button" class="topo__usuario" aria-label="Menu do usuário" (click)="menu.toggle($event)">
+      <app-foto-pessoa [src]="usuario()?.fotoUrl" [nome]="usuario()?.nome ?? '?'" />
+    </button>
+    <p-menu #menu [model]="menuUsuario()" [popup]="true">
+      <ng-template #item let-item>
+        <a class="p-menu-item-link menu-item" tabindex="-1">
+          @switch (item.icon) {
+            @case ('times') {
+              <svg data-p-icon="cog" [size]="16"></svg>
+            }
+            @case ('claro') {
+              <svg data-p-icon="sun" [size]="16"></svg>
+            }
+            @case ('escuro') {
+              <svg data-p-icon="moon" [size]="16"></svg>
+            }
+            @case ('sair') {
+              <svg data-p-icon="sign-out" [size]="16"></svg>
+            }
+          }
+          <span>{{ item.label }}</span>
+        </a>
+      </ng-template>
+    </p-menu>
+  </div>
+</header>
+
+<main class="conteudo">
+  <router-outlet />
+</main>
+
+<p-toast position="top-center" />

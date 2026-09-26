@@ -1,0 +1,13 @@
+.convite {
+  max-width: 28rem;
+  margin: 2rem auto;
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  text-align: center;
+
+  h2,
+  p {
+    margin: 0;
+  }
+}

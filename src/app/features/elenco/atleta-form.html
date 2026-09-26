@@ -1,0 +1,82 @@
+<form class="formulario" (submit)="$event.preventDefault(); enviar()">
+  @if (!formulario.nome().hidden()) {
+    <label class="campo">
+      <span>Nome</span>
+      <input pInputText [formField]="formulario.nome" autocomplete="off" />
+      @if (formulario.nome().touched() && formulario.nome().invalid()) {
+        <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
+      }
+    </label>
+  }
+
+  <label class="campo">
+    <span>Apelido</span>
+    <input pInputText [formField]="formulario.apelido" autocomplete="off" />
+    @if (formulario.apelido().touched() && formulario.apelido().invalid()) {
+      <small class="campo__erro">{{ formulario.apelido().errors()[0].message }}</small>
+    }
+  </label>
+
+  <label class="campo">
+    <span>Telefone</span>
+    <input pInputText type="tel" [formField]="formulario.telefone" autocomplete="off" />
+    <small class="campo__dica">Visível para todos do time.</small>
+    @if (formulario.telefone().touched() && formulario.telefone().invalid()) {
+      <small class="campo__erro">{{ formulario.telefone().errors()[0].message }}</small>
+    }
+  </label>
+
+  <label class="campo">
+    <span>Número da camisa</span>
+    <input pInputText inputmode="numeric" [formField]="formulario.numeroCamisa" autocomplete="off" />
+    @if (formulario.numeroCamisa().touched() && formulario.numeroCamisa().invalid()) {
+      <small class="campo__erro">{{ formulario.numeroCamisa().errors()[0].message }}</small>
+    }
+  </label>
+
+  <label class="campo">
+    <span>Posições</span>
+    <p-multiselect
+      [formField]="formulario.posicoes"
+      [options]="opcoesPosicao"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Selecione"
+      display="chip"
+      [showToggleAll]="false"
+      [filter]="false"
+      appendTo="body"
+    />
+  </label>
+
+  @if (!formulario.modalidade().hidden()) {
+    <label class="campo">
+      <span>Modalidade de cobrança</span>
+      <p-select
+        [formField]="formulario.modalidade"
+        [options]="opcoesModalidade"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+      />
+    </label>
+  }
+
+  @if (!formulario.status().hidden()) {
+    <label class="campo">
+      <span>Status</span>
+      <p-select
+        [formField]="formulario.status"
+        [options]="opcoesStatus"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+      />
+    </label>
+  }
+
+  <div class="acoes">
+    <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar.emit()" />
+    <p-button label="Salvar" type="submit" />
+  </div>
+</form>
