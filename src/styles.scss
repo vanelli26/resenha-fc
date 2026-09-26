@@ -26,7 +26,8 @@ body {
   background: var(--p-surface-950);
 }
 
-// Fundo do app: brilho da cor primária (acompanha o time) + faixas de gramado cortado.
+// Fundo do app. Claro: brilho da cor primária (acompanha o time) + faixas de gramado.
+// Escuro: campo da marca (public/marca/fundo.svg).
 // Camada fixa em pseudo-elemento: `background-attachment: fixed` não funciona no iOS.
 body::before {
   content: '';
@@ -41,6 +42,10 @@ body::before {
       color-mix(in srgb, var(--p-text-color) 2.5%, transparent) 0 3rem,
       transparent 3rem 6rem
     );
+}
+
+.app-dark body::before {
+  background: url('/marca/fundo.svg') center / cover no-repeat;
 }
 
 // Blocos reutilizados pelas telas (cartão, formulário, listas).

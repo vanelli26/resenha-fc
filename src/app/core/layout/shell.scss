@@ -27,7 +27,8 @@
 }
 
 .topo__marca {
-  --logo-tamanho: 2rem;
+  --logo-altura: 2.25rem;
+  flex-shrink: 0;
   display: inline-flex;
   border-radius: var(--p-border-radius-md);
   text-decoration: none;
@@ -93,12 +94,8 @@
     max(1rem, env(safe-area-inset-left));
 }
 
-// Celular estreito: só a marca, sobra espaço para o seletor de time.
+// Celular estreito: só o ícone da marca (ver Logo), sobra espaço para o seletor de time.
 @media (max-width: 480px) {
-  .topo__marca {
-    --logo-nome: none;
-  }
-
   .topo__time {
     max-width: none;
   }

@@ -251,8 +251,8 @@ src/app/
 - Status financeiros fixos em qualquer cor, sempre com ícone além da cor (a cor "pendente" pode coincidir com a do time): pago `success` + check; pendente `warn` + relógio; atrasado `danger` + exclamação; isento/cancelado `secondary`.
 - Escudo enviado pela diretoria/adminGeral: redimensionado no navegador (lado maior 256px, WebP; PNG onde não houver encoder WebP) e gravado como data URL no documento do time (até 120 000 caracteres). Sem Storage enquanto o plano for Spark.
 - Não usar cores hexadecimais soltas em componentes; usar tokens do tema (`var(--p-primary-color)` etc.).
-- Marca: `shared/logo.ts` (bola em balão de conversa + "ResenhaFC"), pintada com a primária, então acompanha o time. Favicon (`public/favicon.svg`) e ícone da tela inicial do iPhone (`public/apple-touch-icon.png`) usam a versão fixa verde sobre preto (únicos arquivos com hex).
-- Fundo do app: brilho da primária no topo + faixas sutis de gramado (`styles.scss`).
+- Marca oficial em `public/marca/` (balão de conversa com campo, fundo verde listrado): `icone.svg`/`icone-32.png` (favicon), `apple-touch-icon.png` (180px, da versão maskable), `logo-fundo-claro.svg`/`logo-fundo-escuro.svg` (usados por `shared/logo.ts` conforme o modo; no celular estreito, só o ícone) e `fundo.svg`. Cores fixas da marca, não seguem a cor do time. Pacote completo (192/512/maskable) guardado para o manifest da Fase 5.
+- Fundo do app (`styles.scss`): modo escuro usa `marca/fundo.svg`; modo claro, brilho da primária + faixas sutis de gramado.
 - Celular (< 768px): navegação do time em barra fixa no rodapé com ícone e texto; navegador: abas no topo. Áreas de toque ≥ 44px e respeito às safe areas (notch/barra do iOS).
 
 ---
@@ -318,7 +318,7 @@ src/app/
 | 26/09/2026 | Vínculo conta ↔ atleta editável em Membros (vincular existente, criar novo ou desvincular), independente do papel `jogador`. |
 | 26/09/2026 | Jogador edita no próprio atleta: apelido, telefone, posições e camisa. Nome, modalidade e status continuam com a diretoria. |
 | 26/09/2026 | Foto do atleta = foto do Google da conta vinculada, copiada pelo próprio jogador para `atletas.fotoUrl` (diretoria não lê `usuarios`). Visível ao time. |
-| 26/09/2026 | Identidade visual: logo próprio (bola em balão), favicon SVG + apple-touch-icon, fundo com brilho da cor do time, barra inferior de navegação no celular. Manifest/PWA continua na Fase 5. |
+| 26/09/2026 | Identidade visual: marca oficial do usuário (`public/marca/`) em logo, favicon, ícone do iPhone e fundo do modo escuro; barra inferior de navegação no celular. Manifest/PWA continua na Fase 5. Repositório público no GitHub (`vanelli26/resenha-fc`). |
 
 ---
 

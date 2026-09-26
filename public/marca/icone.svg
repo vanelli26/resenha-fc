@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs><clipPath id="c"><rect width="512" height="512" rx="112"/></clipPath><radialGradient id="v" cx="50%" cy="45%" r="70%"><stop offset="60%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".28"/></radialGradient></defs>
+<g clip-path="url(#c)"><rect width="512" height="512" fill="#0B3D2A"/><rect x="0.00" y="0" width="64.50" height="512" fill="#0F6B45"/><rect x="64.00" y="0" width="64.50" height="512" fill="#0C5E3C"/><rect x="128.00" y="0" width="64.50" height="512" fill="#0F6B45"/><rect x="192.00" y="0" width="64.50" height="512" fill="#0C5E3C"/><rect x="256.00" y="0" width="64.50" height="512" fill="#0F6B45"/><rect x="320.00" y="0" width="64.50" height="512" fill="#0C5E3C"/><rect x="384.00" y="0" width="64.50" height="512" fill="#0F6B45"/><rect x="448.00" y="0" width="64.50" height="512" fill="#0C5E3C"/><rect width="512" height="512" fill="url(#v)"/>
+<g transform="translate(0 -8)"><g fill="none" stroke="#F3F6F1" stroke-width="22" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M152,120 H360 A56,56 0 0 1 416,176 V304 A56,56 0 0 1 360,360 H222 L150,418 L166,360 H152 A56,56 0 0 1 96,304 V176 A56,56 0 0 1 152,120 Z"/>
+  <line x1="256" y1="120" x2="256" y2="360"/>
+  <circle cx="256" cy="240" r="50"/>
+  <path d="M96,200 H134 V280 H96"/><path d="M416,200 H378 V280 H416"/>
+</g><circle cx="256" cy="240" r="11" fill="#F3F6F1"/></g></g></svg>
