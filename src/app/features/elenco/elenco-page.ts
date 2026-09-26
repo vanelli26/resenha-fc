@@ -31,6 +31,14 @@ export class ElencoPage {
   /** Atleta vinculado à conta logada neste time (null se não estiver no elenco). */
   protected readonly meuAtletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
   protected readonly atletas = signal<ComId<Atleta>[]>([]);
+  /** Elenco em atividade (ativos e afastados). */
+  protected readonly elenco = computed(() => this.atletas().filter((a) => a.status !== 'inativo'));
+  /** Quem saiu do time: só a diretoria vê, para consultar ou reativar. */
+  protected readonly inativos = computed(() => this.atletas().filter((a) => a.status === 'inativo'));
+  protected readonly mostrarInativos = signal(false);
+  protected readonly visiveis = computed(() =>
+    this.mostrarInativos() && this.ehDiretoria() ? [...this.elenco(), ...this.inativos()] : this.elenco(),
+  );
   protected readonly carregando = signal(true);
   protected readonly dialogAberto = signal(false);
   protected readonly emEdicao = signal<ComId<Atleta> | null>(null);
@@ -52,6 +60,7 @@ export class ElencoPage {
       untracked(() => {
         this.atletas.set([]);
         this.dialogAberto.set(false);
+        this.mostrarInativos.set(false);
         if (timeId) void this.carregar();
       });
     });

@@ -83,8 +83,9 @@ export class AcessosService {
       await deleteDoc(doc(this.colecao(timeId), membro.uid));
       return;
     }
+    // Sair do time = sair do elenco: atleta fica inativo (não é excluído, ver Rules) e sem conta.
     const batch = writeBatch(this.firestore);
-    batch.update(atletaRef, { uid: null, atualizadoEm: serverTimestamp() });
+    batch.update(atletaRef, { uid: null, status: 'inativo', atualizadoEm: serverTimestamp() });
     batch.delete(doc(this.colecao(timeId), membro.uid));
     await batch.commit();
   }

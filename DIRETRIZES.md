@@ -319,6 +319,7 @@ src/app/
 | 26/09/2026 | Jogador edita no próprio atleta: apelido, telefone, posições e camisa. Nome, modalidade e status continuam com a diretoria. |
 | 26/09/2026 | Foto do atleta = foto do Google da conta vinculada, copiada pelo próprio jogador para `atletas.fotoUrl` (diretoria não lê `usuarios`). Visível ao time. |
 | 26/09/2026 | Identidade visual: marca oficial do usuário (`public/marca/`) em logo, favicon, ícone do iPhone e fundo do modo escuro; barra inferior de navegação no celular. Manifest/PWA continua na Fase 5. Repositório público no GitHub (`vanelli26/resenha-fc`). |
+| 26/09/2026 | "Remover do time" (Membros) apaga o acesso, desvincula a conta e marca o atleta como `inativo`. Elenco mostra só ativos/afastados; inativos ficam ocultos, e só a diretoria pode exibi-los (reativar pelo Editar). |
 
 ---
 

@@ -13,7 +13,7 @@
   </div>
 } @else {
   <ul class="lista">
-    @for (atleta of atletas(); track atleta.id) {
+    @for (atleta of visiveis(); track atleta.id) {
       <li class="cartao atleta" [class.atleta--inativo]="atleta.status !== 'ativo'">
         <span class="atleta__foto">
           <app-foto-pessoa [src]="atleta.fotoUrl" [nome]="atleta.apelido || atleta.nome" />
@@ -53,9 +53,20 @@
         </div>
       </li>
     } @empty {
-      <li class="texto-suave">Nenhum atleta cadastrado.</li>
+      <li class="texto-suave">Nenhum atleta no elenco.</li>
     }
   </ul>
+
+  @if (ehDiretoria() && inativos().length > 0) {
+    <p-button
+      class="inativos__botao"
+      [label]="(mostrarInativos() ? 'Ocultar' : 'Mostrar') + ' inativos (' + inativos().length + ')'"
+      size="small"
+      [text]="true"
+      severity="secondary"
+      (onClick)="mostrarInativos.set(!mostrarInativos())"
+    />
+  }
 }
 
 <p-dialog [header]="tituloDialog()" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(32rem, 100vw - 2rem)' }">
