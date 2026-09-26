@@ -45,3 +45,6 @@ Thumbs.db
 
 # Arquivos de trabalho locais
 /files.zip
+
+# Cache de deploy do Firebase CLI
+.firebase/
