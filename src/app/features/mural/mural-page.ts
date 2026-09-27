@@ -16,6 +16,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Recado } from '../../models/recado.model';
 import { mensagemDeErro } from '../../shared/erros';
+import { FaixaPatrocinadores } from '../patrocinadores/faixa-patrocinadores';
 import { DadosRecado, RecadosService } from './data/recados.service';
 
 const VAZIO: DadosRecado = { titulo: '', texto: '', fixado: false };
@@ -35,6 +36,7 @@ const VAZIO: DadosRecado = { titulo: '', texto: '', fixado: false };
     ToggleSwitchModule,
     Pencil,
     Thumbtack,
+    FaixaPatrocinadores,
   ],
   providers: [ConfirmationService],
   templateUrl: './mural-page.html',

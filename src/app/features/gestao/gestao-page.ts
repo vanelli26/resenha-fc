@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RouterLink } from '@angular/router';
 import { ChevronRight } from '@primeicons/angular/chevron-right';
 import { Flag } from '@primeicons/angular/flag';
+import { Star } from '@primeicons/angular/star';
 import { IdCard } from '@primeicons/angular/id-card';
 import { Link } from '@primeicons/angular/link';
 import { SlidersH } from '@primeicons/angular/sliders-h';
@@ -14,14 +15,14 @@ interface Item {
   caminho: string;
   titulo: string;
   descricao: string;
-  icone: 'membros' | 'convites' | 'solicitacoes' | 'socios' | 'esportes' | 'financeiro';
+  icone: 'membros' | 'convites' | 'solicitacoes' | 'socios' | 'apoiadores' | 'esportes' | 'financeiro';
   selo?: number;
 }
 
 /** Entrada das telas de administração do time; cada item aparece conforme o papel. */
 @Component({
   selector: 'app-gestao-page',
-  imports: [RouterLink, ChevronRight, Flag, IdCard, Link, SlidersH, UserPlus, Users],
+  imports: [RouterLink, ChevronRight, Flag, Star, IdCard, Link, SlidersH, UserPlus, Users],
   templateUrl: './gestao-page.html',
   styleUrl: './gestao-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +45,7 @@ export class GestaoPage {
           selo: this.solicitacoes.qtdPendentes(),
         },
         { caminho: 'socios', titulo: 'Sócios e colaboradores', descricao: 'Quem apoia o time sem jogar', icone: 'socios' },
+        { caminho: 'apoiadores', titulo: 'Apoiadores', descricao: 'Patrocinadores na faixa do mural', icone: 'apoiadores' },
         { caminho: 'esportes', titulo: 'Esportes', descricao: 'Campo, society, futsal e posições', icone: 'esportes' },
       );
     }

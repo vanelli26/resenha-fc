@@ -97,6 +97,8 @@ Recados por time, publicados por diretoria. Campos: título, texto, fixado, auto
 
 - Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos; até 50 (índice `fixado desc + criadoEm desc`).
 - Diretoria publica, edita (título, texto, fixado) e exclui. Autor e data não mudam. Texto simples (até 2000 caracteres), com quebras de linha.
+- **Apoiadores/patrocinadores**: faixa no topo do mural (logos em fila, rolagem lateral; tocar abre o link). Cadastro pela diretoria em Gestão › Apoiadores: nome, logo (data URL reduzido, como o escudo; até 80 000 caracteres), link https opcional (site, Instagram, wa.me) e ordem (setas sobe/desce). Até 20 por time.
+- Evolução aprovada (27/09/2026): postagens estilo Instagram (fotos no Storage, todos os membros publicam), curtidas e comentários. Ver seção 10.
 
 ### 2.9 Escalação
 
@@ -186,6 +188,9 @@ times/{timeId}/eventos/{eventoId}/escalacao/principal
 times/{timeId}/recados/{id}
   titulo, texto, fixado, autorUid, autorNome, criadoEm
 
+times/{timeId}/patrocinadores/{id}
+  nome, logo (data URL | null), link?, ordem, criadoEm
+
 times/{timeId}/campeonatos/{campeonatoId}
   nome, temporada, status
 
@@ -231,6 +236,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
 | `eventos`, `recados`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
 | `eventos/{id}/gols` | acesso ao time | diretoria, só com o evento `realizado` |
+| `patrocinadores` | acesso ao time | diretoria |
 | `presencas/{atletaId}` | acesso ao time | a própria pessoa: só o próprio `atletaId` (vínculo nos dois lados), só `resposta` (nunca `compareceu`), cadastro ativo, evento `agendado` e elegível pelo tipo (2.7); diretoria: qualquer um, inclusive `compareceu`; sem exclusão |
 
 - Validar tipos e campos permitidos nas escritas (`keys().hasOnly(...)`), valores em centavos inteiros e ≥ 0, enums válidos.
@@ -373,6 +379,7 @@ src/app/
 | 27/09/2026 | Fase 3c (Mural): aba Mural para todos; diretoria publica, edita e exclui recados (exclusão liberada: recado não tem efeito financeiro nem histórico). Tempo real, fixados no topo, limite de 50. `autorNome` = nome do membro no time (acesso) ou da conta. Sem aviso de "não lido" (exigiria estado por usuário). |
 | 27/09/2026 | Mural passa a ser a primeira aba e a tela inicial do time (antes: Agenda). Evento agendado ganha "Chamar o time": mensagem pronta para o WhatsApp (ou copiar) com link direto para confirmar presença; sem link público: só membros logados respondem. |
 | 27/09/2026 | Encerrar pede só placar e gols (autor + assistência opcional, "gol contra" do adversário); presença inicial = quem disse Vou, ajustada depois no evento encerrado ("Ajustar presença": listas Foram / Não foram). Gols em subcoleção `gols` do evento (um documento por gol, validado nas Rules), base da artilharia da Fase 4. |
+| 27/09/2026 | Projeto migrado para o plano **Blaze** pelo usuário. Mural evolui em 3 entregas: M3 apoiadores (faixa no topo, logo em data URL, sem Storage) — feita primeiro; M1 postagens com 1 a 4 fotos no **Storage** (`times/{timeId}/recados/{postId}/`), todos os membros publicam, autor edita/exclui o próprio, diretoria fixa e exclui qualquer; M2 curtidas (subcoleção por uid + contador validado nas Rules) e comentários (subcoleção; exclui o autor ou a diretoria; sem edição). Comentários saem de "fora do MVP". |
 
 ---
 

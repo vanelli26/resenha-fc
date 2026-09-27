@@ -70,6 +70,9 @@ rules_version = '2';
 //   autorId: atletaId | null (gol contra) · assistenciaId? (≠ autor; nunca em gol contra) · atualizadoEm (= request.time)
 //   Só a diretoria, e só com o evento realizado. A soma ≤ placar é conferida na UI.
 //
+// times/{timeId}/patrocinadores/{id}   (até 20; limite na UI)
+//   nome (1..60) · logo: data URL webp/png/jpeg (<= 80000) | null · link? (https) · ordem: int 0..99 · criadoEm (imutável)
+//
 // times/{timeId}/recados/{id}
 //   titulo (1..100) · texto (1..2000) · fixado: bool · autorUid (= request.auth.uid) · autorNome (1..100)
 //   criadoEm (= request.time); autor e criadoEm imutáveis
@@ -385,6 +388,18 @@ service cloud.firestore {
         && atleta.status == 'ativo'
         && evento.status == 'agendado'
         && (evento.tipo in ['confraternizacao', 'outro'] || atleta.get('vinculo', 'atleta') == 'atleta');
+    }
+
+    function isValidPatrocinador(data) {
+      return data.keys().hasAll(['nome', 'logo', 'ordem', 'criadoEm'])
+        && data.keys().hasOnly(['nome', 'logo', 'link', 'ordem', 'criadoEm'])
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 60
+        && (data.logo == null
+          || (data.logo is string && data.logo.size() <= 80000
+            && data.logo.matches('^data:image/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$')))
+        && (!('link' in data) || isValidUrl(data.link))
+        && data.ordem is int && data.ordem >= 0 && data.ordem <= 99
+        && data.criadoEm is timestamp;
     }
 
     function isValidRecado(data) {
@@ -732,6 +747,21 @@ service cloud.firestore {
 
           allow delete: if podeGerir(timeId);
         }
+      }
+
+      // Apoiadores (faixa do mural): todos do time leem; só a diretoria mantém.
+      match /patrocinadores/{patrocinadorId} {
+        allow read: if temAcesso(timeId) || isAdminGeral();
+
+        allow create: if podeGerir(timeId)
+          && isValidPatrocinador(request.resource.data)
+          && request.resource.data.criadoEm == request.time;
+
+        allow update: if podeGerir(timeId)
+          && isValidPatrocinador(request.resource.data)
+          && inalterados(['criadoEm']);
+
+        allow delete: if podeGerir(timeId);
       }
 
       // Mural: todos do time leem; só a diretoria publica, edita e exclui.

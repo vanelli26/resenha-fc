@@ -1,0 +1,122 @@
+<app-voltar para="gestao" rotulo="Gestão" />
+
+<div class="cabecalho-secao">
+  <h2>Apoiadores</h2>
+  @if (podeAdicionar()) {
+    <p-button label="Adicionar" size="small" (onClick)="novo()" />
+  }
+</div>
+
+<p class="texto-suave dica">
+  Apoiadores e patrocinadores aparecem numa faixa no topo do mural. Tocar no logo abre o link. Até {{ maximo }}.
+</p>
+
+@if (lista(); as itens) {
+  <ul class="lista">
+    @for (p of itens; track p.id; let i = $index, primeiro = $first, ultimo = $last) {
+      <li class="cartao apoiador">
+        <app-logo-patrocinador [src]="p.logo" [nome]="p.nome" />
+        <button type="button" class="apoiador__texto" (click)="editar(p)">
+          <strong>{{ p.nome }}</strong>
+          <small class="texto-suave">{{ p.link ?? 'Sem link' }}</small>
+        </button>
+        <div class="apoiador__ordem">
+          <p-button
+            [text]="true"
+            [rounded]="true"
+            size="small"
+            severity="secondary"
+            ariaLabel="Subir"
+            [disabled]="primeiro || processando()"
+            (onClick)="mover(i, -1)"
+          >
+            <svg data-p-icon="arrow-up" [size]="14" aria-hidden="true"></svg>
+          </p-button>
+          <p-button
+            [text]="true"
+            [rounded]="true"
+            size="small"
+            severity="secondary"
+            ariaLabel="Descer"
+            [disabled]="ultimo || processando()"
+            (onClick)="mover(i, 1)"
+          >
+            <svg data-p-icon="arrow-down" [size]="14" aria-hidden="true"></svg>
+          </p-button>
+        </div>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum apoiador cadastrado.</li>
+    }
+  </ul>
+} @else {
+  <div class="lista">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+}
+
+<p-dialog
+  [header]="emEdicao() ? 'Editar apoiador' : 'Novo apoiador'"
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [style]="{ width: 'min(28rem, 100vw - 2rem)' }"
+>
+  <form class="formulario" (submit)="$event.preventDefault(); salvar()">
+    <div class="campo">
+      <span>Logo</span>
+      <div class="logo">
+        <app-logo-patrocinador class="logo__previa" [src]="logo()" [nome]="modelo().nome || '?'" />
+        <label class="logo__enviar">
+          <input type="file" accept="image/*" (change)="escolherLogo($event)" />
+          <span class="p-button p-button-outlined p-button-sm">
+            {{ processandoImagem() ? 'Processando…' : logo() ? 'Trocar imagem' : 'Enviar imagem' }}
+          </span>
+        </label>
+        @if (logo()) {
+          <p-button label="Remover" size="small" [text]="true" severity="danger" type="button" (onClick)="logo.set(null)" />
+        }
+      </div>
+    </div>
+
+    <label class="campo">
+      <span>Nome</span>
+      <input pInputText [formField]="formulario.nome" autocomplete="off" />
+      @if (formulario.nome().touched() && formulario.nome().invalid()) {
+        <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
+      }
+    </label>
+
+    <label class="campo">
+      <span>Link <small class="texto-suave">(opcional)</small></span>
+      <input
+        pInputText
+        [formField]="formulario.link"
+        placeholder="instagram.com/empresa ou wa.me/5511…"
+        autocapitalize="off"
+        autocomplete="off"
+      />
+      @if (formulario.link().touched() && formulario.link().invalid()) {
+        <small class="campo__erro">{{ formulario.link().errors()[0].message }}</small>
+      }
+    </label>
+
+    <div class="acoes">
+      @if (emEdicao()) {
+        <p-button
+          label="Remover"
+          severity="danger"
+          [text]="true"
+          type="button"
+          class="acoes__remover"
+          [disabled]="processando()"
+          (onClick)="excluir()"
+        />
+      }
+      <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
+      <p-button label="Salvar" type="submit" [loading]="processando()" [disabled]="processandoImagem()" />
+    </div>
+  </form>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

@@ -18,7 +18,7 @@ export async function imagemParaDataUrl(arquivo: File, limiteCaracteres: number)
   } finally {
     bitmap.close();
   }
-  throw new Error('Imagem muito detalhada para o limite do escudo. Tente outra imagem ou recorte-a.');
+  throw new Error('Imagem muito detalhada para o limite. Tente outra imagem ou recorte-a.');
 }
 
 async function carregar(arquivo: File): Promise<ImageBitmap> {
