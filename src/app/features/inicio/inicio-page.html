@@ -25,6 +25,11 @@
                 <span>Administrador</span>
               }
             </span>
+            @if (proximos().get(time.timeId); as evento) {
+              <span class="item__proximo">
+                Próximo: {{ evento.data.toDate() | date: "EEE dd/MM, HH:mm" }} · {{ evento.titulo }}
+              </span>
+            }
           </span>
           @if (pendentes().get(time.timeId); as qtd) {
             <span class="item__pendentes">{{ qtd }} pendente{{ qtd > 1 ? 's' : '' }}</span>

@@ -1,0 +1,39 @@
+@let e = evento();
+<article class="cartao evento" [class.evento--cancelado]="e.status === 'cancelado'">
+  <a class="evento__link" [routerLink]="e.id">
+    <span class="evento__data">
+      <span class="evento__dia">{{ e.data.toDate() | date: 'dd' }}</span>
+      <span class="evento__mes">{{ e.data.toDate() | date: 'MMM' }}</span>
+    </span>
+    <span class="evento__texto">
+      <span class="evento__topo">
+        <small class="texto-suave">
+          {{ e.data.toDate() | date: 'EEE, HH:mm' }} · {{ rotuloTipo[e.tipo] }}
+          @if (esporte()) {
+            · {{ esporte() }}
+          }
+        </small>
+        @if (e.status === 'cancelado') {
+          <p-tag value="Cancelado" severity="danger" />
+        } @else if (e.status === 'realizado') {
+          <p-tag value="Realizado" severity="secondary" />
+        }
+      </span>
+      <strong>{{ e.titulo }}</strong>
+      @if (e.adversario) {
+        <small>x {{ e.adversario }}</small>
+      }
+      @if (e.local) {
+        <small class="texto-suave">{{ e.local }}</small>
+      }
+    </span>
+  </a>
+  @if (podeResponder()) {
+    <app-seletor-presenca
+      class="evento__presenca"
+      [resposta]="resposta()"
+      [desabilitado]="respondendo()"
+      (responder)="responder.emit($event)"
+    />
+  }
+</article>

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { addDoc, collection, deleteField, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteField, doc, getDoc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
 import { Atleta, AtletaGravado, StatusAtleta, TipoVinculo } from '../../../models/atleta.model';
@@ -34,6 +34,12 @@ export class AtletasService {
       const atleta = comId(d);
       return { ...atleta, posicoes: normalizarPosicoes(atleta.posicoes) };
     });
+  }
+
+  async obter(timeId: string, atletaId: string): Promise<ComId<Atleta> | null> {
+    const snap = await getDoc(doc(this.colecao(timeId), atletaId).withConverter(conversor<AtletaGravado>()));
+    const dados = snap.data();
+    return dados ? { ...dados, posicoes: normalizarPosicoes(dados.posicoes), id: snap.id } : null;
   }
 
   async criar(timeId: string, dados: DadosAtleta): Promise<void> {

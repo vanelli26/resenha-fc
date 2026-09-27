@@ -1,4 +1,5 @@
 import { StatusAtleta, TipoVinculo } from '../models/atleta.model';
+import { RespostaPresenca, StatusEvento, TipoEvento } from '../models/evento.model';
 import { TipoCobranca } from '../models/financeiro.model';
 import { Periodicidade } from '../models/modalidade.model';
 import { PapelTime } from '../models/papel.model';
@@ -79,6 +80,27 @@ export const ROTULO_COR: Record<CorTime, string> = {
   yellow: 'Amarelo',
   amber: 'Amarelo-ouro',
   orange: 'Laranja',
+};
+
+export const ROTULO_TIPO_EVENTO: Record<TipoEvento, string> = {
+  jogo: 'Jogo',
+  treino: 'Treino',
+  amistoso: 'Amistoso',
+  campeonato: 'Campeonato',
+  confraternizacao: 'Confraternização',
+  outro: 'Outro',
+};
+
+export const ROTULO_STATUS_EVENTO: Record<StatusEvento, string> = {
+  agendado: 'Agendado',
+  realizado: 'Realizado',
+  cancelado: 'Cancelado',
+};
+
+export const ROTULO_RESPOSTA: Record<RespostaPresenca, string> = {
+  vou: 'Vou',
+  talvez: 'Talvez',
+  nao_vou: 'Não vou',
 };
 
 export interface Opcao<T extends string> {

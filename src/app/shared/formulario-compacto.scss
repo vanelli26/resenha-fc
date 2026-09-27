@@ -1,4 +1,4 @@
-// Formulário compacto: pares de campos lado a lado, posições em linhas e dados do time agrupados.
+// Formulário compacto (atleta, evento): pares de campos lado a lado, grupos com título pequeno.
 .atleta-form {
   gap: 0.875rem;
 }
@@ -49,4 +49,13 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--p-text-muted-color);
+}
+
+// Linha de checkbox (ex.: "Repetir toda semana" no formulário de evento).
+.repetir {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
 }

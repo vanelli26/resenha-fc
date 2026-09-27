@@ -78,8 +78,13 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 
 - Tipos: `jogo`, `treino`, `amistoso`, `campeonato`, `confraternizacao`, `outro`.
 - Status: `agendado`, `realizado`, `cancelado`.
-- Presença por atleta: `resposta` (`vou`, `nao_vou`, `talvez`) informada pelo jogador; `compareceu` marcado pela diretoria ao encerrar o evento.
-- Jogo pode ter adversário, placar e vínculo com campeonato.
+- Presença por cadastro: `resposta` (`vou`, `nao_vou`, `talvez`) informada pela própria pessoa; `compareceu` marcado pela diretoria ao encerrar o evento.
+- Quem responde: cadastro `ativo`; em `jogo`, `treino`, `amistoso` e `campeonato`, só `vinculo` atleta; em `confraternizacao` e `outro`, qualquer cadastro (sócios e colaboradores inclusos). Sem limite de vagas nem prazo: responde enquanto o evento estiver `agendado`. A diretoria pode registrar a resposta de qualquer um.
+- Todo evento tem `esporte` (campo, society, futsal; entre os do time).
+- Jogo, amistoso e campeonato podem ter adversário; placar e vínculo com campeonato vêm no encerramento (3b) e na Fase 4.
+- Evento não é excluído: a diretoria cancela (continua na agenda, riscado) ou reativa.
+- Repetição semanal: na criação, "repetir toda semana por N semanas" (até 12) grava N eventos independentes no mesmo lote.
+- Agenda: próximos a partir do início do dia de hoje (até 30); anteriores em páginas de 20. Presenças do evento aberto em tempo real (listener); na lista, uma leitura da própria resposta por evento. "Meus times" mostra o próximo evento agendado de cada time (índice `status + data`).
 
 ### 2.8 Mural
 
@@ -157,8 +162,8 @@ times/{timeId}/lancamentos/{id}
   cobrancaId?, recorrenteId?, criadoPor, criadoEm
 
 times/{timeId}/eventos/{eventoId}
-  tipo, titulo, data (Timestamp), local, adversario?, placarPro?, placarContra?
-  status, campeonatoId?, criadoPor
+  tipo, titulo, data (Timestamp), local, esporte, adversario?, placarPro?, placarContra?
+  status, campeonatoId?, criadoPor, criadoEm
 
 times/{timeId}/eventos/{eventoId}/presencas/{atletaId}
   resposta, compareceu?, atualizadoEm
@@ -213,7 +218,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
 | `eventos`, `recados`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
-| `presencas/{atletaId}` | acesso ao time | jogador: só o próprio `atletaId`, só `resposta`, só evento `agendado`; diretoria: tudo |
+| `presencas/{atletaId}` | acesso ao time | a própria pessoa: só o próprio `atletaId` (vínculo nos dois lados), só `resposta`, cadastro ativo, evento `agendado` e elegível pelo tipo (2.7); diretoria: qualquer um; sem exclusão |
 
 - Validar tipos e campos permitidos nas escritas (`keys().hasOnly(...)`), valores em centavos inteiros e ≥ 0, enums válidos.
 - Toda alteração de regra passa pelo skill `firebase-security-rules-auditor` antes de concluir.
@@ -350,6 +355,7 @@ src/app/
 | 26/09/2026 | Próximas entregas aprovadas: vínculo no cadastro de atletas (`atleta`, `socio`, `colaborador`; Elenco mostra só atletas) e planos de cobrança configuráveis (nome, periodicidade, valor) no lugar dos valores fixos por modalidade; receita da baixa com categoria = nome do plano. |
 | 26/09/2026 | Vínculo no cadastro (`atletas.vinculo`: atleta, sócio, colaborador/torcedor), sem coleção nova: cobranças, convite e Minhas cobranças valem para todos. Elenco lista só atletas (filtro na tela: a coleção é pequena e cadastros antigos não têm o campo); Gestão › Sócios e colaboradores lista os demais (só edição: entram por convite, com login). |
 | 27/09/2026 | Planos de cobrança (2.4) substituem os valores fixos por modalidade: até 10 por time, validados item a item nas Rules; vencimentos únicos por periodicidade. `atletas.modalidade` passa a ser id de plano ou `isento` (planos migrados mantêm os ids `mensal`/`semestral`/`avulso`, sem regravar cadastros). Cobrança guarda `planoNome`, usado como categoria da receita na baixa. Toda gravação da configuração financeira grava o objeto inteiro (converte times antigos). |
+| 27/09/2026 | Fase 3a (Agenda): aba Agenda é a primeira e a tela inicial do time. Evento ganha `esporte` e `criadoEm`; não é excluído (cancelar/reativar). Presença: esportivos só atletas, confraternização/outro todos; sem limite de vagas nem prazo. Repetição semanal cria N eventos independentes (até 12). Entregas da Fase 3: 3a agenda e presença, 3b encerramento e cobrança de avulsos, 3c mural. |
 
 ---
 

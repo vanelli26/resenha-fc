@@ -44,6 +44,15 @@
   color: var(--p-text-muted-color);
 }
 
+// Próximo evento agendado do time.
+.item__proximo {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--p-primary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // Cobranças pendentes do meu atleta no time.
 .item__pendentes {
   flex-shrink: 0;

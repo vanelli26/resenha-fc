@@ -1,0 +1,75 @@
+<div class="cabecalho-secao">
+  <h2>Agenda</h2>
+  @if (ehDiretoria()) {
+    <p-button label="Novo evento" size="small" (onClick)="dialogAberto.set(true)" />
+  }
+</div>
+
+@if (carregando() && itensProximos().length === 0) {
+  <div class="lista">
+    <p-skeleton height="6rem" />
+    <p-skeleton height="6rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (item of itensProximos(); track item.evento.id) {
+      <li>
+        <app-cartao-evento
+          [evento]="item.evento"
+          [esporte]="item.esporte"
+          [podeResponder]="item.podeResponder"
+          [resposta]="item.resposta"
+          [respondendo]="respondendo() === item.evento.id"
+          (responder)="responder(item, $event)"
+        />
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum evento agendado.</li>
+    }
+  </ul>
+}
+
+<section class="anteriores">
+  @if (mostrandoAnteriores()) {
+    <h3>Anteriores</h3>
+    <ul class="lista">
+      @for (item of itensAnteriores(); track item.evento.id) {
+        <li>
+        <app-cartao-evento
+          [evento]="item.evento"
+          [esporte]="item.esporte"
+          [podeResponder]="item.podeResponder"
+          [resposta]="item.resposta"
+          [respondendo]="respondendo() === item.evento.id"
+          (responder)="responder(item, $event)"
+        />
+      </li>
+      } @empty {
+        @if (!carregandoAnteriores()) {
+          <li class="texto-suave">Nenhum evento anterior.</li>
+        }
+      }
+    </ul>
+  }
+  @if (!mostrandoAnteriores() || haMaisAnteriores()) {
+    <p-button
+      [label]="mostrandoAnteriores() ? 'Carregar mais' : 'Ver anteriores'"
+      size="small"
+      [text]="true"
+      severity="secondary"
+      [loading]="carregandoAnteriores()"
+      (onClick)="verAnteriores()"
+    />
+  }
+</section>
+
+<p-dialog header="Novo evento" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(32rem, 100vw - 2rem)' }">
+  @if (dialogAberto()) {
+    <app-evento-form
+      [esportes]="esportes()"
+      [salvando]="salvando()"
+      (salvar)="criar($event)"
+      (cancelar)="dialogAberto.set(false)"
+    />
+  }
+</p-dialog>

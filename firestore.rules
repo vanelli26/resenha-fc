@@ -56,7 +56,15 @@ rules_version = '2';
 //   tipo: 'receita' | 'despesa' · categoria (1..40) · descricao (1..120) · valorCentavos: int > 0 · data: timestamp
 //   cobrancaId? · recorrenteId? · criadoPor (= request.auth.uid) · criadoEm (= request.time, imutável)
 //
-// Demais coleções (eventos, recados, campeonatos...) entram nas próximas fases e ficam negadas.
+// times/{timeId}/eventos/{eventoId}   (não é excluído: cancelado fica na agenda)
+//   tipo: 'jogo'|'treino'|'amistoso'|'campeonato'|'confraternizacao'|'outro' · titulo (1..80) · data: timestamp
+//   local (0..120) · esporte: 'campo'|'society'|'futsal' · adversario? (1..60) · status: 'agendado'|'cancelado'
+//   ('realizado' e placar: encerramento, Fase 3b) · criadoPor (= request.auth.uid) · criadoEm (= request.time); ambos imutáveis
+//
+// times/{timeId}/eventos/{eventoId}/presencas/{atletaId}
+//   resposta: 'vou'|'nao_vou'|'talvez' · atualizadoEm (= request.time)   (compareceu: Fase 3b)
+//
+// Demais coleções (recados, campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
 
 service cloud.firestore {
@@ -320,6 +328,40 @@ service cloud.firestore {
         && (!('vinculo' in data) || data.vinculo in ['atleta', 'socio', 'colaborador'])
         && data.criadoEm is timestamp
         && data.atualizadoEm == request.time;
+    }
+
+    function isValidEvento(data) {
+      return data.keys().hasAll(['tipo', 'titulo', 'data', 'local', 'esporte', 'status', 'criadoPor', 'criadoEm'])
+        && data.keys().hasOnly(['tipo', 'titulo', 'data', 'local', 'esporte', 'adversario', 'status', 'criadoPor', 'criadoEm'])
+        && data.tipo in ['jogo', 'treino', 'amistoso', 'campeonato', 'confraternizacao', 'outro']
+        && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 80
+        && data.data is timestamp
+        && data.local is string && data.local.size() <= 120
+        && data.esporte in ['campo', 'society', 'futsal']
+        && textoOpcional(data, 'adversario', 1, 60)
+        && data.status in ['agendado', 'cancelado']
+        && data.criadoPor is string && data.criadoPor.size() <= 128
+        && data.criadoEm is timestamp;
+    }
+
+    function isValidPresenca(data) {
+      return data.keys().hasAll(['resposta', 'atualizadoEm'])
+        && data.keys().hasOnly(['resposta', 'atualizadoEm'])
+        && data.resposta in ['vou', 'nao_vou', 'talvez']
+        && data.atualizadoEm == request.time;
+    }
+
+    // Presença do próprio cadastro: vínculo nos dois lados, cadastro ativo e evento agendado.
+    // Esportivos: só atletas; confraternização e "outro": qualquer cadastro (DIRETRIZES 2.7).
+    function respondeProprio(timeId, eventoId, atletaId) {
+      let atleta = get(/databases/$(database)/documents/times/$(timeId)/atletas/$(atletaId)).data;
+      let evento = get(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId)).data;
+      return temAcesso(timeId)
+        && get(acessoPath(timeId)).data.atletaId == atletaId
+        && atleta.uid == request.auth.uid
+        && atleta.status == 'ativo'
+        && evento.status == 'agendado'
+        && (evento.tipo in ['confraternizacao', 'outro'] || atleta.get('vinculo', 'atleta') == 'atleta');
     }
 
     function isValidConvite(data, codigo) {
@@ -591,6 +633,35 @@ service cloud.firestore {
         allow delete: if podeFinanceiro(timeId)
           && (!lancamentoId.matches('^cob_.*')
             || getAfter(cobrancaPath(timeId, resource.data.cobrancaId)).data.status == 'pendente');
+      }
+
+      // Agenda: todos do time leem; só a diretoria cria e edita. Sem exclusão (cancelar).
+      match /eventos/{eventoId} {
+        allow read: if temAcesso(timeId) || isAdminGeral();
+
+        allow create: if podeGerir(timeId)
+          && isValidEvento(request.resource.data)
+          && request.resource.data.status == 'agendado'
+          && request.resource.data.criadoPor == request.auth.uid
+          && request.resource.data.criadoEm == request.time;
+
+        allow update: if podeGerir(timeId)
+          && isValidEvento(request.resource.data)
+          && inalterados(['criadoPor', 'criadoEm']);
+
+        allow delete: if false;
+
+        // Presença: cada um responde pelo próprio cadastro; a diretoria por qualquer um.
+        match /presencas/{atletaId} {
+          allow read: if temAcesso(timeId) || isAdminGeral();
+
+          allow create, update: if isValidPresenca(request.resource.data)
+            && (respondeProprio(timeId, eventoId, atletaId)
+              || (podeGerir(timeId)
+                && exists(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId))));
+
+          allow delete: if false;
+        }
       }
 
       // Pedido de entrada: criado pelo próprio com convite vigente; decidido pela gestão.

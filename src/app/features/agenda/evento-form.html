@@ -1,0 +1,94 @@
+<form class="formulario atleta-form" (submit)="$event.preventDefault(); enviar()">
+  <div class="grade">
+    <label class="campo" [class.grade__inteira]="formulario.esporte().hidden()">
+      <span>Tipo</span>
+      <p-select
+        [formField]="formulario.tipo"
+        [options]="opcoesTipo"
+        optionLabel="label"
+        optionValue="value"
+        [fluid]="true"
+        appendTo="body"
+      />
+    </label>
+
+    @if (!formulario.esporte().hidden()) {
+      <label class="campo">
+        <span>Esporte</span>
+        <p-select
+          [formField]="formulario.esporte"
+          [options]="opcoesEsporte()"
+          optionLabel="label"
+          optionValue="value"
+          [fluid]="true"
+          appendTo="body"
+        />
+      </label>
+    }
+
+    <label class="campo grade__inteira">
+      <span>Título</span>
+      <input pInputText [formField]="formulario.titulo" placeholder="Ex.: Jogo de sábado" autocomplete="off" />
+      @if (formulario.titulo().touched() && formulario.titulo().invalid()) {
+        <small class="campo__erro">{{ formulario.titulo().errors()[0].message }}</small>
+      }
+    </label>
+
+    <label class="campo">
+      <span>Data</span>
+      <input pInputText type="date" [formField]="formulario.data" />
+      @if (formulario.data().touched() && formulario.data().invalid()) {
+        <small class="campo__erro">{{ formulario.data().errors()[0].message }}</small>
+      }
+    </label>
+
+    <label class="campo">
+      <span>Hora</span>
+      <input pInputText type="time" [formField]="formulario.hora" />
+      @if (formulario.hora().touched() && formulario.hora().invalid()) {
+        <small class="campo__erro">{{ formulario.hora().errors()[0].message }}</small>
+      }
+    </label>
+
+    <label class="campo grade__inteira">
+      <span>Local</span>
+      <input pInputText [formField]="formulario.local" autocomplete="off" />
+      @if (formulario.local().touched() && formulario.local().invalid()) {
+        <small class="campo__erro">{{ formulario.local().errors()[0].message }}</small>
+      }
+    </label>
+
+    @if (!formulario.adversario().hidden()) {
+      <label class="campo grade__inteira">
+        <span>Adversário</span>
+        <input pInputText [formField]="formulario.adversario" autocomplete="off" />
+        @if (formulario.adversario().touched() && formulario.adversario().invalid()) {
+          <small class="campo__erro">{{ formulario.adversario().errors()[0].message }}</small>
+        }
+      </label>
+    }
+  </div>
+
+  @if (!formulario.repetir().hidden()) {
+    <div class="grupo">
+      <label class="repetir">
+        <p-checkbox [formField]="formulario.repetir" [binary]="true" />
+        <span>Repetir toda semana</span>
+      </label>
+      @if (!formulario.semanas().hidden()) {
+        <label class="campo">
+          <span>Quantas semanas (incluindo esta)</span>
+          <p-inputnumber [formField]="formulario.semanas" [showButtons]="true" [useGrouping]="false" [fluid]="true" />
+          @if (formulario.semanas().invalid()) {
+            <small class="campo__erro">{{ formulario.semanas().errors()[0].message }}</small>
+          }
+        </label>
+      }
+    </div>
+  }
+
+  <div class="acoes">
+    <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar.emit()" />
+    <p-button label="Salvar" type="submit" [loading]="salvando()" />
+  </div>
+</form>

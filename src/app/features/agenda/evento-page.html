@@ -1,0 +1,83 @@
+<app-voltar para="agenda" rotulo="Agenda" />
+
+@if (evento(); as e) {
+  <section class="cartao detalhe" [class.detalhe--cancelado]="e.status === 'cancelado'">
+    <div class="detalhe__topo">
+      <small class="texto-suave">
+        {{ rotuloTipo[e.tipo] }}
+        @if (esporte()) {
+          · {{ esporte() }}
+        }
+      </small>
+      @if (e.status !== 'agendado') {
+        <p-tag [value]="rotuloStatus[e.status]" [severity]="e.status === 'cancelado' ? 'danger' : 'secondary'" />
+      }
+    </div>
+    <h2>{{ e.titulo }}</h2>
+    @if (e.adversario) {
+      <p class="detalhe__linha">x {{ e.adversario }}</p>
+    }
+    <p class="detalhe__linha detalhe__quando">{{ e.data.toDate() | date: "EEEE, dd/MM/yyyy 'às' HH:mm" }}</p>
+    @if (e.local) {
+      <p class="detalhe__linha texto-suave">{{ e.local }}</p>
+    }
+
+    @if (podeResponder()) {
+      <div class="detalhe__presenca">
+        <span class="texto-suave">Sua presença</span>
+        <app-seletor-presenca [resposta]="minhaResposta()" [desabilitado]="respondendo()" (responder)="responder($event)" />
+      </div>
+    }
+
+    @if (ehDiretoria() && e.status !== 'realizado') {
+      <div class="acoes">
+        <p-button
+          [label]="e.status === 'agendado' ? 'Cancelar evento' : 'Reativar'"
+          size="small"
+          [text]="true"
+          [severity]="e.status === 'agendado' ? 'danger' : 'secondary'"
+          [disabled]="processando()"
+          (onClick)="alternarCancelamento()"
+        />
+        <p-button label="Editar" size="small" [outlined]="true" [disabled]="processando()" (onClick)="dialogAberto.set(true)" />
+      </div>
+    }
+  </section>
+
+  <div class="grupos">
+    @for (grupo of grupos(); track grupo.chave) {
+      <section class="grupo" [class]="'grupo--' + grupo.chave">
+        <h3>
+          {{ grupo.titulo }} <span class="texto-suave">({{ grupo.pessoas.length }})</span>
+        </h3>
+        <ul class="pessoas">
+          @for (pessoa of grupo.pessoas; track pessoa.id) {
+            <li class="pessoa">
+              <app-foto-pessoa [src]="pessoa.fotoUrl" [nome]="pessoa.apelido || pessoa.nome" />
+              <span>{{ pessoa.apelido || pessoa.nome }}</span>
+            </li>
+          } @empty {
+            <li class="texto-suave">Ninguém.</li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+
+  <p-dialog header="Editar evento" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(32rem, 100vw - 2rem)' }">
+    @if (dialogAberto()) {
+      <app-evento-form
+        [evento]="e"
+        [esportes]="esportes()"
+        [salvando]="processando()"
+        (salvar)="salvarEdicao($event)"
+        (cancelar)="dialogAberto.set(false)"
+      />
+    }
+  </p-dialog>
+  <p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />
+} @else if (naoEncontrado()) {
+  <p class="cartao texto-suave">Evento não encontrado.</p>
+} @else {
+  <p-skeleton height="10rem" />
+}

@@ -85,7 +85,7 @@ function paraDados(f: FormAtleta): DadosAtleta {
   selector: 'app-atleta-form',
   imports: [FormField, ButtonModule, InputTextModule, MultiSelectModule, SelectModule],
   templateUrl: './atleta-form.html',
-  styleUrl: './atleta-form.scss',
+  styleUrl: '../../shared/formulario-compacto.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AtletaForm {

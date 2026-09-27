@@ -16,6 +16,9 @@
         >
           <span class="abas__icone">
             @switch (aba.icone) {
+              @case ('agenda') {
+                <svg data-p-icon="calendar" [size]="20"></svg>
+              }
               @case ('elenco') {
                 <svg data-p-icon="users" [size]="20"></svg>
               }
