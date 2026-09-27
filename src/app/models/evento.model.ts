@@ -43,6 +43,19 @@ export interface Presenca {
   atualizadoEm: Timestamp;
 }
 
+/** Gols do time no evento. Máximo = placar a favor (99). */
+export const MAX_GOLS = 99;
+
+/**
+ * times/{timeId}/eventos/{eventoId}/gols/{NN} — um documento por gol do time, id = ordem ("01".."99").
+ * `autorId` null = gol contra do adversário (conta no placar, não na artilharia).
+ */
+export interface Gol {
+  autorId: string | null;
+  assistenciaId?: string;
+  atualizadoEm: Timestamp;
+}
+
 export interface Titular {
   atletaId: string;
   posicao: string;

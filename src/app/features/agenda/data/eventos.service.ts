@@ -16,11 +16,12 @@ import {
   updateDoc,
   where,
   writeBatch,
+  WriteBatch,
 } from 'firebase/firestore';
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
 import { Atleta, vinculoDe } from '../../../models/atleta.model';
-import { Evento, Presenca, RespostaPresenca, TIPOS_EVENTO_ABERTOS, TipoEvento } from '../../../models/evento.model';
+import { Evento, Gol, Presenca, RespostaPresenca, TIPOS_EVENTO_ABERTOS, TipoEvento } from '../../../models/evento.model';
 import { Esporte } from '../../../models/posicao.model';
 
 const MAX_PROXIMOS = 30;
@@ -46,6 +47,17 @@ export interface Comparecimento {
   atletaId: string;
   compareceu: boolean;
   temPresenca: boolean;
+}
+
+/** Gol a gravar: autor (null = gol contra) e assistência opcional. */
+export interface NovoGol {
+  autorId: string | null;
+  assistenciaId?: string;
+}
+
+/** Id do gol = ordem com 2 dígitos ("01".."99"): regravar a lista sobrescreve no lugar. */
+function idGol(ordem: number): string {
+  return String(ordem).padStart(2, '0');
 }
 
 /** Quem participa de um tipo de evento: cadastro ativo; nos esportivos, só atletas (DIRETRIZES 2.7). */
@@ -140,25 +152,46 @@ export class EventosService {
   }
 
   /**
-   * Encerrar (ou corrigir o encerramento): status `realizado`, placar e `compareceu`, num lote só.
+   * Encerrar (ou corrigir o encerramento), num lote: status `realizado`, placar, gols e, se informada,
+   * a presença inicial. Gols regravados por ordem; os que sobraram da versão anterior são apagados.
    * Quem não tem presença só ganha documento se compareceu (evita escrever faltas de quem nem respondeu).
    */
-  async encerrar(timeId: string, eventoId: string, placar: Placar | null, lista: Comparecimento[]): Promise<void> {
+  async encerrar(
+    timeId: string,
+    eventoId: string,
+    dados: { placar: Placar | null; gols: NovoGol[]; golsAnteriores: number; presenca: Comparecimento[] },
+  ): Promise<void> {
     const batch = writeBatch(this.firestore);
     batch.update(doc(this.firestore, 'times', timeId, 'eventos', eventoId), {
       status: 'realizado',
-      placarPro: placar ? placar.pro : deleteField(),
-      placarContra: placar ? placar.contra : deleteField(),
+      placarPro: dados.placar ? dados.placar.pro : deleteField(),
+      placarContra: dados.placar ? dados.placar.contra : deleteField(),
     });
-    for (const c of lista) {
-      if (!c.temPresenca && !c.compareceu) continue;
-      batch.set(
-        doc(this.presencas(timeId, eventoId), c.atletaId),
-        { compareceu: c.compareceu, atualizadoEm: serverTimestamp() },
-        { merge: true },
-      );
+    dados.gols.forEach((g, i) => {
+      batch.set(doc(this.gols(timeId, eventoId), idGol(i + 1)), {
+        autorId: g.autorId,
+        ...(g.assistenciaId ? { assistenciaId: g.assistenciaId } : {}),
+        atualizadoEm: serverTimestamp(),
+      });
+    });
+    for (let ordem = dados.gols.length + 1; ordem <= dados.golsAnteriores; ordem++) {
+      batch.delete(doc(this.gols(timeId, eventoId), idGol(ordem)));
     }
+    this.gravarPresenca(batch, timeId, eventoId, dados.presenca);
     await batch.commit();
+  }
+
+  /** Ajuste de presença depois do encerramento (diretoria). */
+  async salvarComparecimento(timeId: string, eventoId: string, lista: Comparecimento[]): Promise<void> {
+    const batch = writeBatch(this.firestore);
+    this.gravarPresenca(batch, timeId, eventoId, lista);
+    await batch.commit();
+  }
+
+  /** Gols do evento, na ordem. */
+  async listarGols(timeId: string, eventoId: string): Promise<ComId<Gol>[]> {
+    const snap = await getDocs(this.gols(timeId, eventoId));
+    return snap.docs.map(comId).sort((a, b) => a.id.localeCompare(b.id));
   }
 
   /** Minhas respostas nos eventos informados (uma leitura por evento). */
@@ -201,6 +234,17 @@ export class EventosService {
     );
   }
 
+  private gravarPresenca(batch: WriteBatch, timeId: string, eventoId: string, lista: Comparecimento[]): void {
+    for (const c of lista) {
+      if (!c.temPresenca && !c.compareceu) continue;
+      batch.set(
+        doc(this.presencas(timeId, eventoId), c.atletaId),
+        { compareceu: c.compareceu, atualizadoEm: serverTimestamp() },
+        { merge: true },
+      );
+    }
+  }
+
   private campos(e: DadosEvento) {
     return {
       tipo: e.tipo,
@@ -213,6 +257,10 @@ export class EventosService {
 
   private colecao(timeId: string) {
     return collection(this.firestore, 'times', timeId, 'eventos').withConverter(conversor<Evento>());
+  }
+
+  private gols(timeId: string, eventoId: string) {
+    return collection(this.firestore, 'times', timeId, 'eventos', eventoId, 'gols').withConverter(conversor<Gol>());
   }
 
   private presencas(timeId: string, eventoId: string) {

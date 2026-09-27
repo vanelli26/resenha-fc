@@ -82,7 +82,9 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Quem responde: cadastro `ativo`; em `jogo`, `treino`, `amistoso` e `campeonato`, só `vinculo` atleta; em `confraternizacao` e `outro`, qualquer cadastro (sócios e colaboradores inclusos). Sem limite de vagas nem prazo: responde enquanto o evento estiver `agendado`. A diretoria pode registrar a resposta de qualquer um.
 - Todo evento tem `esporte` (campo, society, futsal; entre os do time).
 - Jogo, amistoso e campeonato podem ter adversário e placar (opcional, informado no encerramento); vínculo com campeonato na Fase 4.
-- **Encerrar** (diretoria): lista quem participa do tipo ou tem presença, com "Vou" já marcado; marca `compareceu`, placar opcional e status `realizado`, num lote. Quem não respondeu só ganha documento de presença se compareceu (fica sem `resposta`). Depois de realizado: "Editar encerramento" corrige presença e placar; não volta a agendado nem é cancelado.
+- **Encerrar** (diretoria): placar opcional e **gols** (um por gol a favor: autor entre quem participa ou "gol contra" do adversário, assistência opcional; autor também opcional), status `realizado`, num lote. Presença inicial = quem disse "Vou" (`compareceu`). Quem não respondeu só ganha documento de presença se compareceu (fica sem `resposta`).
+- Depois de realizado: "Editar encerramento" corrige placar e gols; **"Ajustar presença"** (diretoria) mostra duas listas, **Foram** e **Não foram**, e tocar numa pessoa a move de lista. Não volta a agendado nem é cancelado.
+- Gols ficam em `eventos/{id}/gols/{NN}` (NN = ordem "01".."99"; regravar sobrescreve e apaga as sobras). Base da artilharia e assistências da Fase 4; gol contra conta no placar, não na artilharia.
 - Transições de status: `agendado` ↔ `cancelado`; `agendado` → `realizado`.
 - Evento não é excluído: a diretoria cancela (continua na agenda, riscado) ou reativa.
 - Repetição semanal: na criação, "repetir toda semana por N semanas" (até 12) grava N eventos independentes no mesmo lote.
@@ -174,6 +176,10 @@ times/{timeId}/eventos/{eventoId}
 times/{timeId}/eventos/{eventoId}/presencas/{atletaId}
   resposta?, compareceu?, atualizadoEm   // resposta ausente = marcado pela diretoria sem ter respondido
 
+times/{timeId}/eventos/{eventoId}/gols/{NN}   // NN = "01".."99" (ordem)
+  autorId: string | null                 // null = gol contra do adversário
+  assistenciaId?, atualizadoEm
+
 times/{timeId}/eventos/{eventoId}/escalacao/principal
   formacao, titulares: [{ atletaId, posicao, x, y }], reservas: string[]
 
@@ -224,6 +230,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
 | `eventos`, `recados`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
+| `eventos/{id}/gols` | acesso ao time | diretoria, só com o evento `realizado` |
 | `presencas/{atletaId}` | acesso ao time | a própria pessoa: só o próprio `atletaId` (vínculo nos dois lados), só `resposta` (nunca `compareceu`), cadastro ativo, evento `agendado` e elegível pelo tipo (2.7); diretoria: qualquer um, inclusive `compareceu`; sem exclusão |
 
 - Validar tipos e campos permitidos nas escritas (`keys().hasOnly(...)`), valores em centavos inteiros e ≥ 0, enums válidos.
@@ -365,6 +372,7 @@ src/app/
 | 27/09/2026 | Fase 3b: encerramento pela diretoria (compareceu + placar opcional, status `realizado`, corrigível depois). Cobrança de avulsos pela tesouraria no próprio evento realizado: quem compareceu e tem plano avulso, valor do plano, vencimento na data do jogo, referência = `eventoId` (idempotente). Rules de cobrança não conferem o evento (tesouraria é confiável, como nas mensais; evita um `get` por cobrança no lote). Cobrança avulsa aparece como "Avulso · jogo de dd/MM". Atalho em Financeiro › Gerar cobranças ("Avulsos por jogo": últimos 10 eventos realizados, índice `status + data desc`). |
 | 27/09/2026 | Fase 3c (Mural): aba Mural para todos; diretoria publica, edita e exclui recados (exclusão liberada: recado não tem efeito financeiro nem histórico). Tempo real, fixados no topo, limite de 50. `autorNome` = nome do membro no time (acesso) ou da conta. Sem aviso de "não lido" (exigiria estado por usuário). |
 | 27/09/2026 | Mural passa a ser a primeira aba e a tela inicial do time (antes: Agenda). Evento agendado ganha "Chamar o time": mensagem pronta para o WhatsApp (ou copiar) com link direto para confirmar presença; sem link público: só membros logados respondem. |
+| 27/09/2026 | Encerrar pede só placar e gols (autor + assistência opcional, "gol contra" do adversário); presença inicial = quem disse Vou, ajustada depois no evento encerrado ("Ajustar presença": listas Foram / Não foram). Gols em subcoleção `gols` do evento (um documento por gol, validado nas Rules), base da artilharia da Fase 4. |
 
 ---
 

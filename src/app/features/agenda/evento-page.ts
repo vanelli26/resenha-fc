@@ -27,7 +27,7 @@ import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
-import { Evento, Presenca, RespostaPresenca } from '../../models/evento.model';
+import { Evento, Gol, Presenca, RespostaPresenca } from '../../models/evento.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 import { ROTULO_ESPORTE, ROTULO_STATUS_EVENTO, ROTULO_TIPO_EVENTO } from '../../shared/rotulos';
@@ -101,6 +101,38 @@ export class EventoPage {
   protected readonly processando = signal(false);
   protected readonly dialogAberto = signal(false);
   protected readonly encerrandoAberto = signal(false);
+  protected readonly gols = signal<ComId<Gol>[]>([]);
+
+  // Ajuste de presença do evento encerrado (diretoria): duas listas, tocar move entre elas.
+  protected readonly ajustando = signal(false);
+  protected readonly presentesEmAjuste = signal<ReadonlySet<string>>(new Set());
+  protected readonly abaAjuste = signal<'foram' | 'nao_foram'>('foram');
+  protected readonly opcoesAbaAjuste = computed(() => {
+    const presentes = this.presentesEmAjuste();
+    const foram = this.participantes().filter((p) => presentes.has(p.atleta.id)).length;
+    return [
+      { value: 'foram', label: `Foram ${foram}` },
+      { value: 'nao_foram', label: `Não foram ${this.participantes().length - foram}` },
+    ];
+  });
+  protected readonly listaAjuste = computed(() => {
+    const presentes = this.presentesEmAjuste();
+    const foram = this.abaAjuste() === 'foram';
+    return this.participantes()
+      .filter((p) => presentes.has(p.atleta.id) === foram)
+      .map((p) => p.atleta);
+  });
+
+  /** Gols para exibir: "Fulano (Beltrano)", "Gol contra". */
+  protected readonly textoGols = computed(() => {
+    const nomes = new Map(this.cadastros().map((a) => [a.id, a.apelido || a.nome]));
+    return this.gols().map((g) => {
+      if (!g.autorId) return 'Gol contra';
+      const autor = nomes.get(g.autorId) ?? '?';
+      const assist = g.assistenciaId ? nomes.get(g.assistenciaId) : undefined;
+      return assist ? `${autor} (${assist})` : autor;
+    });
+  });
 
   protected readonly esporte = computed(() => {
     const e = this.evento();
@@ -214,6 +246,8 @@ export class EventoPage {
         this.pararDeOuvir?.();
         this.evento.set(null);
         this.presencas.set([]);
+        this.gols.set([]);
+        this.ajustando.set(false);
         this.naoEncontrado.set(false);
         if (timeId) void this.carregar(timeId, eventoId);
       });
@@ -286,10 +320,52 @@ export class EventoPage {
     if (!timeId || !e) return;
     const jaRealizado = e.status === 'realizado';
     const ok = await this.executar(
-      () => this.eventosService.encerrar(timeId, e.id, encerramento.placar, encerramento.lista),
+      () =>
+        this.eventosService.encerrar(timeId, e.id, {
+          placar: encerramento.placar,
+          gols: encerramento.gols,
+          golsAnteriores: this.gols().length,
+          presenca: encerramento.presenca,
+        }),
       jaRealizado ? 'Encerramento atualizado' : 'Evento encerrado',
     );
-    if (ok) this.encerrandoAberto.set(false);
+    if (ok) {
+      this.encerrandoAberto.set(false);
+      await this.carregarGols(timeId, e.id);
+    }
+  }
+
+  protected iniciarAjuste(): void {
+    this.presentesEmAjuste.set(new Set(this.compareceram().map((a) => a.id)));
+    this.abaAjuste.set('foram');
+    this.ajustando.set(true);
+  }
+
+  /** Toque numa pessoa: passa de "Foram" para "Não foram" e vice-versa. */
+  protected moverNoAjuste(atletaId: string): void {
+    this.presentesEmAjuste.update((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(atletaId)) novo.delete(atletaId);
+      else novo.add(atletaId);
+      return novo;
+    });
+  }
+
+  protected async salvarAjuste(): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const e = this.evento();
+    if (!timeId || !e) return;
+    const presentes = this.presentesEmAjuste();
+    const lista = this.participantes().map((p) => ({
+      atletaId: p.atleta.id,
+      compareceu: presentes.has(p.atleta.id),
+      temPresenca: p.temPresenca,
+    }));
+    const ok = await this.executar(
+      () => this.eventosService.salvarComparecimento(timeId, e.id, lista),
+      'Presença atualizada',
+    );
+    if (ok) this.ajustando.set(false);
   }
 
   protected alternarCancelamento(): void {
@@ -332,6 +408,15 @@ export class EventoPage {
     }
   }
 
+  private async carregarGols(timeId: string, eventoId: string): Promise<void> {
+    try {
+      const gols = await this.eventosService.listarGols(timeId, eventoId);
+      if (this.timeAtual.timeId() === timeId && this.eventoId() === eventoId) this.gols.set(gols);
+    } catch (err) {
+      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar os gols', detail: mensagemDeErro(err) });
+    }
+  }
+
   private async carregar(timeId: string, eventoId: string): Promise<void> {
     try {
       const [evento, cadastros] = await Promise.all([
@@ -345,6 +430,7 @@ export class EventoPage {
       }
       this.evento.set(evento);
       this.cadastros.set(cadastros);
+      if (evento.status === 'realizado') void this.carregarGols(timeId, eventoId);
       this.pararDeOuvir = this.eventosService.ouvirPresencas(
         timeId,
         eventoId,

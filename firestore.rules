@@ -66,6 +66,10 @@ rules_version = '2';
 //   resposta?: 'vou'|'nao_vou'|'talvez' (da própria pessoa) · compareceu?: bool (só diretoria, no encerramento)
 //   atualizadoEm (= request.time)
 //
+// times/{timeId}/eventos/{eventoId}/gols/{NN}     NN = ordem "01".."99"
+//   autorId: atletaId | null (gol contra) · assistenciaId? (≠ autor; nunca em gol contra) · atualizadoEm (= request.time)
+//   Só a diretoria, e só com o evento realizado. A soma ≤ placar é conferida na UI.
+//
 // times/{timeId}/recados/{id}
 //   titulo (1..100) · texto (1..2000) · fixado: bool · autorUid (= request.auth.uid) · autorNome (1..100)
 //   criadoEm (= request.time); autor e criadoEm imutáveis
@@ -394,6 +398,17 @@ service cloud.firestore {
         && data.criadoEm is timestamp;
     }
 
+    function isValidGol(data, golId) {
+      return golId.matches('^[0-9]{2}$') && golId != '00'
+        && data.keys().hasAll(['autorId', 'atualizadoEm'])
+        && data.keys().hasOnly(['autorId', 'assistenciaId', 'atualizadoEm'])
+        && (data.autorId == null || (data.autorId is string && data.autorId.size() >= 1 && data.autorId.size() <= 40))
+        && (!('assistenciaId' in data) || (data.autorId != null
+          && data.assistenciaId is string && data.assistenciaId.size() >= 1 && data.assistenciaId.size() <= 40
+          && data.assistenciaId != data.autorId))
+        && data.atualizadoEm == request.time;
+    }
+
     function diretoriaNoEvento(timeId, eventoId) {
       return podeGerir(timeId)
         && existsAfter(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId));
@@ -705,6 +720,17 @@ service cloud.firestore {
               || diretoriaNoEvento(timeId, eventoId));
 
           allow delete: if false;
+        }
+
+        // Gols do time: só a diretoria, com o evento realizado (no mesmo lote do encerramento ou depois).
+        match /gols/{golId} {
+          allow read: if temAcesso(timeId) || isAdminGeral();
+
+          allow create, update: if podeGerir(timeId)
+            && isValidGol(request.resource.data, golId)
+            && getAfter(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId)).data.status == 'realizado';
+
+          allow delete: if podeGerir(timeId);
         }
       }
 

@@ -1,23 +1,76 @@
+.encerrar {
+  display: grid;
+  gap: 1.25rem;
+}
+
+// Marcador: nosso time x adversário, números grandes com − e +.
 .placar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem 0.75rem;
+  border-radius: var(--p-border-radius-lg);
+  background: color-mix(in srgb, var(--p-primary-color) 8%, transparent);
+  border: 1px solid var(--p-content-border-color);
+}
+
+.placar__lado {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  --escudo-tamanho: 2.25rem;
+}
+
+.placar__nome {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--p-text-muted-color);
+}
+
+.placar__controle {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  gap: 0.125rem;
+}
 
-  legend {
-    margin-bottom: 0.375rem;
-    font-size: 0.875rem;
+.placar__numero {
+  min-width: 2.5rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+
+  &--vazio {
+    color: var(--p-text-muted-color);
   }
 }
 
-.presentes {
+.placar__x {
+  align-self: center;
+  padding-top: 2.5rem;
+  font-size: 1.25rem;
+  color: var(--p-text-muted-color);
+}
+
+.placar__limpar,
+.placar__dica {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.gols {
   display: grid;
   gap: 0.375rem;
 }
 
-.presentes__titulo {
+.secao__titulo {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -25,26 +78,43 @@
   color: var(--p-text-muted-color);
 }
 
-.presentes__lista {
+.gols__lista {
   list-style: none;
-  margin: 0;
+  margin: 0.25rem 0 0;
   padding: 0;
-  max-height: 50vh;
-  overflow-y: auto;
+  display: grid;
+  gap: 0.5rem;
 }
 
-.presente {
-  display: flex;
+// Nº do gol, autor e assistência na mesma linha; no celular, a assistência desce.
+.gol {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  gap: 0.75rem;
-  min-height: 44px;
-  cursor: pointer;
+  gap: 0.5rem;
 }
 
-.presente__nome {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.gol__numero {
+  font-weight: 700;
+  color: var(--p-primary-color);
+}
+
+@media (max-width: 480px) {
+  .gol {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .gol__assistencia {
+    grid-column: 2;
+  }
+}
+
+.aviso {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.encerrar__rodape {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--p-content-border-color);
 }

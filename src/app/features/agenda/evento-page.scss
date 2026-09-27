@@ -113,10 +113,23 @@
   margin-top: 1rem;
 }
 
+.presencas__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 // Abas roláveis na horizontal se não couberem.
 .presencas__abas {
   display: block;
+  max-width: 100%;
   overflow-x: auto;
+}
+
+.detalhe__gols {
+  font-size: 0.875rem;
 }
 
 .pessoas {
@@ -144,5 +157,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  // No ajuste de presença, cada pessoa é um botão (tocar move de lista).
+  &--botao {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--p-content-border-color);
+    border-radius: var(--p-border-radius-md);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.875rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--p-primary-color);
+    }
   }
 }

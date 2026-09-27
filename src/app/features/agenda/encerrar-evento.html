@@ -1,58 +1,96 @@
-<form class="formulario" (submit)="$event.preventDefault(); enviar()">
+<div class="encerrar">
   @if (temPlacar()) {
-    <fieldset class="placar">
-      <legend>Placar <small class="texto-suave">(opcional)</small></legend>
-      <p-inputnumber
-        [ngModel]="placarPro()"
-        (ngModelChange)="placarPro.set($event)"
-        name="pro"
-        [min]="0"
-        [max]="99"
-        [useGrouping]="false"
-        [inputStyle]="estiloNumero"
-        ariaLabel="Gols a favor"
-      />
-      <span aria-hidden="true">x</span>
-      <p-inputnumber
-        [ngModel]="placarContra()"
-        (ngModelChange)="placarContra.set($event)"
-        name="contra"
-        [min]="0"
-        [max]="99"
-        [useGrouping]="false"
-        [inputStyle]="estiloNumero"
-        [ariaLabel]="'Gols ' + (evento().adversario ?? 'contra')"
-      />
-    </fieldset>
-    @if (placarIncompleto()) {
-      <small class="campo__erro">Informe os dois lados do placar (ou deixe os dois vazios).</small>
+    @let p = placar();
+    <section class="placar" aria-label="Placar">
+      <div class="placar__lado">
+        <app-escudo [src]="time()?.escudo ?? ''" [nome]="time()?.nome ?? '?'" />
+        <span class="placar__nome">{{ time()?.nome }}</span>
+        <div class="placar__controle">
+          <p-button [text]="true" [rounded]="true" severity="secondary" ariaLabel="Menos um gol nosso" [disabled]="!p || p.pro === 0" (onClick)="somar('pro', -1)">
+            <svg data-p-icon="minus" [size]="14" aria-hidden="true"></svg>
+          </p-button>
+          <span class="placar__numero" [class.placar__numero--vazio]="!p">{{ p ? p.pro : '–' }}</span>
+          <p-button [text]="true" [rounded]="true" severity="secondary" ariaLabel="Mais um gol nosso" (onClick)="somar('pro', 1)">
+            <svg data-p-icon="plus" [size]="14" aria-hidden="true"></svg>
+          </p-button>
+        </div>
+      </div>
+
+      <span class="placar__x" aria-hidden="true">x</span>
+
+      <div class="placar__lado">
+        <app-escudo src="" [nome]="evento().adversario ?? 'Adversário'" />
+        <span class="placar__nome">{{ evento().adversario ?? 'Adversário' }}</span>
+        <div class="placar__controle">
+          <p-button [text]="true" [rounded]="true" severity="secondary" ariaLabel="Menos um gol do adversário" [disabled]="!p || p.contra === 0" (onClick)="somar('contra', -1)">
+            <svg data-p-icon="minus" [size]="14" aria-hidden="true"></svg>
+          </p-button>
+          <span class="placar__numero" [class.placar__numero--vazio]="!p">{{ p ? p.contra : '–' }}</span>
+          <p-button [text]="true" [rounded]="true" severity="secondary" ariaLabel="Mais um gol do adversário" (onClick)="somar('contra', 1)">
+            <svg data-p-icon="plus" [size]="14" aria-hidden="true"></svg>
+          </p-button>
+        </div>
+      </div>
+
+      @if (p) {
+        <p-button class="placar__limpar" label="Sem placar" size="small" [text]="true" severity="secondary" (onClick)="semPlacar()" />
+      } @else {
+        <small class="placar__dica texto-suave">Opcional. Toque em + para informar.</small>
+      }
+    </section>
+
+    @if (linhas().length > 0) {
+      <section class="gols">
+        <span class="secao__titulo">Nossos gols</span>
+        <small class="texto-suave">Autor e assistência são opcionais.</small>
+        <ol class="gols__lista">
+          @for (linha of linhas(); track $index; let i = $index) {
+            <li class="gol">
+              <span class="gol__numero" aria-hidden="true">{{ i + 1 }}º</span>
+              <p-select
+                class="gol__autor"
+                [options]="opcoesAutor()"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Quem fez"
+                [ngModel]="linha.autor || null"
+                (ngModelChange)="definirAutor(i, $event)"
+                [filter]="opcoesAutor().length > 10"
+                [fluid]="true"
+                appendTo="body"
+                [ariaLabel]="'Autor do ' + (i + 1) + 'º gol'"
+              />
+              <p-select
+                class="gol__assistencia"
+                [options]="opcoesPessoas()"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Assistência"
+                [ngModel]="linha.assistencia"
+                (ngModelChange)="definirAssistencia(i, $event)"
+                [disabled]="linha.autor === golContra"
+                [showClear]="true"
+                [filter]="opcoesPessoas().length > 10"
+                [fluid]="true"
+                appendTo="body"
+                [ariaLabel]="'Assistência do ' + (i + 1) + 'º gol'"
+              />
+            </li>
+          }
+        </ol>
+      </section>
     }
   }
 
-  <div class="presentes">
-    <span class="presentes__titulo">Compareceram ({{ marcados().size }})</span>
-    <ul class="presentes__lista">
-      @for (p of participantes(); track p.atleta.id) {
-        <li>
-          <label class="presente">
-            <p-checkbox
-              [binary]="true"
-              [ngModel]="marcados().has(p.atleta.id)"
-              (ngModelChange)="alternar(p.atleta.id, $event)"
-              [name]="'presente-' + p.atleta.id"
-            />
-            <span class="presente__nome">{{ p.atleta.apelido || p.atleta.nome }}</span>
-            <small class="texto-suave">{{ p.resposta ? rotuloResposta[p.resposta] : 'Sem resposta' }}</small>
-          </label>
-        </li>
-      } @empty {
-        <li class="texto-suave">Ninguém no cadastro para este tipo de evento.</li>
-      }
-    </ul>
-  </div>
+  @if (primeiroEncerramento()) {
+    <p class="aviso texto-suave">
+      <strong>{{ presentesIniciais() }}</strong> presente{{ presentesIniciais() === 1 ? '' : 's' }} (quem disse Vou).
+      Depois de encerrar, ajuste quem foi e quem não foi em "Ajustar presença".
+    </p>
+  }
 
-  <div class="acoes">
+  <div class="acoes encerrar__rodape">
     <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar.emit()" />
-    <p-button label="Encerrar" type="submit" [loading]="salvando()" [disabled]="placarIncompleto()" />
+    <p-button [label]="primeiroEncerramento() ? 'Encerrar evento' : 'Salvar'" [loading]="salvando()" (onClick)="enviar()" />
   </div>
-</form>
+</div>
