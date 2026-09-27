@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// ===============================================================
+// Storage — ResenhaFC (DIRETRIZES 2.8, 4)
+//
+// times/{timeId}/recados/{recadoId}/{N}.{webp|jpeg}   N = 0..3 (até 4 fotos por postagem)
+//   Envio: membro do time, só imagem webp/jpeg até 5 MB, metadado autorUid = quem envia; não sobrescreve.
+//   Leitura (SDK): membro do time ou adminGeral. As URLs de download (com token) são as gravadas no post.
+//   Exclusão: quem enviou (autorUid) ou a diretoria/adminGeral.
+// Todo o resto: negado.
+// ===============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function acesso(timeId) {
+      return /databases/(default)/documents/times/$(timeId)/acessos/$(request.auth.uid);
+    }
+
+    function isAdminGeral() {
+      return logado()
+        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.get('adminGeral', false) == true;
+    }
+
+    function membro(timeId) {
+      return logado() && firestore.exists(acesso(timeId));
+    }
+
+    function diretoria(timeId) {
+      return isAdminGeral()
+        || (membro(timeId) && 'diretoria' in firestore.get(acesso(timeId)).data.papeis);
+    }
+
+    match /times/{timeId}/recados/{recadoId}/{arquivo} {
+      allow read: if membro(timeId) || isAdminGeral();
+
+      allow create: if membro(timeId)
+        && arquivo.matches('^[0-3][.](webp|jpeg)$')
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(webp|jpeg)')
+        && request.resource.metadata.autorUid == request.auth.uid;
+
+      allow update: if false;
+
+      allow delete: if logado()
+        && (resource.metadata.autorUid == request.auth.uid || diretoria(timeId));
+    }
+  }
+}

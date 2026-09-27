@@ -1,0 +1,58 @@
+<div class="nova">
+  <div class="nova__fotos">
+    @for (f of fotos(); track f.previa; let i = $index) {
+      <div class="nova__foto">
+        <img [src]="f.previa" [alt]="'Foto ' + (i + 1)" />
+        @if (!enviando()) {
+          <button type="button" class="nova__remover" [attr.aria-label]="'Remover foto ' + (i + 1)" (click)="remover(i)">
+            <svg data-p-icon="times" [size]="12" aria-hidden="true"></svg>
+          </button>
+        }
+      </div>
+    }
+    @if (fotos().length < maxFotos && !enviando()) {
+      <label class="nova__adicionar" [class.nova__adicionar--vazio]="fotos().length === 0">
+        <input type="file" accept="image/*" multiple (change)="escolher($event)" />
+        <svg data-p-icon="camera" [size]="22" aria-hidden="true"></svg>
+        <span>{{ processando() ? 'Preparando…' : fotos().length === 0 ? 'Adicionar fotos' : 'Mais' }}</span>
+        <small class="texto-suave">{{ fotos().length }}/{{ maxFotos }}</small>
+      </label>
+    }
+  </div>
+  @if (erro(); as mensagem) {
+    <small class="campo__erro">{{ mensagem }}</small>
+  }
+
+  <label class="campo">
+    <span class="visualmente-oculto">Legenda</span>
+    <textarea
+      pTextarea
+      rows="3"
+      [autoResize]="true"
+      placeholder="Escreva uma legenda…"
+      [ngModel]="texto()"
+      (ngModelChange)="texto.set($event)"
+      [disabled]="enviando()"
+    ></textarea>
+    @if (texto().length > maxTexto) {
+      <small class="campo__erro">Máximo de {{ maxTexto }} caracteres ({{ texto().length }}).</small>
+    }
+  </label>
+
+  @if (podeFixar()) {
+    <label class="nova__fixar">
+      <p-toggleswitch [ngModel]="fixado()" (ngModelChange)="fixado.set($event)" [disabled]="enviando()" />
+      <span>Fixar no topo</span>
+    </label>
+  }
+
+  <div class="acoes">
+    <p-button label="Cancelar" [text]="true" type="button" [disabled]="enviando()" (onClick)="cancelar.emit()" />
+    <p-button
+      [label]="enviando() && fotos().length > 0 ? 'Enviando ' + enviadas() + '/' + fotos().length + '…' : 'Publicar'"
+      [loading]="enviando()"
+      [disabled]="!podePublicar()"
+      (onClick)="enviar()"
+    />
+  </div>
+</div>

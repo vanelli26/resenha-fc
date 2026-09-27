@@ -93,10 +93,13 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 
 ### 2.8 Mural
 
-Recados por time, publicados por diretoria. Campos: título, texto, fixado, autor, data. Comentários ficam fora do MVP.
+Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fotos e legenda. **Qualquer membro publica.** O autor edita a legenda e exclui o próprio post (as fotos saem junto); a diretoria fixa no topo e exclui qualquer post. Posts antigos (só texto, com título) continuam válidos. Curtidas e comentários: entrega M2.
 
-- Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos; até 50 (índice `fixado desc + criadoEm desc`).
-- Diretoria publica, edita (título, texto, fixado) e exclui. Autor e data não mudam. Texto simples (até 2000 caracteres), com quebras de linha.
+- Fotos reduzidas no aparelho (lado maior 1600px, WebP; JPEG onde não houver encoder) e enviadas ao Storage em `times/{timeId}/recados/{postId}/{0-3}.webp|jpeg`, com metadado `autorUid`. O post guarda URL de download, caminho, largura e altura. Se gravar o post falhar, as fotos enviadas são apagadas.
+- Feed de 10 em 10 ("Ver mais" aumenta o limite do listener), fixados primeiro. Carrossel com rolagem lateral e proporção da 1ª foto (entre 4:5 e 1.91:1).
+- Storage Rules: envio só por membro do time, imagem webp/jpeg < 5 MB, sem sobrescrever; leitura pelo SDK só membros; exclusão pelo autor (metadado) ou diretoria. As URLs de download têm token: quem tiver o link vê a foto (não indexado, não adivinhável).
+
+- Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos (índice `fixado desc + criadoEm desc`). Legenda em texto simples (até 2000 caracteres), com quebras de linha.
 - **Apoiadores/patrocinadores**: faixa no topo do mural (logos em fila, rolagem lateral; tocar abre o link). Cadastro pela diretoria em Gestão › Apoiadores: nome, logo (data URL reduzido, como o escudo; até 80 000 caracteres), link https opcional (site, Instagram, wa.me) e ordem (setas sobe/desce). Até 20 por time.
 - Evolução aprovada (27/09/2026): postagens estilo Instagram (fotos no Storage, todos os membros publicam), curtidas e comentários. Ver seção 10.
 
@@ -185,8 +188,9 @@ times/{timeId}/eventos/{eventoId}/gols/{NN}   // NN = "01".."99" (ordem)
 times/{timeId}/eventos/{eventoId}/escalacao/principal
   formacao, titulares: [{ atletaId, posicao, x, y }], reservas: string[]
 
-times/{timeId}/recados/{id}
-  titulo, texto, fixado, autorUid, autorNome, criadoEm
+times/{timeId}/recados/{id}              // postagem do mural
+  texto, fotos?: [{ url, caminho, largura, altura }] (1..4), titulo? (antigos)
+  fixado, autorUid, autorNome, autorFotoUrl?, criadoEm
 
 times/{timeId}/patrocinadores/{id}
   nome, logo (data URL | null), link?, ordem, criadoEm
@@ -234,7 +238,8 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
-| `eventos`, `recados`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
+| `eventos`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
+| `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; exclui autor ou diretoria |
 | `eventos/{id}/gols` | acesso ao time | diretoria, só com o evento `realizado` |
 | `patrocinadores` | acesso ao time | diretoria |
 | `presencas/{atletaId}` | acesso ao time | a própria pessoa: só o próprio `atletaId` (vínculo nos dois lados), só `resposta` (nunca `compareceu`), cadastro ativo, evento `agendado` e elegível pelo tipo (2.7); diretoria: qualquer um, inclusive `compareceu`; sem exclusão |
@@ -315,7 +320,7 @@ src/app/
 
 ### 8.1 Publicação
 
-`firebase deploy` (hosting, rules ou índices) **somente quando o usuário pedir explicitamente**, informando antes o que será publicado. Rules e índices podem ser publicados separadamente (`--only firestore:rules`, `--only firestore:indexes`).
+`firebase deploy` (hosting, rules ou índices) **somente quando o usuário pedir explicitamente**, informando antes o que será publicado. Rules e índices podem ser publicados separadamente (`--only firestore:rules`, `--only firestore:indexes`, `--only storage`).
 
 ---
 
@@ -326,7 +331,7 @@ src/app/
 - **Fase 2 — Financeiro**: configuração financeira do time, geração de cobranças (mensal, semestral), baixa/estorno, lançamentos, despesas recorrentes, painel do caixa, visão "Minhas cobranças".
 - **Fase 3 — Agenda e mural**: eventos, presença, encerramento de evento, cobrança de avulsos, mural.
 - **Fase 4 — Escalação e campeonatos**: campinho com escalação por evento, campeonatos, estatísticas, artilharia.
-- **Fase 5 — Evoluções** (cada item exige decisão): PWA, notificações push, comprovante de pagamento (Storage), automação agendada (Functions), sorteio equilibrado de times, comentários no mural.
+- **Fase 5 — Evoluções** (cada item exige decisão): PWA, notificações push, comprovante de pagamento (Storage já disponível), automação agendada (Functions), sorteio equilibrado de times.
 
 ---
 
@@ -380,6 +385,7 @@ src/app/
 | 27/09/2026 | Mural passa a ser a primeira aba e a tela inicial do time (antes: Agenda). Evento agendado ganha "Chamar o time": mensagem pronta para o WhatsApp (ou copiar) com link direto para confirmar presença; sem link público: só membros logados respondem. |
 | 27/09/2026 | Encerrar pede só placar e gols (autor + assistência opcional, "gol contra" do adversário); presença inicial = quem disse Vou, ajustada depois no evento encerrado ("Ajustar presença": listas Foram / Não foram). Gols em subcoleção `gols` do evento (um documento por gol, validado nas Rules), base da artilharia da Fase 4. |
 | 27/09/2026 | Projeto migrado para o plano **Blaze** pelo usuário. Mural evolui em 3 entregas: M3 apoiadores (faixa no topo, logo em data URL, sem Storage) — feita primeiro; M1 postagens com 1 a 4 fotos no **Storage** (`times/{timeId}/recados/{postId}/`), todos os membros publicam, autor edita/exclui o próprio, diretoria fixa e exclui qualquer; M2 curtidas (subcoleção por uid + contador validado nas Rules) e comentários (subcoleção; exclui o autor ou a diretoria; sem edição). Comentários saem de "fora do MVP". |
+| 27/09/2026 | M1 do mural: Storage em uso (`storage.rules`, token lazy `STORAGE`). Postagens com 1 a 4 fotos reduzidas no aparelho; qualquer membro publica; Firestore Rules validam cada foto (caminho do próprio post) e as permissões de autor/diretoria; Storage Rules validam membro, tipo, tamanho e autor. |
 
 ---
 

@@ -73,9 +73,11 @@ rules_version = '2';
 // times/{timeId}/patrocinadores/{id}   (até 20; limite na UI)
 //   nome (1..60) · logo: data URL webp/png/jpeg (<= 80000) | null · link? (https) · ordem: int 0..99 · criadoEm (imutável)
 //
-// times/{timeId}/recados/{id}
-//   titulo (1..100) · texto (1..2000) · fixado: bool · autorUid (= request.auth.uid) · autorNome (1..100)
-//   criadoEm (= request.time); autor e criadoEm imutáveis
+// times/{timeId}/recados/{id}   (postagem do mural; qualquer membro publica)
+//   texto (0..2000) · fotos?: list 1..4 de {url https, caminho = times/{timeId}/recados/{id}/{0-3}.webp|jpeg, largura, altura}
+//   titulo? (1..100, posts antigos) · precisa de texto, fotos ou título · fixado: bool (só diretoria liga)
+//   autorUid (= request.auth.uid) · autorNome (1..100) · autorFotoUrl? (https) · criadoEm (= request.time)
+//   Autor edita só `texto`; diretoria só `fixado`; exclui o autor ou a diretoria. Fotos no Storage (storage.rules).
 //
 // Demais coleções (campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
@@ -402,14 +404,37 @@ service cloud.firestore {
         && data.criadoEm is timestamp;
     }
 
-    function isValidRecado(data) {
-      return data.keys().hasAll(['titulo', 'texto', 'fixado', 'autorUid', 'autorNome', 'criadoEm'])
-        && data.keys().hasOnly(['titulo', 'texto', 'fixado', 'autorUid', 'autorNome', 'criadoEm'])
-        && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 100
-        && data.texto is string && data.texto.size() >= 1 && data.texto.size() <= 2000
+    function isValidFotoPost(f, timeId, recadoId) {
+      return f is map
+        && f.keys().hasAll(['url', 'caminho', 'largura', 'altura'])
+        && f.keys().hasOnly(['url', 'caminho', 'largura', 'altura'])
+        && isValidUrl(f.url)
+        && f.caminho is string
+        && f.caminho.matches('^times/' + timeId + '/recados/' + recadoId + '/[0-3][.](webp|jpeg)$')
+        && f.largura is int && f.largura >= 1 && f.largura <= 10000
+        && f.altura is int && f.altura >= 1 && f.altura <= 10000;
+    }
+
+    // Sem laço: cada posição (máx. 4) validada explicitamente.
+    function fotosValidas(l, timeId, recadoId) {
+      return l is list && l.size() >= 1 && l.size() <= 4
+        && isValidFotoPost(l[0], timeId, recadoId)
+        && (l.size() < 2 || isValidFotoPost(l[1], timeId, recadoId))
+        && (l.size() < 3 || isValidFotoPost(l[2], timeId, recadoId))
+        && (l.size() < 4 || isValidFotoPost(l[3], timeId, recadoId));
+    }
+
+    function isValidRecado(data, timeId, recadoId) {
+      return data.keys().hasAll(['texto', 'fixado', 'autorUid', 'autorNome', 'criadoEm'])
+        && data.keys().hasOnly(['titulo', 'texto', 'fotos', 'fixado', 'autorUid', 'autorNome', 'autorFotoUrl', 'criadoEm'])
+        && textoOpcional(data, 'titulo', 1, 100)
+        && data.texto is string && data.texto.size() <= 2000
+        && (!('fotos' in data) || fotosValidas(data.fotos, timeId, recadoId))
+        && (data.texto.size() > 0 || 'fotos' in data || 'titulo' in data)
         && data.fixado is bool
         && data.autorUid is string && data.autorUid.size() <= 128
         && data.autorNome is string && data.autorNome.size() >= 1 && data.autorNome.size() <= 100
+        && (!('autorFotoUrl' in data) || isValidUrl(data.autorFotoUrl))
         && data.criadoEm is timestamp;
     }
 
@@ -764,20 +789,25 @@ service cloud.firestore {
         allow delete: if podeGerir(timeId);
       }
 
-      // Mural: todos do time leem; só a diretoria publica, edita e exclui.
+      // Mural: todos do time leem e publicam; autor edita a legenda; diretoria fixa; exclui o autor ou a diretoria.
       match /recados/{recadoId} {
         allow read: if temAcesso(timeId) || isAdminGeral();
 
-        allow create: if podeGerir(timeId)
-          && isValidRecado(request.resource.data)
+        allow create: if temAcesso(timeId)
+          && isValidRecado(request.resource.data, timeId, recadoId)
           && request.resource.data.autorUid == request.auth.uid
-          && request.resource.data.criadoEm == request.time;
+          && request.resource.data.criadoEm == request.time
+          && (request.resource.data.fixado == false || podeGerir(timeId));
 
-        allow update: if podeGerir(timeId)
-          && isValidRecado(request.resource.data)
-          && inalterados(['autorUid', 'autorNome', 'criadoEm']);
+        allow update: if isValidRecado(request.resource.data, timeId, recadoId)
+          && inalterados(['titulo', 'fotos', 'autorUid', 'autorNome', 'autorFotoUrl', 'criadoEm'])
+          && ((temAcesso(timeId) && resource.data.autorUid == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['texto']))
+            || (podeGerir(timeId)
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fixado'])));
 
-        allow delete: if podeGerir(timeId);
+        allow delete: if podeGerir(timeId)
+          || (temAcesso(timeId) && resource.data.autorUid == request.auth.uid);
       }
 
       // Pedido de entrada: criado pelo próprio com convite vigente; decidido pela gestão.

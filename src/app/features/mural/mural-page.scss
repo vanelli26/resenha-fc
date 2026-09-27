@@ -1,45 +1,15 @@
-.recado {
+// Feed estreito, como numa rede social, centralizado no navegador.
+.feed {
   display: grid;
-  gap: 0.5rem;
-
-  &--fixado {
-    border-color: var(--p-primary-color);
-  }
+  gap: 1rem;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
 }
 
-.recado__topo {
+.ver-mais {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-
-  h3 {
-    margin: 0;
-    font-size: 1rem;
-  }
-}
-
-.recado__pino {
-  margin-right: 0.25rem;
-  color: var(--p-primary-color);
-  vertical-align: -0.125rem;
-}
-
-// Texto simples: mantém quebras de linha e quebra palavras longas (links).
-.recado__texto {
-  margin: 0;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-}
-
-.fixar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.acoes__remover {
-  margin-right: auto;
+  justify-content: center;
+  margin-top: 0.75rem;
 }

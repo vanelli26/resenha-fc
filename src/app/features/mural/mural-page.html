@@ -1,99 +1,80 @@
 <div class="cabecalho-secao">
   <h2>Mural</h2>
-  @if (ehDiretoria()) {
-    <p-button label="Novo recado" size="small" (onClick)="novo()" />
-  }
+  <p-button label="Publicar" size="small" (onClick)="novaAberta.set(true)" />
 </div>
 
 <app-faixa-patrocinadores />
 
 @if (recados(); as lista) {
-  <ul class="lista">
+  <ul class="feed">
     @for (r of lista; track r.id) {
       <li>
-        <article class="cartao recado" [class.recado--fixado]="r.fixado">
-          <header class="recado__topo">
-            <h3>
-              @if (r.fixado) {
-                <svg data-p-icon="thumbtack" [size]="14" class="recado__pino" aria-label="Fixado"></svg>
-              }
-              {{ r.titulo }}
-            </h3>
-            @if (ehDiretoria()) {
-              <p-button
-                [text]="true"
-                [rounded]="true"
-                size="small"
-                severity="secondary"
-                ariaLabel="Editar recado"
-                (onClick)="editar(r)"
-              >
-                <svg data-p-icon="pencil" [size]="14" aria-hidden="true"></svg>
-              </p-button>
-            }
-          </header>
-          <p class="recado__texto">{{ r.texto }}</p>
-          <small class="texto-suave">
-            {{ r.autorNome }}
-            @if (r.criadoEm) {
-              · {{ r.criadoEm.toDate() | date: "dd/MM 'às' HH:mm" }}
-            }
-          </small>
-        </article>
+        <app-post-card
+          [recado]="r"
+          [ehAutor]="r.autorUid === meuUid()"
+          [podeModerar]="ehDiretoria()"
+          (editar)="editar(r)"
+          (fixar)="fixar(r, $event)"
+          (excluir)="excluir(r)"
+        />
       </li>
     } @empty {
-      <li class="texto-suave">Nenhum recado ainda.</li>
+      <li class="texto-suave">Nenhuma postagem ainda. Seja o primeiro a publicar!</li>
     }
   </ul>
+  @if (haMais()) {
+    <p-button class="ver-mais" label="Ver mais" size="small" [text]="true" severity="secondary" (onClick)="verMais()" />
+  }
 } @else {
-  <div class="lista">
-    <p-skeleton height="7rem" />
-    <p-skeleton height="7rem" />
+  <div class="feed">
+    <p-skeleton height="22rem" />
+    <p-skeleton height="8rem" />
   </div>
 }
 
 <p-dialog
-  [header]="emEdicao() ? 'Editar recado' : 'Novo recado'"
-  [(visible)]="dialogAberto"
+  header="Nova publicação"
+  [visible]="novaAberta()"
+  (visibleChange)="enviando() || novaAberta.set($event)"
   [modal]="true"
-  [style]="{ width: 'min(32rem, 100vw - 2rem)' }"
+  [closable]="!enviando()"
+  [style]="{ width: 'min(30rem, 100vw - 2rem)' }"
 >
-  <form class="formulario" (submit)="$event.preventDefault(); salvar()">
-    <label class="campo">
-      <span>Título</span>
-      <input pInputText [formField]="formulario.titulo" autocomplete="off" />
-      @if (formulario.titulo().touched() && formulario.titulo().invalid()) {
-        <small class="campo__erro">{{ formulario.titulo().errors()[0].message }}</small>
-      }
-    </label>
-    <label class="campo">
-      <span>Recado</span>
-      <textarea pTextarea [formField]="formulario.texto" rows="6" [autoResize]="true"></textarea>
-      @if (formulario.texto().touched() && formulario.texto().invalid()) {
-        <small class="campo__erro">{{ formulario.texto().errors()[0].message }}</small>
-      }
-    </label>
-    <label class="fixar">
-      <p-toggleswitch [formField]="formulario.fixado" />
-      <span>Fixar no topo</span>
-    </label>
+  @if (novaAberta()) {
+    <app-nova-postagem
+      [podeFixar]="ehDiretoria()"
+      [enviando]="enviando()"
+      [enviadas]="enviadas()"
+      (publicar)="publicar($event)"
+      (cancelar)="novaAberta.set(false)"
+    />
+  }
+</p-dialog>
 
+<p-dialog
+  header="Editar legenda"
+  [visible]="emEdicao() !== null"
+  (visibleChange)="$event || emEdicao.set(null)"
+  [modal]="true"
+  [style]="{ width: 'min(30rem, 100vw - 2rem)' }"
+>
+  <div class="formulario">
+    <textarea
+      pTextarea
+      rows="4"
+      [autoResize]="true"
+      aria-label="Legenda"
+      [ngModel]="textoEdicao()"
+      (ngModelChange)="textoEdicao.set($event)"
+    ></textarea>
+    @if (textoEdicao().length > 2000) {
+      <small class="campo__erro">Máximo de 2000 caracteres.</small>
+    }
     <div class="acoes">
-      @if (emEdicao()) {
-        <p-button
-          label="Excluir"
-          severity="danger"
-          [text]="true"
-          type="button"
-          class="acoes__remover"
-          [disabled]="salvando()"
-          (onClick)="excluir()"
-        />
-      }
-      <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
-      <p-button [label]="emEdicao() ? 'Salvar' : 'Publicar'" type="submit" [loading]="salvando()" />
+      <p-button label="Cancelar" [text]="true" (onClick)="emEdicao.set(null)" />
+      <p-button label="Salvar" [loading]="salvando()" [disabled]="textoEdicao().length > 2000" (onClick)="salvarEdicao()" />
     </div>
-  </form>
+  </div>
 </p-dialog>
 
 <p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

@@ -1,14 +1,31 @@
 import { Timestamp } from 'firebase/firestore';
 
-/** times/{timeId}/recados/{id}. Publicado pela diretoria; todos do time leem (DIRETRIZES 2.8). */
+/** Até 4 fotos por postagem (Storage: times/{timeId}/recados/{id}/{N}.webp). */
+export const MAX_FOTOS_POST = 4;
+
+export interface FotoPost {
+  /** URL de download (com token) do Storage. */
+  url: string;
+  /** Caminho no Storage, para apagar junto com o post. */
+  caminho: string;
+  largura: number;
+  altura: number;
+}
+
+/**
+ * times/{timeId}/recados/{id} — postagem do mural (DIRETRIZES 2.8). Qualquer membro publica.
+ * Posts antigos (só da diretoria) têm `titulo` e não têm fotos.
+ */
 export interface Recado {
-  titulo: string;
-  /** Texto simples; quebras de linha são mantidas na exibição. */
+  titulo?: string;
+  /** Legenda; pode ser vazia quando há foto. Quebras de linha são mantidas. */
   texto: string;
-  /** Fixados aparecem no topo. */
+  fotos?: FotoPost[];
+  /** Fixados aparecem no topo (só a diretoria fixa). */
   fixado: boolean;
   autorUid: string;
-  /** Desnormalizado para exibição (3.2). */
+  /** Desnormalizados para exibição (3.2). */
   autorNome: string;
+  autorFotoUrl?: string;
   criadoEm: Timestamp;
 }

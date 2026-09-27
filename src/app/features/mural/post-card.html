@@ -1,0 +1,57 @@
+@let r = recado();
+<article class="post" [class.post--fixado]="r.fixado">
+  <header class="post__topo">
+    <app-foto-pessoa [src]="r.autorFotoUrl" [nome]="r.autorNome" />
+    <span class="post__autor">
+      <strong>{{ r.autorNome }}</strong>
+      <small class="texto-suave">
+        @if (r.fixado) {
+          <svg data-p-icon="thumbtack" [size]="11" class="post__pino" aria-label="Fixado"></svg>
+        }
+        @if (r.criadoEm) {
+          {{ r.criadoEm.toDate() | date: "dd/MM 'às' HH:mm" }}
+        }
+      </small>
+    </span>
+    @if (menu().length > 0) {
+      <p-button [text]="true" [rounded]="true" size="small" severity="secondary" ariaLabel="Opções da postagem" (onClick)="opcoes.toggle($event)">
+        <svg data-p-icon="ellipsis-v" [size]="16" aria-hidden="true"></svg>
+      </p-button>
+      <p-menu #opcoes [model]="menu()" [popup]="true" appendTo="body" />
+    }
+  </header>
+
+  @if (fotos().length > 0) {
+    <div class="post__fotos">
+      <div class="post__faixa" [style.aspect-ratio]="proporcao()" (scroll)="aoRolar($event)">
+        @for (foto of fotos(); track foto.caminho; let i = $index) {
+          <img
+            [src]="foto.url"
+            [alt]="'Foto ' + (i + 1) + ' de ' + fotos().length"
+            loading="lazy"
+            decoding="async"
+          />
+        }
+      </div>
+      @if (fotos().length > 1) {
+        <span class="post__contador">{{ fotoAtual() + 1 }}/{{ fotos().length }}</span>
+        <span class="post__pontos" aria-hidden="true">
+          @for (foto of fotos(); track foto.caminho; let i = $index) {
+            <span class="post__ponto" [class.post__ponto--ativo]="i === fotoAtual()"></span>
+          }
+        </span>
+      }
+    </div>
+  }
+
+  @if (r.titulo || r.texto) {
+    <div class="post__legenda">
+      @if (r.titulo) {
+        <strong class="post__titulo">{{ r.titulo }}</strong>
+      }
+      @if (r.texto) {
+        <p>{{ r.texto }}</p>
+      }
+    </div>
+  }
+</article>

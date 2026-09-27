@@ -30,11 +30,11 @@ Não inventar collections, campos, regras de negócio, papéis, permissões, cla
 
 ## Firebase
 
-- Produtos em uso: Authentication (Google), Firestore (regras em `firestore.rules`, índices em `firestore.indexes.json`) e Hosting (`firebase.json`, `.firebaserc`). Storage e Cloud Functions **não** são usados até decisão registrada em DIRETRIZES, seção 10 (exigem plano Blaze). Manter esta lista atualizada quando isso mudar.
+- Produtos em uso (plano Blaze): Authentication (Google), Firestore (regras em `firestore.rules`, índices em `firestore.indexes.json`), Storage (regras em `storage.rules`; fotos do mural) e Hosting (`firebase.json`, `.firebaserc`). Cloud Functions **não** é usado até decisão registrada em DIRETRIZES, seção 10. Manter esta lista atualizada quando isso mudar.
 - Publicar (`firebase deploy`) só quando o usuário pedir — ver DIRETRIZES 8.1.
 - Toda mudança em collection/dado sensível avalia `firestore.rules` no mesmo trabalho. Autorização no Angular é UX, não segurança.
 - Rules não são filtros: toda consulta do frontend deve conter os mesmos filtros que a regra exige (ex.: jogador consultando cobranças filtra por `atletaId`).
-- SDK modular (`firebase`), sem `@angular/fire`. Providers em `core/firebase/`: `FIREBASE_APP` e `FIREBASE_AUTH` em `firebase.providers.ts`; `FIRESTORE` em `firestore.token.ts` (só importar a partir de código lazy, para manter o Firestore fora do bundle inicial).
+- SDK modular (`firebase`), sem `@angular/fire`. Providers em `core/firebase/`: `FIREBASE_APP` e `FIREBASE_AUTH` em `firebase.providers.ts`; `FIRESTORE` em `firestore.token.ts` e `STORAGE` em `storage.token.ts` (só importar a partir de código lazy, para manter os SDKs fora do bundle inicial).
 - Segredos (service accounts, tokens, chaves privadas) nunca no código do Angular nem no repositório. A config web do Firebase (`apiKey` etc.) não é segredo e pode ficar em `environments`.
 - Antes de cada consulta: quantos documentos, filtro, ordenação, índice, precisa ser realtime? Filtrar no Firestore, não no frontend. Preferir leitura única (`getDocs`) a listener quando não houver necessidade de tempo real. Totais financeiros via agregação (`sum`/`count`) no servidor.
 
