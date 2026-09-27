@@ -2,63 +2,83 @@
 
 @if (evento(); as e) {
   <section class="cartao detalhe" [class.detalhe--cancelado]="e.status === 'cancelado'">
-    <div class="detalhe__topo">
-      <small class="texto-suave">
-        {{ rotuloTipo[e.tipo] }}
-        @if (esporte()) {
-          · {{ esporte() }}
-        }
-      </small>
-      @if (e.status !== 'agendado') {
-        <p-tag [value]="rotuloStatus[e.status]" [severity]="e.status === 'cancelado' ? 'danger' : 'secondary'" />
+    <div class="detalhe__cabecalho">
+      <span class="detalhe__data">
+        <span class="detalhe__dia">{{ e.data.toDate() | date: 'dd' }}</span>
+        <span class="detalhe__mes">{{ e.data.toDate() | date: 'MMM' }}</span>
+      </span>
+
+      <div class="detalhe__texto">
+        <small class="texto-suave detalhe__meta">
+          {{ rotuloTipo[e.tipo] }}
+          @if (esporte()) {
+            · {{ esporte() }}
+          }
+          @if (e.status !== 'agendado') {
+            · <span [class.detalhe__cancelado]="e.status === 'cancelado'">{{ rotuloStatus[e.status] }}</span>
+          }
+        </small>
+        <h2>
+          {{ e.titulo }}
+          @if (e.placarPro !== undefined && e.placarContra !== undefined) {
+            <span class="detalhe__placar">{{ e.placarPro }} x {{ e.placarContra }}</span>
+          }
+          @if (e.adversario) {
+            <span class="detalhe__adversario">
+              {{ e.placarPro !== undefined ? '' : 'x ' }}{{ e.adversario }}
+            </span>
+          }
+        </h2>
+        <small class="texto-suave detalhe__meta">
+          {{ e.data.toDate() | date: "EEE, HH:mm" }}
+          @if (e.local) {
+            · {{ e.local }}
+          }
+        </small>
+      </div>
+
+      @if (ehDiretoria()) {
+        <div class="detalhe__gestao">
+          @if (e.status === 'agendado') {
+            <p-button label="Encerrar" size="small" [disabled]="processando()" (onClick)="encerrandoAberto.set(true)" />
+          }
+          <p-button
+            [text]="true"
+            [rounded]="true"
+            size="small"
+            severity="secondary"
+            ariaLabel="Mais ações"
+            [disabled]="processando()"
+            (onClick)="menu.toggle($event)"
+          >
+            <svg data-p-icon="ellipsis-v" [size]="16" aria-hidden="true"></svg>
+          </p-button>
+          <p-menu #menu [model]="menuAcoes()" [popup]="true" appendTo="body" />
+        </div>
       }
     </div>
-    <h2>{{ e.titulo }}</h2>
-    @if (e.placarPro !== undefined && e.placarContra !== undefined) {
-      <p class="detalhe__placar">
-        {{ e.placarPro }} <span class="texto-suave">x</span> {{ e.placarContra }}
-        @if (e.adversario) {
-          <small class="texto-suave">{{ e.adversario }}</small>
-        }
-      </p>
-    } @else if (e.adversario) {
-      <p class="detalhe__linha">x {{ e.adversario }}</p>
-    }
-    <p class="detalhe__linha detalhe__quando">{{ e.data.toDate() | date: "EEEE, dd/MM/yyyy 'às' HH:mm" }}</p>
-    @if (e.local) {
-      <p class="detalhe__linha texto-suave">{{ e.local }}</p>
-    }
 
-    @if (podeResponder()) {
-      <div class="detalhe__presenca">
-        <span class="texto-suave">Sua presença</span>
-        <app-seletor-presenca [resposta]="minhaResposta()" [desabilitado]="respondendo()" (responder)="responder($event)" />
-      </div>
-    }
-
-    @if (ehDiretoria()) {
-      <div class="acoes">
-        @if (e.status !== 'realizado') {
-          <p-button
-            [label]="e.status === 'agendado' ? 'Cancelar evento' : 'Reativar'"
-            size="small"
-            [text]="true"
-            [severity]="e.status === 'agendado' ? 'danger' : 'secondary'"
-            [disabled]="processando()"
-            (onClick)="alternarCancelamento()"
-          />
-          <p-button label="Editar" size="small" [outlined]="true" [disabled]="processando()" (onClick)="dialogAberto.set(true)" />
+    @if (podeResponder() || e.status === 'agendado') {
+      <div class="detalhe__barra">
+        @if (podeResponder()) {
+          <app-seletor-presenca [resposta]="minhaResposta()" [desabilitado]="respondendo()" (responder)="responder($event)" />
         }
         @if (e.status === 'agendado') {
-          <p-button label="Encerrar" size="small" [disabled]="processando()" (onClick)="encerrandoAberto.set(true)" />
-        } @else if (e.status === 'realizado') {
-          <p-button
-            label="Editar encerramento"
-            size="small"
-            [outlined]="true"
-            [disabled]="processando()"
-            (onClick)="encerrandoAberto.set(true)"
-          />
+          <div class="detalhe__chamar">
+            <p-button size="small" severity="success" ariaLabel="Chamar o time no WhatsApp" (onClick)="enviarWhatsApp()">
+              <svg data-p-icon="whatsapp" [size]="16" aria-hidden="true"></svg>
+              <span class="detalhe__chamar-rotulo">Chamar</span>
+            </p-button>
+            <p-button
+              size="small"
+              [outlined]="true"
+              severity="secondary"
+              ariaLabel="Copiar mensagem com o link"
+              (onClick)="copiarLink()"
+            >
+              <svg data-p-icon="copy" [size]="16" aria-hidden="true"></svg>
+            </p-button>
+          </div>
         }
       </div>
     }
@@ -72,25 +92,29 @@
     }
   }
 
-  <div class="grupos">
-    @for (grupo of grupos(); track grupo.chave) {
-      <section class="grupo" [class]="'grupo--' + grupo.chave">
-        <h3>
-          {{ grupo.titulo }} <span class="texto-suave">({{ grupo.pessoas.length }})</span>
-        </h3>
-        <ul class="pessoas">
-          @for (pessoa of grupo.pessoas; track pessoa.id) {
-            <li class="pessoa">
-              <app-foto-pessoa [src]="pessoa.fotoUrl" [nome]="pessoa.apelido || pessoa.nome" />
-              <span>{{ pessoa.apelido || pessoa.nome }}</span>
-            </li>
-          } @empty {
-            <li class="texto-suave">Ninguém.</li>
-          }
-        </ul>
-      </section>
-    }
-  </div>
+  <section class="presencas">
+    <p-selectbutton
+      class="presencas__abas"
+      [options]="opcoesGrupo()"
+      optionLabel="label"
+      optionValue="value"
+      [allowEmpty]="false"
+      [ngModel]="grupoAtivo()"
+      (ngModelChange)="grupoAtivo.set($event)"
+      size="small"
+      ariaLabel="Lista de presença"
+    />
+    <ul class="pessoas" [class.pessoas--apagadas]="grupoAtivo() === 'sem' || grupoAtivo() === 'nao_vou' || grupoAtivo() === 'faltou'">
+      @for (pessoa of pessoasDoGrupo(); track pessoa.id) {
+        <li class="pessoa">
+          <app-foto-pessoa [src]="pessoa.fotoUrl" [nome]="pessoa.apelido || pessoa.nome" />
+          <span>{{ pessoa.apelido || pessoa.nome }}</span>
+        </li>
+      } @empty {
+        <li class="texto-suave">Ninguém.</li>
+      }
+    </ul>
+  </section>
 
   <p-dialog header="Editar evento" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(32rem, 100vw - 2rem)' }">
     @if (dialogAberto()) {
@@ -123,5 +147,5 @@
 } @else if (naoEncontrado()) {
   <p class="cartao texto-suave">Evento não encontrado.</p>
 } @else {
-  <p-skeleton height="10rem" />
+  <p-skeleton height="8rem" />
 }

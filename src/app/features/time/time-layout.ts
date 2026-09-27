@@ -30,8 +30,8 @@ export class TimeLayout {
   protected readonly time = this.timeAtual.time;
   protected readonly abas = computed<Aba[]>(() => {
     const abas: Aba[] = [
-      { caminho: 'agenda', rotulo: 'Agenda', icone: 'agenda' },
       { caminho: 'mural', rotulo: 'Mural', icone: 'mural' },
+      { caminho: 'agenda', rotulo: 'Agenda', icone: 'agenda' },
       { caminho: 'elenco', rotulo: 'Elenco', icone: 'elenco' },
     ];
     if (this.timeAtual.ehGestao()) {

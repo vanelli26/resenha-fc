@@ -1,9 +1,27 @@
-import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { DatePipe, formatDate } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  LOCALE_ID,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  untracked,
+} from '@angular/core';
+import { Copy } from '@primeicons/angular/copy';
+import { EllipsisV } from '@primeicons/angular/ellipsis-v';
+import { Whatsapp } from '@primeicons/angular/whatsapp';
+import { FormsModule } from '@angular/forms';
+import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { MenuModule } from 'primeng/menu';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
@@ -35,7 +53,11 @@ function ordenarPorNome(lista: ComId<Atleta>[]): ComId<Atleta>[] {
   selector: 'app-evento-page',
   imports: [
     DatePipe,
+    FormsModule,
     ButtonModule,
+    MenuModule,
+    SelectButtonModule,
+    EllipsisV,
     ConfirmDialogModule,
     DialogModule,
     SkeletonModule,
@@ -46,6 +68,8 @@ function ordenarPorNome(lista: ComId<Atleta>[]): ComId<Atleta>[] {
     FotoPessoa,
     SeletorPresenca,
     Voltar,
+    Copy,
+    Whatsapp,
   ],
   providers: [ConfirmationService],
   templateUrl: './evento-page.html',
@@ -58,6 +82,7 @@ export class EventoPage {
   private readonly atletasService = inject(AtletasService);
   private readonly mensagens = inject(MessageService);
   private readonly confirmacao = inject(ConfirmationService);
+  private readonly locale = inject(LOCALE_ID);
 
   /** Parâmetro da rota (withComponentInputBinding). */
   readonly eventoId = input.required<string>();
@@ -154,6 +179,31 @@ export class EventoPage {
     ];
   });
 
+  /** Grupo exibido (a lista pode ser longa: um grupo por vez). Começa no primeiro (Vão / Compareceram). */
+  protected readonly grupoAtivo = linkedSignal<GrupoPresenca['chave']>(() => this.grupos()[0]?.chave ?? 'vou');
+  protected readonly opcoesGrupo = computed(() =>
+    this.grupos().map((g) => ({ value: g.chave, label: `${g.titulo} ${g.pessoas.length}` })),
+  );
+  protected readonly pessoasDoGrupo = computed(
+    () => this.grupos().find((g) => g.chave === this.grupoAtivo())?.pessoas ?? [],
+  );
+
+  /** Ações secundárias da diretoria (menu "⋯"); Encerrar fica como botão principal. */
+  protected readonly menuAcoes = computed<MenuItem[]>(() => {
+    const e = this.evento();
+    if (!e) return [];
+    if (e.status === 'realizado') {
+      return [{ label: 'Editar encerramento', command: () => this.encerrandoAberto.set(true) }];
+    }
+    return [
+      { label: 'Editar evento', command: () => this.dialogAberto.set(true) },
+      {
+        label: e.status === 'agendado' ? 'Cancelar evento' : 'Reativar evento',
+        command: () => this.alternarCancelamento(),
+      },
+    ];
+  });
+
   private pararDeOuvir: (() => void) | null = null;
 
   constructor() {
@@ -169,6 +219,40 @@ export class EventoPage {
       });
     });
     inject(DestroyRef).onDestroy(() => this.pararDeOuvir?.());
+  }
+
+  /** Link direto do evento: quem não está logado entra e volta para cá (authGuard guarda a URL). */
+  private readonly link = computed(() => {
+    const e = this.evento();
+    const timeId = this.timeAtual.timeId();
+    return e && timeId ? `${location.origin}/t/${timeId}/agenda/${e.id}` : '';
+  });
+
+  /** Mensagem pronta para o grupo do time (negrito no formato do WhatsApp). */
+  private readonly mensagemConvite = computed(() => {
+    const e = this.evento();
+    if (!e) return '';
+    const quando = formatDate(e.data.toDate(), "EEE, dd/MM 'às' HH:mm", this.locale);
+    return [
+      `⚽ *${e.titulo}*${e.adversario ? ` x ${e.adversario}` : ''}`,
+      `📅 ${quando.charAt(0).toUpperCase()}${quando.slice(1)}`,
+      ...(e.local ? [`📍 ${e.local}`] : []),
+      '',
+      `Confirme sua presença: ${this.link()}`,
+    ].join('\n');
+  });
+
+  protected enviarWhatsApp(): void {
+    window.open(`https://wa.me/?text=${encodeURIComponent(this.mensagemConvite())}`, '_blank', 'noopener');
+  }
+
+  protected async copiarLink(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.mensagemConvite());
+      this.mensagens.add({ severity: 'success', summary: 'Mensagem copiada', detail: 'Cole no grupo do time.' });
+    } catch {
+      this.mensagens.add({ severity: 'error', summary: 'Não foi possível copiar', detail: this.link() });
+    }
   }
 
   protected async responder(resposta: RespostaPresenca): Promise<void> {

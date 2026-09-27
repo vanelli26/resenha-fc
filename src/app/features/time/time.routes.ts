@@ -8,7 +8,7 @@ export const TIME_ROUTES: Routes = [
     component: TimeLayout,
     canActivate: [timeGuard],
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'agenda' },
+      { path: '', pathMatch: 'full', redirectTo: 'mural' },
       {
         path: 'agenda',
         title: 'Agenda · ResenhaFC',

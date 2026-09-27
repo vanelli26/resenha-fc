@@ -86,13 +86,14 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Transições de status: `agendado` ↔ `cancelado`; `agendado` → `realizado`.
 - Evento não é excluído: a diretoria cancela (continua na agenda, riscado) ou reativa.
 - Repetição semanal: na criação, "repetir toda semana por N semanas" (até 12) grava N eventos independentes no mesmo lote.
+- **Chamar o time**: no evento agendado, qualquer membro envia pelo WhatsApp (link `wa.me` com mensagem pronta: título, data/hora, local e link do evento) ou copia a mensagem. O link abre o evento; quem não está logado faz login e volta a ele (authGuard guarda a URL). Só membros do time acessam.
 - Agenda: próximos a partir do início do dia de hoje (até 30); anteriores em páginas de 20. Presenças do evento aberto em tempo real (listener); na lista, uma leitura da própria resposta por evento. "Meus times" mostra o próximo evento agendado de cada time (índice `status + data`).
 
 ### 2.8 Mural
 
 Recados por time, publicados por diretoria. Campos: título, texto, fixado, autor, data. Comentários ficam fora do MVP.
 
-- Aba **Mural** logo após a Agenda. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos; até 50 (índice `fixado desc + criadoEm desc`).
+- Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos; até 50 (índice `fixado desc + criadoEm desc`).
 - Diretoria publica, edita (título, texto, fixado) e exclui. Autor e data não mudam. Texto simples (até 2000 caracteres), com quebras de linha.
 
 ### 2.9 Escalação
@@ -360,9 +361,10 @@ src/app/
 | 26/09/2026 | Próximas entregas aprovadas: vínculo no cadastro de atletas (`atleta`, `socio`, `colaborador`; Elenco mostra só atletas) e planos de cobrança configuráveis (nome, periodicidade, valor) no lugar dos valores fixos por modalidade; receita da baixa com categoria = nome do plano. |
 | 26/09/2026 | Vínculo no cadastro (`atletas.vinculo`: atleta, sócio, colaborador/torcedor), sem coleção nova: cobranças, convite e Minhas cobranças valem para todos. Elenco lista só atletas (filtro na tela: a coleção é pequena e cadastros antigos não têm o campo); Gestão › Sócios e colaboradores lista os demais (só edição: entram por convite, com login). |
 | 27/09/2026 | Planos de cobrança (2.4) substituem os valores fixos por modalidade: até 10 por time, validados item a item nas Rules; vencimentos únicos por periodicidade. `atletas.modalidade` passa a ser id de plano ou `isento` (planos migrados mantêm os ids `mensal`/`semestral`/`avulso`, sem regravar cadastros). Cobrança guarda `planoNome`, usado como categoria da receita na baixa. Toda gravação da configuração financeira grava o objeto inteiro (converte times antigos). |
-| 27/09/2026 | Fase 3a (Agenda): aba Agenda é a primeira e a tela inicial do time. Evento ganha `esporte` e `criadoEm`; não é excluído (cancelar/reativar). Presença: esportivos só atletas, confraternização/outro todos; sem limite de vagas nem prazo. Repetição semanal cria N eventos independentes (até 12). Entregas da Fase 3: 3a agenda e presença, 3b encerramento e cobrança de avulsos, 3c mural. |
+| 27/09/2026 | Fase 3a (Agenda): aba Agenda (depois substituída pelo Mural como primeira, ver abaixo). Evento ganha `esporte` e `criadoEm`; não é excluído (cancelar/reativar). Presença: esportivos só atletas, confraternização/outro todos; sem limite de vagas nem prazo. Repetição semanal cria N eventos independentes (até 12). Entregas da Fase 3: 3a agenda e presença, 3b encerramento e cobrança de avulsos, 3c mural. |
 | 27/09/2026 | Fase 3b: encerramento pela diretoria (compareceu + placar opcional, status `realizado`, corrigível depois). Cobrança de avulsos pela tesouraria no próprio evento realizado: quem compareceu e tem plano avulso, valor do plano, vencimento na data do jogo, referência = `eventoId` (idempotente). Rules de cobrança não conferem o evento (tesouraria é confiável, como nas mensais; evita um `get` por cobrança no lote). Cobrança avulsa aparece como "Avulso · jogo de dd/MM". Atalho em Financeiro › Gerar cobranças ("Avulsos por jogo": últimos 10 eventos realizados, índice `status + data desc`). |
 | 27/09/2026 | Fase 3c (Mural): aba Mural para todos; diretoria publica, edita e exclui recados (exclusão liberada: recado não tem efeito financeiro nem histórico). Tempo real, fixados no topo, limite de 50. `autorNome` = nome do membro no time (acesso) ou da conta. Sem aviso de "não lido" (exigiria estado por usuário). |
+| 27/09/2026 | Mural passa a ser a primeira aba e a tela inicial do time (antes: Agenda). Evento agendado ganha "Chamar o time": mensagem pronta para o WhatsApp (ou copiar) com link direto para confirmar presença; sem link público: só membros logados respondem. |
 
 ---
 
