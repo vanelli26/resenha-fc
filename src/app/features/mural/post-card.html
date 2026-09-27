@@ -25,12 +25,14 @@
     <div class="post__fotos">
       <div class="post__faixa" [style.aspect-ratio]="proporcao()" (scroll)="aoRolar($event)">
         @for (foto of fotos(); track foto.caminho; let i = $index) {
-          <img
-            [src]="foto.url"
-            [alt]="'Foto ' + (i + 1) + ' de ' + fotos().length"
-            loading="lazy"
-            decoding="async"
-          />
+          <a class="post__foto" [href]="foto.url" target="_blank" rel="noopener" [attr.aria-label]="'Abrir foto ' + (i + 1) + ' inteira'">
+            <img
+              [src]="foto.url"
+              [alt]="'Foto ' + (i + 1) + ' de ' + fotos().length"
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
         }
       </div>
       @if (fotos().length > 1) {

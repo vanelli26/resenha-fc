@@ -96,7 +96,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fotos e legenda. **Qualquer membro publica.** O autor edita a legenda e exclui o próprio post (as fotos saem junto); a diretoria fixa no topo e exclui qualquer post. Posts antigos (só texto, com título) continuam válidos. Curtidas e comentários: entrega M2.
 
 - Fotos reduzidas no aparelho (lado maior 1600px, WebP; JPEG onde não houver encoder) e enviadas ao Storage em `times/{timeId}/recados/{postId}/{0-3}.webp|jpeg`, com metadado `autorUid`. O post guarda URL de download, caminho, largura e altura. Se gravar o post falhar, as fotos enviadas são apagadas.
-- Feed de 10 em 10 ("Ver mais" aumenta o limite do listener), fixados primeiro. Carrossel com rolagem lateral e proporção da 1ª foto (entre 4:5 e 1.91:1).
+- Feed de 10 em 10 ("Ver mais" aumenta o limite do listener), fixados primeiro. Carrossel com rolagem lateral e proporção da 1ª foto entre 1:1 e 1.91:1 (retrato cortado no centro), altura máxima de 55% da tela; tocar abre a foto inteira.
 - Storage Rules: envio só por membro do time, imagem webp/jpeg < 5 MB, sem sobrescrever; leitura pelo SDK só membros; exclusão pelo autor (metadado) ou diretoria. As URLs de download têm token: quem tiver o link vê a foto (não indexado, não adivinhável).
 
 - Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos (índice `fixado desc + criadoEm desc`). Legenda em texto simples (até 2000 caracteres), com quebras de linha.
@@ -386,6 +386,7 @@ src/app/
 | 27/09/2026 | Encerrar pede só placar e gols (autor + assistência opcional, "gol contra" do adversário); presença inicial = quem disse Vou, ajustada depois no evento encerrado ("Ajustar presença": listas Foram / Não foram). Gols em subcoleção `gols` do evento (um documento por gol, validado nas Rules), base da artilharia da Fase 4. |
 | 27/09/2026 | Projeto migrado para o plano **Blaze** pelo usuário. Mural evolui em 3 entregas: M3 apoiadores (faixa no topo, logo em data URL, sem Storage) — feita primeiro; M1 postagens com 1 a 4 fotos no **Storage** (`times/{timeId}/recados/{postId}/`), todos os membros publicam, autor edita/exclui o próprio, diretoria fixa e exclui qualquer; M2 curtidas (subcoleção por uid + contador validado nas Rules) e comentários (subcoleção; exclui o autor ou a diretoria; sem edição). Comentários saem de "fora do MVP". |
 | 27/09/2026 | M1 do mural: Storage em uso (`storage.rules`, token lazy `STORAGE`). Postagens com 1 a 4 fotos reduzidas no aparelho; qualquer membro publica; Firestore Rules validam cada foto (caminho do próprio post) e as permissões de autor/diretoria; Storage Rules validam membro, tipo, tamanho e autor. |
+| 27/09/2026 | Regras do Storage consultam o Firestore (membro/diretoria): exige o papel **Firebase Rules Firestore Service Agent** para a conta de serviço do Storage (`service-…@gcp-sa-firebasestorage.iam.gserviceaccount.com`), concedido pelo usuário no IAM. Sem ele, todo envio falha com `storage/unauthorized`. |
 
 ---
 

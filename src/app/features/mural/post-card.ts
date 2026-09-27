@@ -9,9 +9,9 @@ import { ComId } from '../../core/firebase/conversor';
 import { Recado } from '../../models/recado.model';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 
-/** Proporção do carrossel: a da 1ª foto, limitada entre 4:5 (retrato) e 1.91:1 (paisagem), como no Instagram. */
+/** Proporção do carrossel: a da 1ª foto, entre quadrada (1:1) e paisagem (1.91:1); retrato é cortado no centro. */
 function proporcao(largura: number, altura: number): number {
-  return Math.min(1.91, Math.max(0.8, largura / altura));
+  return Math.min(1.91, Math.max(1, largura / altura));
 }
 
 /** Postagem no feed: autor, fotos (carrossel com rolagem lateral) e legenda. */

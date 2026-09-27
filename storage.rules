@@ -7,6 +7,7 @@ rules_version = '2';
 //   Envio: membro do time, só imagem webp/jpeg até 5 MB, metadado autorUid = quem envia; não sobrescreve.
 //   Leitura (SDK): membro do time ou adminGeral. As URLs de download (com token) são as gravadas no post.
 //   Exclusão: quem enviou (autorUid) ou a diretoria/adminGeral.
+// Consulta o Firestore (firestore.get/exists): exige o papel de IAM concedido pela CLI no deploy.
 // Todo o resto: negado.
 // ===============================================================
 
