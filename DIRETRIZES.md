@@ -92,6 +92,9 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 
 Recados por time, publicados por diretoria. Campos: título, texto, fixado, autor, data. Comentários ficam fora do MVP.
 
+- Aba **Mural** logo após a Agenda. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos; até 50 (índice `fixado desc + criadoEm desc`).
+- Diretoria publica, edita (título, texto, fixado) e exclui. Autor e data não mudam. Texto simples (até 2000 caracteres), com quebras de linha.
+
 ### 2.9 Escalação
 
 Por evento: formação e posicionamento de atletas com presença `vou` (titulares e reservas). Sorteio equilibrado de times para jogos internos é fase posterior.
@@ -359,6 +362,7 @@ src/app/
 | 27/09/2026 | Planos de cobrança (2.4) substituem os valores fixos por modalidade: até 10 por time, validados item a item nas Rules; vencimentos únicos por periodicidade. `atletas.modalidade` passa a ser id de plano ou `isento` (planos migrados mantêm os ids `mensal`/`semestral`/`avulso`, sem regravar cadastros). Cobrança guarda `planoNome`, usado como categoria da receita na baixa. Toda gravação da configuração financeira grava o objeto inteiro (converte times antigos). |
 | 27/09/2026 | Fase 3a (Agenda): aba Agenda é a primeira e a tela inicial do time. Evento ganha `esporte` e `criadoEm`; não é excluído (cancelar/reativar). Presença: esportivos só atletas, confraternização/outro todos; sem limite de vagas nem prazo. Repetição semanal cria N eventos independentes (até 12). Entregas da Fase 3: 3a agenda e presença, 3b encerramento e cobrança de avulsos, 3c mural. |
 | 27/09/2026 | Fase 3b: encerramento pela diretoria (compareceu + placar opcional, status `realizado`, corrigível depois). Cobrança de avulsos pela tesouraria no próprio evento realizado: quem compareceu e tem plano avulso, valor do plano, vencimento na data do jogo, referência = `eventoId` (idempotente). Rules de cobrança não conferem o evento (tesouraria é confiável, como nas mensais; evita um `get` por cobrança no lote). Cobrança avulsa aparece como "Avulso · jogo de dd/MM". Atalho em Financeiro › Gerar cobranças ("Avulsos por jogo": últimos 10 eventos realizados, índice `status + data desc`). |
+| 27/09/2026 | Fase 3c (Mural): aba Mural para todos; diretoria publica, edita e exclui recados (exclusão liberada: recado não tem efeito financeiro nem histórico). Tempo real, fixados no topo, limite de 50. `autorNome` = nome do membro no time (acesso) ou da conta. Sem aviso de "não lido" (exigiria estado por usuário). |
 
 ---
 

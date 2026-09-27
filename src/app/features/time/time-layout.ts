@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Briefcase } from '@primeicons/angular/briefcase';
 import { Calendar } from '@primeicons/angular/calendar';
+import { Megaphone } from '@primeicons/angular/megaphone';
 import { Users } from '@primeicons/angular/users';
 import { Wallet } from '@primeicons/angular/wallet';
 import { TimeAtualService } from '../../core/time/time-atual.service';
@@ -11,13 +12,13 @@ import { SolicitacoesService } from '../solicitacoes/data/solicitacoes.service';
 interface Aba {
   caminho: string;
   rotulo: string;
-  icone: 'agenda' | 'elenco' | 'financeiro' | 'gestao';
+  icone: 'agenda' | 'mural' | 'elenco' | 'financeiro' | 'gestao';
   selo?: number;
 }
 
 @Component({
   selector: 'app-time-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Escudo, Calendar, Users, Wallet, Briefcase],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Escudo, Calendar, Megaphone, Users, Wallet, Briefcase],
   templateUrl: './time-layout.html',
   styleUrl: './time-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,6 +31,7 @@ export class TimeLayout {
   protected readonly abas = computed<Aba[]>(() => {
     const abas: Aba[] = [
       { caminho: 'agenda', rotulo: 'Agenda', icone: 'agenda' },
+      { caminho: 'mural', rotulo: 'Mural', icone: 'mural' },
       { caminho: 'elenco', rotulo: 'Elenco', icone: 'elenco' },
     ];
     if (this.timeAtual.ehGestao()) {

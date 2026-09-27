@@ -66,7 +66,11 @@ rules_version = '2';
 //   resposta?: 'vou'|'nao_vou'|'talvez' (da própria pessoa) · compareceu?: bool (só diretoria, no encerramento)
 //   atualizadoEm (= request.time)
 //
-// Demais coleções (recados, campeonatos...) entram nas próximas fases e ficam negadas.
+// times/{timeId}/recados/{id}
+//   titulo (1..100) · texto (1..2000) · fixado: bool · autorUid (= request.auth.uid) · autorNome (1..100)
+//   criadoEm (= request.time); autor e criadoEm imutáveis
+//
+// Demais coleções (campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
 
 service cloud.firestore {
@@ -377,6 +381,17 @@ service cloud.firestore {
         && atleta.status == 'ativo'
         && evento.status == 'agendado'
         && (evento.tipo in ['confraternizacao', 'outro'] || atleta.get('vinculo', 'atleta') == 'atleta');
+    }
+
+    function isValidRecado(data) {
+      return data.keys().hasAll(['titulo', 'texto', 'fixado', 'autorUid', 'autorNome', 'criadoEm'])
+        && data.keys().hasOnly(['titulo', 'texto', 'fixado', 'autorUid', 'autorNome', 'criadoEm'])
+        && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 100
+        && data.texto is string && data.texto.size() >= 1 && data.texto.size() <= 2000
+        && data.fixado is bool
+        && data.autorUid is string && data.autorUid.size() <= 128
+        && data.autorNome is string && data.autorNome.size() >= 1 && data.autorNome.size() <= 100
+        && data.criadoEm is timestamp;
     }
 
     function diretoriaNoEvento(timeId, eventoId) {
@@ -691,6 +706,22 @@ service cloud.firestore {
 
           allow delete: if false;
         }
+      }
+
+      // Mural: todos do time leem; só a diretoria publica, edita e exclui.
+      match /recados/{recadoId} {
+        allow read: if temAcesso(timeId) || isAdminGeral();
+
+        allow create: if podeGerir(timeId)
+          && isValidRecado(request.resource.data)
+          && request.resource.data.autorUid == request.auth.uid
+          && request.resource.data.criadoEm == request.time;
+
+        allow update: if podeGerir(timeId)
+          && isValidRecado(request.resource.data)
+          && inalterados(['autorUid', 'autorNome', 'criadoEm']);
+
+        allow delete: if podeGerir(timeId);
       }
 
       // Pedido de entrada: criado pelo próprio com convite vigente; decidido pela gestão.

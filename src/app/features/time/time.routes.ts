@@ -20,6 +20,11 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../agenda/evento-page').then((m) => m.EventoPage),
       },
       {
+        path: 'mural',
+        title: 'Mural · ResenhaFC',
+        loadComponent: () => import('../mural/mural-page').then((m) => m.MuralPage),
+      },
+      {
         path: 'elenco',
         title: 'Elenco · ResenhaFC',
         loadComponent: () => import('../elenco/elenco-page').then((m) => m.ElencoPage),

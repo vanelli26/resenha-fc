@@ -69,6 +69,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "recados",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "fixado",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
