@@ -214,7 +214,7 @@ times/{timeId}/campeonatos/{campeonatoId}/estatisticas/{atletaId}
 - **Baixa / estorno**: seção 2.5.
 - **Lançar despesa recorrente**: seção 2.6.
 - **Encerrar evento** (diretoria): marca presença efetiva, placar, status `realizado`.
-- **Meus times** (jogador): consulta collection group `acessos` com `where('uid', '==', meuUid)` (o doc de acesso guarda também o campo `uid`; regra de collection group permite ler quando `resource.data.uid == request.auth.uid`) e, por time, carrega próximas partidas e cobranças pendentes.
+- **Meus times** (jogador): consulta collection group `acessos` com `where('uid', '==', meuUid)` (o doc de acesso guarda também o campo `uid`; regra de collection group permite ler quando `resource.data.uid == request.auth.uid`) e, por time, conta as cobranças pendentes do meu atleta (próximas partidas entram na Fase 3).
 
 Lotes do Firestore têm limite de 500 operações; dividir quando necessário.
 
@@ -329,6 +329,7 @@ src/app/
 | 26/09/2026 | Despesas recorrentes limitadas a 10 por time (Rules validam item a item, sem laço). Cobrança avulsa depende de eventos (Fase 3). |
 | 26/09/2026 | Financeiro navega por período (barra ‹ período ›, `?periodo=AAAA-MM` ou `AAAA-S1/S2` na URL): por mês se o time tem mensal (ou nenhuma), por semestre se tem semestral; com as duas, o usuário escolhe. Cobranças do período = vencimento dentro dele; visão "Em aberto" lista todas as pendentes. O caixa (2b) usa a mesma barra, por mês. |
 | 26/09/2026 | Caixa: saldo geral via `sum` no servidor (receitas − despesas); totais do mês somados na tela a partir da lista do mês (já carregada e limitada a 500), sem consultas de agregação extras. Lançamento de baixa (`cob_`) não é editável nem excluível no caixa. Despesas recorrentes cadastradas na Configuração financeira e lançadas no Caixa, mês a mês. |
+| 26/09/2026 | Minhas cobranças (`/t/:timeId/financeiro/minhas`): qualquer membro com atleta vinculado vê só as próprias (consulta por `atletaId`, índice composto `atletaId + vencimento`), em aberto primeiro e histórico. Jogador vê a aba Financeiro só com essa tela; quem gere e joga vê a aba "Minhas". "Meus times" mostra selo de pendentes por time (`count` no servidor, índice `atletaId + status`). |
 
 ---
 

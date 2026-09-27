@@ -3,6 +3,7 @@ import {
   Timestamp,
   collection,
   deleteField,
+  getCountFromServer,
   doc,
   getDocs,
   limit,
@@ -23,6 +24,8 @@ import { ROTULO_TIPO_COBRANCA } from '../../../shared/rotulos';
 const TAMANHO_LOTE = 500;
 /** "Em aberto" é limitado por atletas × competências; o teto só protege contra dado inesperado. */
 const MAX_EM_ABERTO = 500;
+/** Histórico do jogador: ~4 anos de mensalidades. */
+const MAX_DO_ATLETA = 60;
 
 export interface NovaCobranca {
   atletaId: string;
@@ -67,6 +70,25 @@ export class CobrancasService {
       ),
     );
     return snap.docs.map(comId);
+  }
+
+  /**
+   * Cobranças de um atleta (visão do jogador), mais recentes primeiro. O filtro por atletaId é o
+   * mesmo que as Rules exigem para o jogador. Índice composto (atletaId, vencimento desc).
+   */
+  async listarDoAtleta(timeId: string, atletaId: string): Promise<ComId<Cobranca>[]> {
+    const snap = await getDocs(
+      query(this.colecao(timeId), where('atletaId', '==', atletaId), orderBy('vencimento', 'desc'), limit(MAX_DO_ATLETA)),
+    );
+    return snap.docs.map(comId);
+  }
+
+  /** Quantas cobranças pendentes o atleta tem (selo em "Meus times"). Contagem no servidor. */
+  async contarPendentesDoAtleta(timeId: string, atletaId: string): Promise<number> {
+    const snap = await getCountFromServer(
+      query(this.colecao(timeId), where('atletaId', '==', atletaId), where('status', '==', 'pendente')),
+    );
+    return snap.data().count;
   }
 
   /** Pendentes de qualquer competência (inclui as atrasadas). */

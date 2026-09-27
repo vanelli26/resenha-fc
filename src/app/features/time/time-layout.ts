@@ -38,6 +38,9 @@ export class TimeLayout {
           selo: this.timeAtual.ehDiretoria() ? this.solicitacoes.qtdPendentes() : 0,
         },
       );
+    } else if (this.timeAtual.acesso()?.atletaId) {
+      // Jogador: só as próprias cobranças (nunca o caixa).
+      abas.push({ caminho: 'financeiro/minhas', rotulo: 'Financeiro', icone: 'financeiro' });
     }
     return abas;
   });

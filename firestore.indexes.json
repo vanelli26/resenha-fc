@@ -13,6 +13,34 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "cobrancas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "atletaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "vencimento",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cobrancas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "atletaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

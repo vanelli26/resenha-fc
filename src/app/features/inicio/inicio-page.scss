@@ -43,3 +43,14 @@
   font-size: 0.875rem;
   color: var(--p-text-muted-color);
 }
+
+// Cobranças pendentes do meu atleta no time.
+.item__pendentes {
+  flex-shrink: 0;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--p-red-500);
+  color: var(--p-surface-0);
+}

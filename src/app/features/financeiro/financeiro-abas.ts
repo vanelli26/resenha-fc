@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 
-/** Alternância entre as telas do financeiro da gestão (Cobranças | Caixa), mantendo o período da URL. */
+/** Alternância entre as telas do financeiro da gestão (Cobranças | Caixa | Minhas), mantendo o período da URL. */
 @Component({
   selector: 'app-financeiro-abas',
   imports: [RouterLink, RouterLinkActive],
@@ -14,12 +14,18 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
       <a class="abas__item" [routerLink]="base().concat('caixa')" queryParamsHandling="preserve" routerLinkActive="abas__item--ativa" ariaCurrentWhenActive="page">
         Caixa
       </a>
+      @if (temAtleta()) {
+        <a class="abas__item" [routerLink]="base().concat('minhas')" routerLinkActive="abas__item--ativa" ariaCurrentWhenActive="page">
+          Minhas
+        </a>
+      }
     </nav>
   `,
   styles: `
     .abas {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-auto-columns: 1fr;
+      grid-auto-flow: column;
       gap: 0.25rem;
       margin-bottom: 1rem;
       padding: 0.25rem;
@@ -49,6 +55,8 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FinanceiroAbas {
-  private readonly timeId = inject(TimeAtualService).timeId;
-  protected readonly base = computed(() => ['/t', this.timeId(), 'financeiro']);
+  private readonly timeAtual = inject(TimeAtualService);
+  protected readonly base = computed(() => ['/t', this.timeAtual.timeId(), 'financeiro']);
+  /** Quem gere e também joga vê as próprias cobranças na terceira aba. */
+  protected readonly temAtleta = computed(() => !!this.timeAtual.acesso()?.atletaId);
 }

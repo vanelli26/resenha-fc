@@ -30,6 +30,12 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../financeiro/caixa-page').then((m) => m.CaixaPage),
       },
       {
+        // Qualquer membro com atleta vinculado; a tela trata quem não tem.
+        path: 'financeiro/minhas',
+        title: 'Minhas cobranças · ResenhaFC',
+        loadComponent: () => import('../financeiro/minhas-cobrancas-page').then((m) => m.MinhasCobrancasPage),
+      },
+      {
         path: 'financeiro/gerar',
         canActivate: [tesourariaGuard],
         title: 'Gerar cobranças · ResenhaFC',

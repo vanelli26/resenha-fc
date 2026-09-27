@@ -1,0 +1,69 @@
+@if (ehGestao()) {
+  <app-financeiro-abas />
+}
+
+<div class="cabecalho-secao">
+  <h2>Minhas cobranças</h2>
+</div>
+
+@if (!atletaId()) {
+  <p class="cartao texto-suave">Sua conta ainda não está vinculada a um atleta do elenco. Fale com a diretoria.</p>
+} @else if (carregando() && lista().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+} @else {
+  <div class="cartao total" [class.total--em-dia]="emAberto().length === 0">
+    @if (emAberto().length > 0) {
+      <small class="texto-suave">Em aberto</small>
+      <strong>{{ totalEmAberto() | reais }}</strong>
+      <small class="texto-suave">{{ emAberto().length }} cobrança(s) pendente(s)</small>
+    } @else {
+      <strong>Você está em dia</strong>
+      <small class="texto-suave">Nenhuma cobrança pendente.</small>
+    }
+  </div>
+
+  @if (emAberto().length > 0) {
+    <h3>Em aberto</h3>
+    <ul class="lista">
+      @for (item of emAberto(); track item.cobranca.id) {
+        <li class="cartao cobranca">
+          <div class="cobranca__texto">
+            <strong>{{ item.rotulo }}</strong>
+            <small class="texto-suave">Vence em {{ item.cobranca.vencimento.toDate() | date: 'dd/MM/yyyy' }}</small>
+          </div>
+          <div class="cobranca__lado">
+            <strong>{{ item.cobranca.valorCentavos | reais }}</strong>
+            <app-situacao-cobranca [situacao]="item.situacao" />
+          </div>
+        </li>
+      }
+    </ul>
+  }
+
+  <h3>Histórico</h3>
+  <ul class="lista">
+    @for (item of historico(); track item.cobranca.id) {
+      <li class="cartao cobranca">
+        <div class="cobranca__texto">
+          <strong>{{ item.rotulo }}</strong>
+          <small class="texto-suave">
+            @if (item.cobranca.pagoEm; as pagoEm) {
+              Pago em {{ pagoEm.toDate() | date: 'dd/MM/yyyy' }}
+            } @else {
+              Venceu em {{ item.cobranca.vencimento.toDate() | date: 'dd/MM/yyyy' }}
+            }
+          </small>
+        </div>
+        <div class="cobranca__lado">
+          <strong>{{ item.cobranca.valorCentavos | reais }}</strong>
+          <app-situacao-cobranca [situacao]="item.situacao" />
+        </div>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum pagamento registrado ainda.</li>
+    }
+  </ul>
+}

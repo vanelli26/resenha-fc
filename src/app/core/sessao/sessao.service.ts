@@ -12,6 +12,8 @@ export interface MeuTime {
   timeNome: string;
   papeis: PapelTime[];
   escudo: string | null;
+  /** Atleta vinculado à conta neste time (null se não estiver no elenco). */
+  atletaId: string | null;
 }
 
 /** Dados da sessão logada: adminGeral e times do usuário. Leitura única, recarregável. */
@@ -67,13 +69,13 @@ export class SessaoService {
       const acessos = await getDocs(
         query(collectionGroup(this.firestore, 'acessos').withConverter(conversor<Acesso>()), where('uid', '==', uid)),
       );
-      const papeisPorTime = new Map(acessos.docs.map((d) => [d.data().timeId, d.data().papeis]));
+      const acessoPorTime = new Map(acessos.docs.map((d) => [d.data().timeId, d.data()]));
 
       // Documentos dos times (nome atual e escudo): adminGeral lista todos; os demais leem só os seus.
       const colecaoTimes = collection(this.firestore, 'times').withConverter(conversor<Time>());
       const times = admin
         ? (await getDocs(query(colecaoTimes, orderBy('nome')))).docs
-        : await Promise.all([...papeisPorTime.keys()].map((id) => getDoc(doc(colecaoTimes, id))));
+        : await Promise.all([...acessoPorTime.keys()].map((id) => getDoc(doc(colecaoTimes, id))));
 
       const meus: MeuTime[] = [];
       for (const t of times) {
@@ -82,8 +84,9 @@ export class SessaoService {
         meus.push({
           timeId: t.id,
           timeNome: dados.nome,
-          papeis: papeisPorTime.get(t.id) ?? [],
+          papeis: acessoPorTime.get(t.id)?.papeis ?? [],
           escudo: dados.escudo ?? null,
+          atletaId: acessoPorTime.get(t.id)?.atletaId ?? null,
         });
       }
       this._meusTimes.set(meus.sort((a, b) => a.timeNome.localeCompare(b.timeNome, 'pt-BR')));
