@@ -1,31 +1,34 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormField, form, maxLength, pattern, readonly, required, submit } from '@angular/forms/signals';
+import { FormField, form, maxLength, pattern, readonly, required, submit, validate } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { ComId } from '../../core/firebase/conversor';
 import { SessaoService } from '../../core/sessao/sessao.service';
 import { amostraDaCor } from '../../core/theme/app-theme';
+import { ESPORTES, ESPORTES_PADRAO, Esporte } from '../../models/posicao.model';
 import { CORES_TIME, CorTime, TAMANHO_MAX_ESCUDO, Time } from '../../models/time.model';
 import { Escudo } from '../../shared/escudo';
 import { mensagemDeErro } from '../../shared/erros';
 import { imagemParaDataUrl } from '../../shared/imagem';
-import { ROTULO_COR } from '../../shared/rotulos';
+import { ROTULO_COR, ROTULO_ESPORTE, opcoes } from '../../shared/rotulos';
 import { TimesService } from './data/times.service';
 
 interface FormTime {
   slug: string;
   nome: string;
   cor: CorTime;
+  esportes: Esporte[];
 }
 
-const FORM_VAZIO: FormTime = { slug: '', nome: '', cor: 'emerald' };
+const FORM_VAZIO: FormTime = { slug: '', nome: '', cor: 'emerald', esportes: [...ESPORTES_PADRAO] };
 
 /** Cadastro de times — só adminGeral (rota e Rules). */
 @Component({
   selector: 'app-times-admin-page',
-  imports: [FormField, RouterLink, ButtonModule, InputTextModule, Escudo],
+  imports: [FormField, RouterLink, ButtonModule, InputTextModule, SelectButtonModule, Escudo],
   templateUrl: './times-admin-page.html',
   styleUrl: './times-admin-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,6 +42,7 @@ export class TimesAdminPage {
   protected readonly editandoId = signal<string | null>(null);
   protected readonly cores = CORES_TIME.map((cor) => ({ cor, rotulo: ROTULO_COR[cor], amostra: amostraDaCor(cor) }));
   protected readonly rotuloCor = ROTULO_COR;
+  protected readonly opcoesEsporte = opcoes(ESPORTES, ROTULO_ESPORTE);
 
   // Escudo fica fora do formulário: vem de upload, não de digitação.
   protected readonly escudo = signal<string | null>(null);
@@ -52,6 +56,9 @@ export class TimesAdminPage {
     pattern(p.slug, /^[a-z0-9-]{2,40}$/, { message: 'Use 2 a 40 letras minúsculas, números ou hífen.' });
     // Slug é o ID do documento: imutável depois de criado.
     readonly(p.slug, { when: () => this.editandoId() !== null });
+    validate(p.esportes, ({ value }) =>
+      value().length > 0 ? undefined : { kind: 'esportes', message: 'Escolha ao menos um esporte.' },
+    );
   });
 
   constructor() {
@@ -61,13 +68,18 @@ export class TimesAdminPage {
   protected editar(time: ComId<Time>): void {
     this.editandoId.set(time.id);
     // Times antigos (campo `tema`) não têm `cor`: começa na cor base até salvar.
-    this.modelo.set({ slug: time.slug, nome: time.nome, cor: time.cor ?? FORM_VAZIO.cor });
+    this.modelo.set({
+      slug: time.slug,
+      nome: time.nome,
+      cor: time.cor ?? FORM_VAZIO.cor,
+      esportes: [...(time.esportes ?? ESPORTES_PADRAO)],
+    });
     this.escudo.set(time.escudo?.startsWith('data:') ? time.escudo : null);
   }
 
   protected cancelar(): void {
     this.editandoId.set(null);
-    this.modelo.set({ ...FORM_VAZIO });
+    this.modelo.set({ ...FORM_VAZIO, esportes: [...FORM_VAZIO.esportes] });
     this.escudo.set(null);
     this.formulario().reset();
   }
@@ -90,8 +102,8 @@ export class TimesAdminPage {
 
   protected salvar(): void {
     void submit(this.formulario, async () => {
-      const { slug, nome, cor } = this.modelo();
-      const dados = { nome, cor, escudo: this.escudo() };
+      const { slug, nome, cor, esportes } = this.modelo();
+      const dados = { nome, cor, esportes, escudo: this.escudo() };
       const id = this.editandoId();
       try {
         if (id) {

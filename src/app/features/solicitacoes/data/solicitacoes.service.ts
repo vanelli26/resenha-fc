@@ -82,7 +82,7 @@ export class SolicitacoesService {
         apelido: '',
         uid,
         modalidade: vinculo.modalidade,
-        posicoes: [],
+        posicoes: {},
         status: 'ativo',
         criadoEm: serverTimestamp(),
         atualizadoEm: serverTimestamp(),

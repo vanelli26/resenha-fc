@@ -10,7 +10,8 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { FotoPessoa } from '../../shared/foto-pessoa';
-import { ROTULO_MODALIDADE, ROTULO_POSICAO, ROTULO_STATUS_ATLETA } from '../../shared/rotulos';
+import { esportesComPosicao } from '../../models/posicao.model';
+import { ROTULO_ESPORTE, ROTULO_MODALIDADE, ROTULO_POSICAO, ROTULO_STATUS_ATLETA } from '../../shared/rotulos';
 import { AtletaForm } from './atleta-form';
 import { AtletasService, DadosAtleta } from './data/atletas.service';
 
@@ -29,6 +30,7 @@ export class ElencoPage {
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
   protected readonly modalidades = this.timeAtual.modalidadesHabilitadas;
+  protected readonly esportes = this.timeAtual.esportes;
   /** Atleta vinculado à conta logada neste time (null se não estiver no elenco). */
   protected readonly meuAtletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
   protected readonly atletas = signal<ComId<Atleta>[]>([]);
@@ -50,8 +52,21 @@ export class ElencoPage {
     return this.modoForm() === 'proprio' ? 'Meus dados' : 'Editar atleta';
   });
 
+  /** Posições por atleta, prontas para exibir ("Campo: Zagueiro, Volante · Futsal: Fixo"). */
+  protected readonly textoPosicoes = computed(() => {
+    const variosEsportes = this.esportes().length > 1;
+    return new Map(
+      this.atletas().map((a) => {
+        const grupos = esportesComPosicao(a.posicoes).map((e) => {
+          const nomes = (a.posicoes[e] ?? []).map((p) => ROTULO_POSICAO[p]).join(', ');
+          return variosEsportes || e !== 'society' ? `${ROTULO_ESPORTE[e]}: ${nomes}` : nomes;
+        });
+        return [a.id, grupos.join(' · ')];
+      }),
+    );
+  });
+
   protected readonly rotuloModalidade = ROTULO_MODALIDADE;
-  protected readonly rotuloPosicao = ROTULO_POSICAO;
   protected readonly rotuloStatus = ROTULO_STATUS_ATLETA;
 
   constructor() {

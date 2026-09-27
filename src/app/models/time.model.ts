@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { Esporte } from './posicao.model';
 
 // Cor predominante do time: nome de uma paleta do PrimeUIX, ou 'preto' (preto e branco).
 // A paleta completa é montada no código (core/theme); o time guarda só o nome (DIRETRIZES 6.1).
@@ -70,4 +71,6 @@ export interface Time {
   escudo: string | null;
   criadoEm: Timestamp;
   financeiro: ConfigFinanceira;
+  /** Ausente em times antigos = só society (ESPORTES_PADRAO). */
+  esportes?: Esporte[];
 }

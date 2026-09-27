@@ -31,11 +31,9 @@
           @if (atleta.apelido) {
             <small class="texto-suave">{{ atleta.nome }}</small>
           }
-          <small class="texto-suave">
-            @for (posicao of atleta.posicoes; track posicao; let ultima = $last) {
-              {{ rotuloPosicao[posicao] }}{{ ultima ? '' : ' · ' }}
-            }
-          </small>
+          @if (textoPosicoes().get(atleta.id); as posicoes) {
+            <small class="texto-suave">{{ posicoes }}</small>
+          }
           @if (atleta.telefone) {
             <a class="texto-suave" [href]="'tel:' + atleta.telefone">{{ atleta.telefone }}</a>
           }
@@ -75,6 +73,7 @@
       [atleta]="emEdicao()"
       [modo]="modoForm()"
       [modalidades]="modalidades()"
+      [esportes]="esportes()"
       (salvar)="salvar($event)"
       (cancelar)="dialogAberto.set(false)"
     />

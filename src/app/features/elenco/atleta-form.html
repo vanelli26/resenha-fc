@@ -32,20 +32,60 @@
     }
   </label>
 
-  <label class="campo">
-    <span>Posições</span>
-    <p-multiselect
-      [formField]="formulario.posicoes"
-      [options]="opcoesPosicao"
-      optionLabel="label"
-      optionValue="value"
-      placeholder="Selecione"
-      display="chip"
-      [showToggleAll]="false"
-      [filter]="false"
-      appendTo="body"
-    />
-  </label>
+  @let umEsporte = esportesVisiveis().length === 1;
+  @for (esporte of esportesVisiveis(); track esporte) {
+    @let rotulo = umEsporte ? 'Posições' : 'Posições no ' + rotuloEsporte[esporte];
+    @switch (esporte) {
+      @case ('campo') {
+        <label class="campo">
+          <span>{{ rotulo }}</span>
+          <p-multiselect
+            [formField]="formulario.posicoes.campo"
+            [options]="opcoesPosicao.campo"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione"
+            display="chip"
+            [showToggleAll]="false"
+            [filter]="false"
+            appendTo="body"
+          />
+        </label>
+      }
+      @case ('society') {
+        <label class="campo">
+          <span>{{ rotulo }}</span>
+          <p-multiselect
+            [formField]="formulario.posicoes.society"
+            [options]="opcoesPosicao.society"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione"
+            display="chip"
+            [showToggleAll]="false"
+            [filter]="false"
+            appendTo="body"
+          />
+        </label>
+      }
+      @case ('futsal') {
+        <label class="campo">
+          <span>{{ rotulo }}</span>
+          <p-multiselect
+            [formField]="formulario.posicoes.futsal"
+            [options]="opcoesPosicao.futsal"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione"
+            display="chip"
+            [showToggleAll]="false"
+            [filter]="false"
+            appendTo="body"
+          />
+        </label>
+      }
+    }
+  }
 
   @if (!formulario.modalidade().hidden()) {
     <label class="campo">

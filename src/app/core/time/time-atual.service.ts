@@ -3,6 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { Acesso } from '../../models/acesso.model';
 import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
 import { PapelTime } from '../../models/papel.model';
+import { ESPORTES, ESPORTES_PADRAO, Esporte } from '../../models/posicao.model';
 import { ConfigFinanceira, Time } from '../../models/time.model';
 import { AuthService } from '../auth/auth.service';
 import { ComId, conversor } from '../firebase/conversor';
@@ -33,6 +34,12 @@ export class TimeAtualService {
   readonly modalidadesHabilitadas = computed<Modalidade[]>(() => {
     const financeiro = this._time()?.financeiro;
     return MODALIDADES.filter((m) => m === 'isento' || financeiro?.[m].ativo === true);
+  });
+
+  /** Esportes do time, na ordem de exibição. */
+  readonly esportes = computed<Esporte[]>(() => {
+    const doTime = this._time()?.esportes ?? ESPORTES_PADRAO;
+    return ESPORTES.filter((e) => doTime.includes(e));
   });
 
   private entrando: { timeId: string; promessa: Promise<boolean> } | null = null;
@@ -87,6 +94,11 @@ export class TimeAtualService {
   /** Reflete no contexto a configuração financeira recém-gravada (evita reler o time). */
   definirFinanceiro(financeiro: ConfigFinanceira): void {
     this._time.update((time) => (time ? { ...time, financeiro } : time));
+  }
+
+  /** Reflete no contexto os esportes recém-gravados. */
+  definirEsportes(esportes: Esporte[]): void {
+    this._time.update((time) => (time ? { ...time, esportes } : time));
   }
 
   sair(): void {

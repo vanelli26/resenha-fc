@@ -2,9 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { addDoc, collection, deleteField, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
-import { Atleta, StatusAtleta } from '../../../models/atleta.model';
+import { Atleta, AtletaGravado, StatusAtleta } from '../../../models/atleta.model';
 import { Modalidade } from '../../../models/modalidade.model';
-import { Posicao } from '../../../models/posicao.model';
+import { PosicoesAtleta, normalizarPosicoes } from '../../../models/posicao.model';
 
 /** Vínculo de uma conta com o elenco: atleta existente (sem conta) ou novo, com a modalidade escolhida. */
 export type VinculoAtleta = { tipo: 'existente'; atletaId: string } | { tipo: 'novo'; modalidade: Modalidade };
@@ -16,7 +16,7 @@ export interface DadosAtleta {
   telefone?: string;
   numeroCamisa?: number;
   modalidade: Modalidade;
-  posicoes: Posicao[];
+  posicoes: PosicoesAtleta;
   status: StatusAtleta;
 }
 
@@ -26,8 +26,11 @@ export class AtletasService {
   private readonly firestore = inject(FIRESTORE);
 
   async listar(timeId: string): Promise<ComId<Atleta>[]> {
-    const snap = await getDocs(query(this.colecao(timeId).withConverter(conversor<Atleta>()), orderBy('nome')));
-    return snap.docs.map(comId);
+    const snap = await getDocs(query(this.colecao(timeId).withConverter(conversor<AtletaGravado>()), orderBy('nome')));
+    return snap.docs.map((d) => {
+      const atleta = comId(d);
+      return { ...atleta, posicoes: normalizarPosicoes(atleta.posicoes) };
+    });
   }
 
   async criar(timeId: string, dados: DadosAtleta): Promise<void> {

@@ -6,8 +6,18 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { Atleta, STATUS_ATLETA, StatusAtleta } from '../../models/atleta.model';
 import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
-import { POSICOES, Posicao } from '../../models/posicao.model';
-import { ROTULO_MODALIDADE, ROTULO_POSICAO, ROTULO_STATUS_ATLETA, opcoes } from '../../shared/rotulos';
+import {
+  ESPORTES,
+  ESPORTES_PADRAO,
+  Esporte,
+  POSICOES_POR_ESPORTE,
+  PosicaoCampo,
+  PosicaoFutsal,
+  PosicaoSociety,
+  PosicoesAtleta,
+  esportesComPosicao,
+} from '../../models/posicao.model';
+import { ROTULO_ESPORTE, ROTULO_MODALIDADE, ROTULO_POSICAO, ROTULO_STATUS_ATLETA, opcoes } from '../../shared/rotulos';
 import { DadosAtleta } from './data/atletas.service';
 
 // Signal Forms não usa null: campos opcionais são strings vazias e viram undefined ao salvar.
@@ -17,7 +27,7 @@ interface FormAtleta {
   telefone: string;
   numeroCamisa: string;
   modalidade: Modalidade;
-  posicoes: Posicao[];
+  posicoes: { campo: PosicaoCampo[]; society: PosicaoSociety[]; futsal: PosicaoFutsal[] };
   status: StatusAtleta;
 }
 
@@ -28,7 +38,11 @@ function paraFormulario(atleta: Atleta | null, modalidadePadrao: Modalidade): Fo
     telefone: atleta?.telefone ?? '',
     numeroCamisa: atleta?.numeroCamisa?.toString() ?? '',
     modalidade: atleta?.modalidade ?? modalidadePadrao,
-    posicoes: atleta?.posicoes ?? [],
+    posicoes: {
+      campo: atleta?.posicoes.campo ?? [],
+      society: atleta?.posicoes.society ?? [],
+      futsal: atleta?.posicoes.futsal ?? [],
+    },
     status: atleta?.status ?? 'ativo',
   };
 }
@@ -36,11 +50,17 @@ function paraFormulario(atleta: Atleta | null, modalidadePadrao: Modalidade): Fo
 function paraDados(f: FormAtleta): DadosAtleta {
   const telefone = f.telefone.trim();
   const numero = f.numeroCamisa.trim();
+  const { campo, society, futsal } = f.posicoes;
+  const posicoes: PosicoesAtleta = {
+    ...(campo.length ? { campo } : {}),
+    ...(society.length ? { society } : {}),
+    ...(futsal.length ? { futsal } : {}),
+  };
   return {
     nome: f.nome.trim(),
     apelido: f.apelido.trim(),
     modalidade: f.modalidade,
-    posicoes: f.posicoes,
+    posicoes,
     status: f.status,
     ...(telefone ? { telefone } : {}),
     ...(numero ? { numeroCamisa: Number(numero) } : {}),
@@ -59,6 +79,8 @@ export class AtletaForm {
   readonly modo = input<'completo' | 'proprio'>('completo');
   /** Modalidades habilitadas no time (DIRETRIZES 2.4). */
   readonly modalidades = input<readonly Modalidade[]>(MODALIDADES);
+  /** Esportes do time: um grupo de posições para cada. */
+  readonly esportes = input<readonly Esporte[]>(ESPORTES_PADRAO);
   readonly salvar = output<DadosAtleta>();
   readonly cancelar = output<void>();
 
@@ -68,7 +90,17 @@ export class AtletaForm {
     const lista = atual && !this.modalidades().includes(atual) ? [...this.modalidades(), atual] : this.modalidades();
     return opcoes(lista, ROTULO_MODALIDADE);
   });
-  protected readonly opcoesPosicao = opcoes(POSICOES, ROTULO_POSICAO);
+  /** Esportes do time + os que o atleta já tem posição (não apaga dado se o time deixar um esporte). */
+  protected readonly esportesVisiveis = computed(() => {
+    const doAtleta = esportesComPosicao(this.atleta()?.posicoes ?? {});
+    return ESPORTES.filter((e) => this.esportes().includes(e) || doAtleta.includes(e));
+  });
+  protected readonly opcoesPosicao = {
+    campo: opcoes(POSICOES_POR_ESPORTE.campo, ROTULO_POSICAO),
+    society: opcoes(POSICOES_POR_ESPORTE.society, ROTULO_POSICAO),
+    futsal: opcoes(POSICOES_POR_ESPORTE.futsal, ROTULO_POSICAO),
+  };
+  protected readonly rotuloEsporte = ROTULO_ESPORTE;
   protected readonly opcoesStatus = opcoes(STATUS_ATLETA, ROTULO_STATUS_ATLETA);
 
   protected readonly modelo = linkedSignal(() => paraFormulario(this.atleta(), this.modalidades()[0] ?? 'isento'));

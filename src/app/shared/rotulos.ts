@@ -2,7 +2,7 @@ import { StatusAtleta } from '../models/atleta.model';
 import { TipoCobranca } from '../models/financeiro.model';
 import { Modalidade } from '../models/modalidade.model';
 import { PapelTime } from '../models/papel.model';
-import { Posicao } from '../models/posicao.model';
+import { Esporte, Posicao } from '../models/posicao.model';
 import { CorTime } from '../models/time.model';
 
 // Textos de exibição dos enums do domínio (models só guardam os valores).
@@ -26,6 +26,20 @@ export const ROTULO_POSICAO: Record<Posicao, string> = {
   ala_esquerda: 'Ala esquerda',
   meia: 'Meia',
   pivo: 'Pivô',
+  zagueiro: 'Zagueiro',
+  lateral_direito: 'Lateral direito',
+  lateral_esquerdo: 'Lateral esquerdo',
+  volante: 'Volante',
+  meia_atacante: 'Meia-atacante',
+  ponta_direita: 'Ponta direita',
+  ponta_esquerda: 'Ponta esquerda',
+  centroavante: 'Centroavante',
+};
+
+export const ROTULO_ESPORTE: Record<Esporte, string> = {
+  campo: 'Campo',
+  society: 'Society',
+  futsal: 'Futsal',
 };
 
 export const ROTULO_STATUS_ATLETA: Record<StatusAtleta, string> = {

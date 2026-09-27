@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ChevronRight } from '@primeicons/angular/chevron-right';
+import { Flag } from '@primeicons/angular/flag';
 import { IdCard } from '@primeicons/angular/id-card';
 import { Link } from '@primeicons/angular/link';
 import { SlidersH } from '@primeicons/angular/sliders-h';
@@ -12,14 +13,14 @@ interface Item {
   caminho: string;
   titulo: string;
   descricao: string;
-  icone: 'membros' | 'convites' | 'solicitacoes' | 'financeiro';
+  icone: 'membros' | 'convites' | 'solicitacoes' | 'esportes' | 'financeiro';
   selo?: number;
 }
 
 /** Entrada das telas de administração do time; cada item aparece conforme o papel. */
 @Component({
   selector: 'app-gestao-page',
-  imports: [RouterLink, ChevronRight, IdCard, Link, SlidersH, UserPlus],
+  imports: [RouterLink, ChevronRight, Flag, IdCard, Link, SlidersH, UserPlus],
   templateUrl: './gestao-page.html',
   styleUrl: './gestao-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,6 +42,7 @@ export class GestaoPage {
           icone: 'solicitacoes',
           selo: this.solicitacoes.qtdPendentes(),
         },
+        { caminho: 'esportes', titulo: 'Esportes', descricao: 'Campo, society, futsal e posições', icone: 'esportes' },
       );
     }
     if (this.timeAtual.ehTesouraria()) {

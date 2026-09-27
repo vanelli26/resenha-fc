@@ -1,0 +1,22 @@
+.dica {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.esporte {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.esporte__texto {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.acoes {
+  margin-top: 1rem;
+}

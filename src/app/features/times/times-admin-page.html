@@ -51,6 +51,22 @@
     <small class="campo__dica">{{ rotuloCor[modelo().cor] }}</small>
   </fieldset>
 
+  <div class="campo">
+    <span id="esportes-time">Esportes</span>
+    <p-selectbutton
+      [formField]="formulario.esportes"
+      [options]="opcoesEsporte"
+      optionLabel="label"
+      optionValue="value"
+      [multiple]="true"
+      ariaLabelledBy="esportes-time"
+    />
+    <small class="campo__dica">Define as posições disponíveis no cadastro dos atletas.</small>
+    @if (formulario.esportes().touched() && formulario.esportes().invalid()) {
+      <small class="campo__erro">{{ formulario.esportes().errors()[0].message }}</small>
+    }
+  </div>
+
   <div class="acoes">
     @if (editandoId()) {
       <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar()" />

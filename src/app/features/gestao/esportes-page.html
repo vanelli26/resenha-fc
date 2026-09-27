@@ -1,0 +1,41 @@
+<app-voltar para="gestao" rotulo="Gestão" />
+
+<div class="cabecalho-secao">
+  <h2>Esportes</h2>
+</div>
+
+<p class="texto-suave dica">
+  Esportes que o time pratica. Cada um libera as posições correspondentes no cadastro dos atletas.
+  Desligar um esporte não apaga as posições já informadas.
+</p>
+
+<ul class="lista">
+  @for (item of itens; track item.esporte) {
+    <li>
+      <label class="cartao esporte">
+        <span class="esporte__texto">
+          <strong>{{ item.rotulo }}</strong>
+          <small class="texto-suave">{{ item.posicoes }}</small>
+        </span>
+        <p-toggleswitch
+          [ngModel]="selecionados().has(item.esporte)"
+          (ngModelChange)="alternar(item.esporte, $event)"
+          [ariaLabel]="item.rotulo"
+        />
+      </label>
+    </li>
+  }
+</ul>
+
+@if (selecionados().size === 0) {
+  <small class="campo__erro">Escolha ao menos um esporte.</small>
+}
+
+<div class="acoes">
+  <p-button
+    label="Salvar"
+    [loading]="salvando()"
+    [disabled]="!alterado() || selecionados().size === 0"
+    (onClick)="salvar()"
+  />
+</div>

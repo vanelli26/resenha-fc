@@ -20,6 +20,7 @@ Usuários acessam majoritariamente pelo celular. Idioma pt-BR, moeda BRL, fuso `
 - **Futebol Profissa**: campo próprio (sem despesa de campo); cobrança semestral dos jogadores; os benefícios de quem paga a semestralidade existem mas **não são gerenciados pelo sistema**.
 - Em ambos: avulsos pagam por jogo; goleiros não pagam (modalidade `isento`).
 - Cada time é independente: elenco, caixa, agenda, mural e campeonatos próprios. Não existe caixa consolidado entre times.
+- Esportes: cada time pratica um ou mais entre `campo`, `society` e `futsal` (o Profissa tem os três). Um time continua sendo um elenco e um caixa só; o esporte define as posições disponíveis (3.1). Definidos pelo adminGeral ou pela diretoria (Gestão › Esportes). Time sem o campo = só society.
 
 ### 2.2 Atleta
 
@@ -106,6 +107,7 @@ usuarios/{uid}
 
 times/{timeId}                           // timeId = slug (imutável; usado na URL /t/:timeId)
   nome, slug, cor, escudo, criadoEm      // cor = paleta da lista; escudo = data URL (upload) | null (ver 6.1)
+  esportes?: ("campo" | "society" | "futsal")[]   // ausente = ["society"]
   financeiro: {
     mensal:    { ativo, valorCentavos, diaVencimento }
     semestral: { ativo, valorCentavos, diaVencimento, mesVencimentoS1, mesVencimentoS2 }
@@ -124,7 +126,7 @@ times/{timeId}/atletas/{atletaId}
   nome, apelido, telefone?, fotoUrl?
   uid: string | null                     // conta vinculada
   modalidade: "mensal" | "semestral" | "avulso" | "isento"
-  posicoes: string[]                     // ver 3.1
+  posicoes: { campo?: [], society?: [], futsal?: [] }   // por esporte, ver 3.1
   numeroCamisa?, status: "ativo" | "afastado" | "inativo"
   criadoEm, atualizadoEm
 
@@ -167,9 +169,15 @@ times/{timeId}/campeonatos/{campeonatoId}/estatisticas/{atletaId}
   gols, assistencias, amarelos, vermelhos
 ```
 
-### 3.1 Posições (futebol society)
+### 3.1 Posições por esporte
 
-`goleiro`, `fixo`, `ala_direita`, `ala_esquerda`, `meia`, `pivo`. Lista fechada em uma constante; alteração exige decisão.
+Listas fechadas em constantes (`models/posicao.model.ts`); alteração exige decisão.
+
+- **Society**: `goleiro`, `fixo`, `ala_direita`, `ala_esquerda`, `meia`, `pivo`.
+- **Campo**: `goleiro`, `zagueiro`, `lateral_direito`, `lateral_esquerdo`, `volante`, `meia`, `meia_atacante`, `ponta_direita`, `ponta_esquerda`, `centroavante`.
+- **Futsal**: `goleiro`, `fixo`, `ala_direita`, `ala_esquerda`, `pivo`.
+
+O atleta guarda as posições por esporte. Atletas antigos têm uma lista simples, lida como society (Rules aceitam os dois formatos); ao salvar, passam ao formato novo. O formulário mostra os esportes do time mais os que o atleta já tem posição (desligar um esporte não apaga dado).
 
 ### 3.2 Convenções
 
@@ -190,7 +198,7 @@ times/{timeId}/campeonatos/{campeonatoId}/estatisticas/{atletaId}
 | Coleção | Leitura | Escrita |
 |---|---|---|
 | `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
-| `times/{timeId}` | quem tem acesso ao time | adminGeral (nome, cor, escudo); tesouraria/adminGeral: só `financeiro`, validado |
+| `times/{timeId}` | quem tem acesso ao time | adminGeral (nome, cor, escudo, esportes); diretoria: só `esportes`; tesouraria/adminGeral: só `financeiro`, validado |
 | `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel) |
 | `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
@@ -331,6 +339,8 @@ src/app/
 | 26/09/2026 | Caixa: saldo geral via `sum` no servidor (receitas − despesas); totais do mês somados na tela a partir da lista do mês (já carregada e limitada a 500), sem consultas de agregação extras. Lançamento de baixa (`cob_`) não é editável nem excluível no caixa. Despesas recorrentes cadastradas na Configuração financeira e lançadas no Caixa, mês a mês. |
 | 26/09/2026 | Minhas cobranças (`/t/:timeId/financeiro/minhas`): qualquer membro com atleta vinculado vê só as próprias (consulta por `atletaId`, índice composto `atletaId + vencimento`), em aberto primeiro e histórico. Jogador vê a aba Financeiro só com essa tela; quem gere e joga vê a aba "Minhas". "Meus times" mostra selo de pendentes por time (`count` no servidor, índice `atletaId + status`). |
 | 26/09/2026 | Jogador vinculado (após aprovação do convite) edita no próprio atleta também o **nome**. Modalidade de cobrança e status continuam só com a diretoria. Cobranças antigas mantêm o `atletaNome` da geração (3.2). |
+| 26/09/2026 | Esportes por time (`campo`, `society`, `futsal`), editáveis por adminGeral e diretoria; um time segue com elenco e caixa únicos. Posições do atleta por esporte (3.1), com as listas de campo e futsal aprovadas pelo usuário. |
+| 26/09/2026 | Próximas entregas aprovadas: vínculo no cadastro de atletas (`atleta`, `socio`, `colaborador`; Elenco mostra só atletas) e planos de cobrança configuráveis (nome, periodicidade, valor) no lugar dos valores fixos por modalidade; receita da baixa com categoria = nome do plano. |
 
 ---
 
