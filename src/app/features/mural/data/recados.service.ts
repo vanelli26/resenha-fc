@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -10,6 +11,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
@@ -98,9 +100,26 @@ export class RecadosService {
     await updateDoc(doc(this.firestore, 'times', timeId, 'recados', recadoId), { fixado });
   }
 
-  /** Apaga o post e depois as fotos (se as fotos falharem, o post já saiu do mural). */
+  /**
+   * Apaga o post com curtidas e comentários (mesmo lote; Rules liberam apagar filhos de post que deixa de existir)
+   * e depois as fotos (se as fotos falharem, o post já saiu do mural).
+   */
   async excluir(timeId: string, recado: ComId<Recado>): Promise<void> {
-    await deleteDoc(doc(this.firestore, 'times', timeId, 'recados', recado.id));
+    const postRef = doc(this.firestore, 'times', timeId, 'recados', recado.id);
+    const [curtidas, comentarios] = await Promise.all([
+      getDocs(collection(postRef, 'curtidas')),
+      getDocs(collection(postRef, 'comentarios')),
+    ]);
+    const filhos = [...curtidas.docs, ...comentarios.docs].map((d) => d.ref);
+    // Lote de até 500 operações: o post vai no último, junto com as sobras.
+    for (let i = 0; i < filhos.length; i += 499) {
+      const batch = writeBatch(this.firestore);
+      const parte = filhos.slice(i, i + 499);
+      parte.forEach((ref) => batch.delete(ref));
+      if (i + 499 >= filhos.length) batch.delete(postRef);
+      await batch.commit();
+    }
+    if (filhos.length === 0) await deleteDoc(postRef);
     await this.apagarFotos((recado.fotos ?? []).map((f) => f.caminho));
   }
 

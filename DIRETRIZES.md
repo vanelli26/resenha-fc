@@ -93,7 +93,11 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 
 ### 2.8 Mural
 
-Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fotos e legenda. **Qualquer membro publica.** O autor edita a legenda e exclui o próprio post (as fotos saem junto); a diretoria fixa no topo e exclui qualquer post. Posts antigos (só texto, com título) continuam válidos. Curtidas e comentários: entrega M2.
+Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fotos e legenda. **Qualquer membro publica.** O autor edita a legenda e exclui o próprio post (as fotos saem junto); a diretoria fixa no topo e exclui qualquer post. Posts antigos (só texto, com título) continuam válidos.
+
+- **Curtidas**: qualquer membro; documento `curtidas/{uid}` no post + contador `qtdCurtidas` no próprio post (atualiza em tempo real no feed). Rules: o contador só muda ±1 no mesmo lote em que a curtida da própria pessoa nasce ou some.
+- **Comentários**: qualquer membro, até 500 caracteres, sem edição; excluem o autor do comentário, o autor do post ou a diretoria. Abrem num diálogo em tempo real (até 200, mais antigos primeiro). O número de comentários de cada post é contado no servidor (`count`) ao carregar o feed, sem contador no post (um contador de comentários não é verificável com segurança nas Rules).
+- Excluir post apaga também curtidas e comentários (mesmo lote; Rules liberam apagar filhos de post que deixa de existir no lote).
 
 - Fotos reduzidas no aparelho (lado maior 1600px, WebP; JPEG onde não houver encoder) e enviadas ao Storage em `times/{timeId}/recados/{postId}/{0-3}.webp|jpeg`, com metadado `autorUid`. O post guarda URL de download, caminho, largura e altura. Se gravar o post falhar, as fotos enviadas são apagadas.
 - Feed de 10 em 10 ("Ver mais" aumenta o limite do listener), fixados primeiro. Carrossel com rolagem lateral e proporção da 1ª foto entre 1:1 e 1.91:1 (retrato cortado no centro), altura máxima de 55% da tela; tocar abre a foto inteira.
@@ -190,7 +194,13 @@ times/{timeId}/eventos/{eventoId}/escalacao/principal
 
 times/{timeId}/recados/{id}              // postagem do mural
   texto, fotos?: [{ url, caminho, largura, altura }] (1..4), titulo? (antigos)
-  fixado, autorUid, autorNome, autorFotoUrl?, criadoEm
+  fixado, autorUid, autorNome, autorFotoUrl?, criadoEm, qtdCurtidas?
+
+times/{timeId}/recados/{id}/curtidas/{uid}          // existir = curtiu
+  criadoEm
+
+times/{timeId}/recados/{id}/comentarios/{id}
+  texto, autorUid, autorNome, autorFotoUrl?, criadoEm
 
 times/{timeId}/patrocinadores/{id}
   nome, logo (data URL | null), link?, ordem, criadoEm
@@ -239,7 +249,9 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
 | `eventos`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
-| `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; exclui autor ou diretoria |
+| `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; qualquer membro muda `qtdCurtidas` ±1 junto com a própria curtida; exclui autor ou diretoria |
+| `recados/{id}/curtidas/{uid}` | acesso ao time | a própria pessoa, junto com o contador do post |
+| `recados/{id}/comentarios` | acesso ao time | qualquer membro cria (autor = ele); sem edição; exclui autor, autor do post ou diretoria |
 | `eventos/{id}/gols` | acesso ao time | diretoria, só com o evento `realizado` |
 | `patrocinadores` | acesso ao time | diretoria |
 | `presencas/{atletaId}` | acesso ao time | a própria pessoa: só o próprio `atletaId` (vínculo nos dois lados), só `resposta` (nunca `compareceu`), cadastro ativo, evento `agendado` e elegível pelo tipo (2.7); diretoria: qualquer um, inclusive `compareceu`; sem exclusão |
@@ -387,6 +399,7 @@ src/app/
 | 27/09/2026 | Projeto migrado para o plano **Blaze** pelo usuário. Mural evolui em 3 entregas: M3 apoiadores (faixa no topo, logo em data URL, sem Storage) — feita primeiro; M1 postagens com 1 a 4 fotos no **Storage** (`times/{timeId}/recados/{postId}/`), todos os membros publicam, autor edita/exclui o próprio, diretoria fixa e exclui qualquer; M2 curtidas (subcoleção por uid + contador validado nas Rules) e comentários (subcoleção; exclui o autor ou a diretoria; sem edição). Comentários saem de "fora do MVP". |
 | 27/09/2026 | M1 do mural: Storage em uso (`storage.rules`, token lazy `STORAGE`). Postagens com 1 a 4 fotos reduzidas no aparelho; qualquer membro publica; Firestore Rules validam cada foto (caminho do próprio post) e as permissões de autor/diretoria; Storage Rules validam membro, tipo, tamanho e autor. |
 | 27/09/2026 | Regras do Storage consultam o Firestore (membro/diretoria): exige o papel **Firebase Rules Firestore Service Agent** para a conta de serviço do Storage (`service-…@gcp-sa-firebasestorage.iam.gserviceaccount.com`), concedido pelo usuário no IAM. Sem ele, todo envio falha com `storage/unauthorized`. |
+| 27/09/2026 | M2 do mural: curtidas com contador no post validado nas Rules (±1 com `exists`/`existsAfter` da curtida da própria pessoa); comentários sem contador (contagem `count` no servidor por post ao carregar o feed). Moderação de comentários: autor, autor do post e diretoria. |
 
 ---
 

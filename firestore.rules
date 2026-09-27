@@ -77,7 +77,13 @@ rules_version = '2';
 //   texto (0..2000) · fotos?: list 1..4 de {url https, caminho = times/{timeId}/recados/{id}/{0-3}.webp|jpeg, largura, altura}
 //   titulo? (1..100, posts antigos) · precisa de texto, fotos ou título · fixado: bool (só diretoria liga)
 //   autorUid (= request.auth.uid) · autorNome (1..100) · autorFotoUrl? (https) · criadoEm (= request.time)
+//   qtdCurtidas?: int >= 0 (±1 só junto com a curtida da própria pessoa)
 //   Autor edita só `texto`; diretoria só `fixado`; exclui o autor ou a diretoria. Fotos no Storage (storage.rules).
+//
+// times/{timeId}/recados/{id}/curtidas/{uid}      criadoEm (= request.time) — existir = curtiu
+// times/{timeId}/recados/{id}/comentarios/{id}    texto (1..500) · autorUid (= request.auth.uid) · autorNome (1..100)
+//   autorFotoUrl? (https) · criadoEm (= request.time). Sem edição; exclui o autor, o autor do post ou a diretoria.
+//   Curtidas e comentários de um post que está sendo excluído (no mesmo lote) podem ser apagados.
 //
 // Demais coleções (campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
@@ -435,7 +441,43 @@ service cloud.firestore {
         && data.autorUid is string && data.autorUid.size() <= 128
         && data.autorNome is string && data.autorNome.size() >= 1 && data.autorNome.size() <= 100
         && (!('autorFotoUrl' in data) || isValidUrl(data.autorFotoUrl))
+        && (!('qtdCurtidas' in data) || (data.qtdCurtidas is int && data.qtdCurtidas >= 0))
         && data.criadoEm is timestamp;
+    }
+
+    function recadoPath(timeId, recadoId) {
+      return /databases/$(database)/documents/times/$(timeId)/recados/$(recadoId);
+    }
+
+    function curtidaPath(timeId, recadoId, uid) {
+      return /databases/$(database)/documents/times/$(timeId)/recados/$(recadoId)/curtidas/$(uid);
+    }
+
+    // Contador do post muda ±1 exatamente quando a curtida da própria pessoa nasce ou some no mesmo lote.
+    function contadorDeCurtidaValido(timeId, recadoId) {
+      let antes = resource.data.get('qtdCurtidas', 0);
+      let depois = request.resource.data.qtdCurtidas;
+      let curtida = curtidaPath(timeId, recadoId, request.auth.uid);
+      return depois is int
+        && ((depois == antes + 1 && !exists(curtida) && existsAfter(curtida))
+          || (depois == antes - 1 && depois >= 0 && exists(curtida) && !existsAfter(curtida)));
+    }
+
+    function isValidComentario(data) {
+      return data.keys().hasAll(['texto', 'autorUid', 'autorNome', 'criadoEm'])
+        && data.keys().hasOnly(['texto', 'autorUid', 'autorNome', 'autorFotoUrl', 'criadoEm'])
+        && data.texto is string && data.texto.size() >= 1 && data.texto.size() <= 500
+        && data.autorUid is string && data.autorUid.size() <= 128
+        && data.autorNome is string && data.autorNome.size() >= 1 && data.autorNome.size() <= 100
+        && (!('autorFotoUrl' in data) || isValidUrl(data.autorFotoUrl))
+        && data.criadoEm is timestamp;
+    }
+
+    // Filho (curtida/comentário) apagável por moderação: diretoria, autor do post ou post sendo excluído no lote.
+    function podeLimparFilhoDoPost(timeId, recadoId) {
+      return podeGerir(timeId)
+        || !existsAfter(recadoPath(timeId, recadoId))
+        || (temAcesso(timeId) && get(recadoPath(timeId, recadoId)).data.autorUid == request.auth.uid);
     }
 
     function isValidGol(data, golId) {
@@ -804,10 +846,49 @@ service cloud.firestore {
           && ((temAcesso(timeId) && resource.data.autorUid == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['texto']))
             || (podeGerir(timeId)
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fixado'])));
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fixado']))
+            || (temAcesso(timeId)
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['qtdCurtidas'])
+                && contadorDeCurtidaValido(timeId, recadoId)));
 
         allow delete: if podeGerir(timeId)
           || (temAcesso(timeId) && resource.data.autorUid == request.auth.uid);
+
+        // Curtida: só a própria, junto com o contador do post (+1 ao criar, −1 ao apagar).
+        match /curtidas/{uid} {
+          allow read: if temAcesso(timeId) || isAdminGeral();
+
+          allow create: if temAcesso(timeId)
+            && uid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['criadoEm'])
+            && request.resource.data.criadoEm == request.time
+            && getAfter(recadoPath(timeId, recadoId)).data.get('qtdCurtidas', 0)
+              == get(recadoPath(timeId, recadoId)).data.get('qtdCurtidas', 0) + 1;
+
+          allow update: if false;
+
+          allow delete: if (temAcesso(timeId)
+              && uid == request.auth.uid
+              && getAfter(recadoPath(timeId, recadoId)).data.get('qtdCurtidas', 0)
+                == get(recadoPath(timeId, recadoId)).data.get('qtdCurtidas', 0) - 1)
+            || podeLimparFilhoDoPost(timeId, recadoId);
+        }
+
+        // Comentário: qualquer membro, em post existente; sem edição.
+        match /comentarios/{comentarioId} {
+          allow read: if temAcesso(timeId) || isAdminGeral();
+
+          allow create: if temAcesso(timeId)
+            && exists(recadoPath(timeId, recadoId))
+            && isValidComentario(request.resource.data)
+            && request.resource.data.autorUid == request.auth.uid
+            && request.resource.data.criadoEm == request.time;
+
+          allow update: if false;
+
+          allow delete: if (temAcesso(timeId) && resource.data.autorUid == request.auth.uid)
+            || podeLimparFilhoDoPost(timeId, recadoId);
+        }
       }
 
       // Pedido de entrada: criado pelo próprio com convite vigente; decidido pela gestão.

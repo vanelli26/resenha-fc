@@ -1,0 +1,49 @@
+.comentarios {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.comentarios__lista {
+  display: grid;
+  gap: 0.875rem;
+  max-height: 55vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.comentario {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  --foto-tamanho: 2rem;
+}
+
+.comentario__corpo {
+  flex: 1;
+  min-width: 0;
+
+  p {
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  strong {
+    margin-right: 0.25rem;
+  }
+}
+
+.comentarios__novo {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--p-content-border-color);
+
+  textarea {
+    flex: 1;
+    max-height: 8rem;
+  }
+}

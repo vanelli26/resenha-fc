@@ -13,6 +13,10 @@
           [recado]="r"
           [ehAutor]="r.autorUid === meuUid()"
           [podeModerar]="ehDiretoria()"
+          [curtido]="curtidos().has(r.id)"
+          [qtdComentarios]="qtdComentarios().get(r.id) ?? null"
+          (curtir)="curtir(r.id, $event)"
+          (abrirComentarios)="comentariosDe.set(r.id)"
           (editar)="editar(r)"
           (fixar)="fixar(r, $event)"
           (excluir)="excluir(r)"
@@ -75,6 +79,19 @@
       <p-button label="Salvar" [loading]="salvando()" [disabled]="textoEdicao().length > 2000" (onClick)="salvarEdicao()" />
     </div>
   </div>
+</p-dialog>
+
+<p-dialog
+  header="Comentários"
+  [visible]="comentariosDe() !== null"
+  (visibleChange)="$event || comentariosDe.set(null)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(30rem, 100vw - 2rem)' }"
+>
+  @if (comentariosDe(); as recadoId) {
+    <app-comentarios-post [recadoId]="recadoId" (quantidadeMudou)="atualizarQtdComentarios(recadoId, $event)" />
+  }
 </p-dialog>
 
 <p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

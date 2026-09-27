@@ -28,4 +28,22 @@ export interface Recado {
   autorNome: string;
   autorFotoUrl?: string;
   criadoEm: Timestamp;
+  /** Contador de curtidas (±1 junto com recados/{id}/curtidas/{uid}; validado nas Rules). */
+  qtdCurtidas?: number;
+}
+
+/** times/{timeId}/recados/{id}/curtidas/{uid} — existir = curtiu. */
+export interface Curtida {
+  criadoEm: Timestamp;
+}
+
+export const MAX_COMENTARIO = 500;
+
+/** times/{timeId}/recados/{id}/comentarios/{id}. Não é editado; exclui o autor ou a diretoria. */
+export interface Comentario {
+  texto: string;
+  autorUid: string;
+  autorNome: string;
+  autorFotoUrl?: string;
+  criadoEm: Timestamp;
 }

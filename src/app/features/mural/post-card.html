@@ -46,6 +46,28 @@
     </div>
   }
 
+  <div class="post__acoes">
+    <button
+      type="button"
+      class="post__acao"
+      [class.post__acao--curtido]="curtido()"
+      [attr.aria-pressed]="curtido()"
+      [attr.aria-label]="curtido() ? 'Descurtir' : 'Curtir'"
+      (click)="curtir.emit(!curtido())"
+    >
+      @if (curtido()) {
+        <svg data-p-icon="heart-fill" [size]="20" aria-hidden="true"></svg>
+      } @else {
+        <svg data-p-icon="heart" [size]="20" aria-hidden="true"></svg>
+      }
+      <span>{{ r.qtdCurtidas ?? 0 }}</span>
+    </button>
+    <button type="button" class="post__acao" aria-label="Comentários" (click)="abrirComentarios.emit()">
+      <svg data-p-icon="comment" [size]="20" aria-hidden="true"></svg>
+      <span>{{ qtdComentarios() ?? '' }}</span>
+    </button>
+  </div>
+
   @if (r.titulo || r.texto) {
     <div class="post__legenda">
       @if (r.titulo) {

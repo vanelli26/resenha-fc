@@ -12,6 +12,8 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Recado } from '../../models/recado.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { FaixaPatrocinadores } from '../patrocinadores/faixa-patrocinadores';
+import { ComentariosPost } from './comentarios-post';
+import { InteracoesService } from './data/interacoes.service';
 import { NovoPost, RecadosService, TAMANHO_PAGINA_MURAL } from './data/recados.service';
 import { NovaPostagem } from './nova-postagem';
 import { PostCard } from './post-card';
@@ -26,6 +28,7 @@ import { PostCard } from './post-card';
     DialogModule,
     SkeletonModule,
     TextareaModule,
+    ComentariosPost,
     FaixaPatrocinadores,
     NovaPostagem,
     PostCard,
@@ -39,6 +42,7 @@ export class MuralPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly auth = inject(AuthService);
   private readonly recadosService = inject(RecadosService);
+  private readonly interacoes = inject(InteracoesService);
   private readonly mensagens = inject(MessageService);
   private readonly confirmacao = inject(ConfirmationService);
 
@@ -56,6 +60,13 @@ export class MuralPage {
   protected readonly emEdicao = signal<ComId<Recado> | null>(null);
   protected readonly textoEdicao = signal('');
   protected readonly salvando = signal(false);
+
+  /** Posts que eu curti e contagem de comentários; carregados só para posts ainda não vistos. */
+  protected readonly curtidos = signal<ReadonlySet<string>>(new Set());
+  protected readonly qtdComentarios = signal<ReadonlyMap<string, number>>(new Map());
+  private verificados = new Set<string>();
+  /** Post com os comentários abertos. */
+  protected readonly comentariosDe = signal<string | null>(null);
 
   private pararDeOuvir: (() => void) | null = null;
 
@@ -86,9 +97,59 @@ export class MuralPage {
         this.quantidade.set(TAMANHO_PAGINA_MURAL);
         this.novaAberta.set(false);
         this.emEdicao.set(null);
+        this.comentariosDe.set(null);
+        this.curtidos.set(new Set());
+        this.qtdComentarios.set(new Map());
+        this.verificados = new Set();
       });
     });
+    // Posts novos no feed: minha curtida e nº de comentários (uma leitura + uma contagem por post).
+    effect(() => {
+      const ids = (this.recados() ?? []).map((r) => r.id).filter((id) => !this.verificados.has(id));
+      untracked(() => void this.carregarInteracoes(ids));
+    });
     inject(DestroyRef).onDestroy(() => this.pararDeOuvir?.());
+  }
+
+  protected async curtir(recadoId: string, curtir: boolean): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const uid = this.meuUid();
+    if (!timeId || !uid) return;
+    const antes = this.curtidos();
+    const depois = new Set(antes);
+    if (curtir) depois.add(recadoId);
+    else depois.delete(recadoId);
+    this.curtidos.set(depois);
+    try {
+      // O contador do post chega pelo listener do feed.
+      await this.interacoes.definirCurtida(timeId, recadoId, uid, curtir);
+    } catch (e) {
+      this.curtidos.set(antes);
+      this.mensagens.add({ severity: 'error', summary: 'Não foi possível curtir', detail: mensagemDeErro(e) });
+    }
+  }
+
+  protected atualizarQtdComentarios(recadoId: string, quantidade: number): void {
+    this.qtdComentarios.update((mapa) => new Map(mapa).set(recadoId, quantidade));
+  }
+
+  private async carregarInteracoes(ids: string[]): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const uid = this.meuUid();
+    if (!timeId || !uid || ids.length === 0) return;
+    ids.forEach((id) => this.verificados.add(id));
+    try {
+      const [curtidos, contagens] = await Promise.all([
+        this.interacoes.minhasCurtidas(timeId, ids, uid),
+        this.interacoes.contarComentarios(timeId, ids),
+      ]);
+      if (this.timeAtual.timeId() !== timeId) return;
+      this.curtidos.update((atual) => new Set([...atual, ...curtidos]));
+      this.qtdComentarios.update((atual) => new Map([...atual, ...contagens]));
+    } catch {
+      // Complementos do feed: falha não impede ver as postagens; tenta de novo na próxima carga.
+      ids.forEach((id) => this.verificados.delete(id));
+    }
   }
 
   protected verMais(): void {

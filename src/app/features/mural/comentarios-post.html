@@ -1,0 +1,64 @@
+<div class="comentarios">
+  <ul class="comentarios__lista">
+    @if (comentarios(); as lista) {
+      @for (c of lista; track c.id) {
+        <li class="comentario">
+          <app-foto-pessoa [src]="c.autorFotoUrl" [nome]="c.autorNome" />
+          <div class="comentario__corpo">
+            <p>
+              <strong>{{ c.autorNome }}</strong>
+              {{ c.texto }}
+            </p>
+            <small class="texto-suave">
+              @if (c.criadoEm) {
+                {{ c.criadoEm.toDate() | date: "dd/MM 'às' HH:mm" }}
+              } @else {
+                enviando…
+              }
+            </small>
+          </div>
+          @if (c.autorUid === meuUid() || ehDiretoria()) {
+            <p-button
+              [text]="true"
+              [rounded]="true"
+              size="small"
+              severity="secondary"
+              ariaLabel="Excluir comentário"
+              (onClick)="excluir(c.id)"
+            >
+              <svg data-p-icon="trash" [size]="14" aria-hidden="true"></svg>
+            </p-button>
+          }
+        </li>
+      } @empty {
+        <li class="texto-suave">Nenhum comentário. Comece a conversa!</li>
+      }
+    } @else {
+      <li class="texto-suave">Carregando…</li>
+    }
+  </ul>
+
+  @if (erro(); as mensagem) {
+    <small class="campo__erro">{{ mensagem }}</small>
+  }
+
+  <div class="comentarios__novo">
+    <textarea
+      pTextarea
+      rows="1"
+      [autoResize]="true"
+      placeholder="Escreva um comentário…"
+      aria-label="Novo comentário"
+      [ngModel]="texto()"
+      (ngModelChange)="texto.set($event)"
+      (keydown)="aoTeclar($event)"
+      [disabled]="enviando()"
+    ></textarea>
+    <p-button [rounded]="true" ariaLabel="Enviar comentário" [disabled]="!podeEnviar()" [loading]="enviando()" (onClick)="enviar()">
+      <svg data-p-icon="send" [size]="16" aria-hidden="true"></svg>
+    </p-button>
+  </div>
+  @if (texto().length > maximo) {
+    <small class="campo__erro">Máximo de {{ maximo }} caracteres.</small>
+  }
+</div>

@@ -1,6 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { Comment } from '@primeicons/angular/comment';
 import { EllipsisV } from '@primeicons/angular/ellipsis-v';
+import { Heart } from '@primeicons/angular/heart';
+import { HeartFill } from '@primeicons/angular/heart-fill';
 import { Thumbtack } from '@primeicons/angular/thumbtack';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -17,7 +20,7 @@ function proporcao(largura: number, altura: number): number {
 /** Postagem no feed: autor, fotos (carrossel com rolagem lateral) e legenda. */
 @Component({
   selector: 'app-post-card',
-  imports: [DatePipe, ButtonModule, MenuModule, EllipsisV, Thumbtack, FotoPessoa],
+  imports: [DatePipe, ButtonModule, MenuModule, Comment, EllipsisV, Heart, HeartFill, Thumbtack, FotoPessoa],
   templateUrl: './post-card.html',
   styleUrl: './post-card.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +31,11 @@ export class PostCard {
   readonly ehAutor = input(false);
   /** Diretoria: fixa e exclui qualquer post. */
   readonly podeModerar = input(false);
+  readonly curtido = input(false);
+  /** null enquanto a contagem carrega. */
+  readonly qtdComentarios = input<number | null>(null);
+  readonly curtir = output<boolean>();
+  readonly abrirComentarios = output<void>();
   readonly editar = output<void>();
   readonly excluir = output<void>();
   readonly fixar = output<boolean>();
