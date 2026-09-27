@@ -436,7 +436,7 @@ service cloud.firestore {
 
     function isValidRecado(data, timeId, recadoId) {
       return data.keys().hasAll(['texto', 'fixado', 'autorUid', 'autorNome', 'criadoEm'])
-        && data.keys().hasOnly(['titulo', 'texto', 'fotos', 'fixado', 'autorUid', 'autorNome', 'autorFotoUrl', 'criadoEm'])
+        && data.keys().hasOnly(['titulo', 'texto', 'fotos', 'fixado', 'autorUid', 'autorNome', 'autorFotoUrl', 'criadoEm', 'qtdCurtidas'])
         && textoOpcional(data, 'titulo', 1, 100)
         && data.texto is string && data.texto.size() <= 2000
         && (!('fotos' in data) || fotosValidas(data.fotos, timeId, recadoId))
@@ -843,6 +843,7 @@ service cloud.firestore {
           && isValidRecado(request.resource.data, timeId, recadoId)
           && request.resource.data.autorUid == request.auth.uid
           && request.resource.data.criadoEm == request.time
+          && !('qtdCurtidas' in request.resource.data)
           && (request.resource.data.fixado == false || podeGerir(timeId));
 
         allow update: if isValidRecado(request.resource.data, timeId, recadoId)
