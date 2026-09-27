@@ -73,7 +73,7 @@
     </fieldset>
 
     <label class="campo">
-      <span>Atleta no elenco</span>
+      <span>Cadastro no time</span>
       <p-select
         [formField]="formulario.atleta"
         [options]="opcoesAtleta()"
@@ -82,12 +82,25 @@
         [filter]="true"
         appendTo="body"
       />
-      <small class="campo__dica">Vincula a conta a um atleta do elenco. Não altera os papéis.</small>
+      <small class="campo__dica">Liga a conta a um atleta, sócio ou colaborador. Não altera os papéis.</small>
     </label>
+
+    @if (!formulario.vinculo().hidden()) {
+      <label class="campo">
+        <span>Entra como</span>
+        <p-select
+          [formField]="formulario.vinculo"
+          [options]="opcoesVinculo"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+        />
+      </label>
+    }
 
     @if (!formulario.modalidade().hidden()) {
       <label class="campo">
-        <span>Modalidade de cobrança do novo atleta</span>
+        <span>Modalidade de cobrança</span>
         <p-select
           [formField]="formulario.modalidade"
           [options]="opcoesModalidade()"

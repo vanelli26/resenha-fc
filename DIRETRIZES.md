@@ -28,6 +28,8 @@ Cadastro de uma pessoa **dentro de um time**. Pode existir sem conta no app (ex.
 
 Uma pessoa que joga nos dois times tem **um atleta em cada time**, ambos ligados ao mesmo `uid`. Posições, número de camisa e modalidade são por time.
 
+**Vínculo**: a coleção `atletas` guarda todo o cadastro do time, com `vinculo` = `atleta` (joga), `socio` ou `colaborador` (colaborador/torcedor). Ausente = `atleta`. O Elenco mostra só atletas; sócios e colaboradores ficam em Gestão › Sócios e colaboradores (diretoria). Todos podem ter conta, receber cobranças e ver Minhas cobranças; posições e camisa só para atletas. Quem não é atleta edita os próprios dados pelo aviso "Você está no time como…" no Elenco. Sócios e colaboradores entram **só por convite, com login** (como qualquer membro): o vínculo é escolhido pela diretoria ao aprovar a solicitação (ou em Membros), e depois pode ser alterado no Editar de quem tem conta. Cadastro manual sem conta (Novo atleta) é sempre `atleta`; Rules exigem `uid` para `socio`/`colaborador` na criação e quando o vínculo muda.
+
 ### 2.3 Papéis
 
 | Papel | Escopo | Pode |
@@ -128,6 +130,7 @@ times/{timeId}/atletas/{atletaId}
   modalidade: "mensal" | "semestral" | "avulso" | "isento"
   posicoes: { campo?: [], society?: [], futsal?: [] }   // por esporte, ver 3.1
   numeroCamisa?, status: "ativo" | "afastado" | "inativo"
+  vinculo?: "atleta" | "socio" | "colaborador"   // ausente = atleta (2.2)
   criadoEm, atualizadoEm
 
 times/{timeId}/convites/{codigo}         // reutilizável até expirar ou ser desativado; validade padrão 7 dias
@@ -200,7 +203,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
 | `times/{timeId}` | quem tem acesso ao time | adminGeral (nome, cor, escudo, esportes); diretoria: só `esportes`; tesouraria/adminGeral: só `financeiro`, validado |
 | `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel) |
-| `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (sincronizada da foto do Google ao abrir o elenco) |
+| `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (modalidade, status e `vinculo` só a diretoria) (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
@@ -341,6 +344,7 @@ src/app/
 | 26/09/2026 | Jogador vinculado (após aprovação do convite) edita no próprio atleta também o **nome**. Modalidade de cobrança e status continuam só com a diretoria. Cobranças antigas mantêm o `atletaNome` da geração (3.2). |
 | 26/09/2026 | Esportes por time (`campo`, `society`, `futsal`), editáveis por adminGeral e diretoria; um time segue com elenco e caixa únicos. Posições do atleta por esporte (3.1), com as listas de campo e futsal aprovadas pelo usuário. |
 | 26/09/2026 | Próximas entregas aprovadas: vínculo no cadastro de atletas (`atleta`, `socio`, `colaborador`; Elenco mostra só atletas) e planos de cobrança configuráveis (nome, periodicidade, valor) no lugar dos valores fixos por modalidade; receita da baixa com categoria = nome do plano. |
+| 26/09/2026 | Vínculo no cadastro (`atletas.vinculo`: atleta, sócio, colaborador/torcedor), sem coleção nova: cobranças, convite e Minhas cobranças valem para todos. Elenco lista só atletas (filtro na tela: a coleção é pequena e cadastros antigos não têm o campo); Gestão › Sócios e colaboradores lista os demais (só edição: entram por convite, com login). |
 
 ---
 

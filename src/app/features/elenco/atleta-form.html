@@ -24,67 +24,85 @@
     }
   </label>
 
-  <label class="campo">
-    <span>Número da camisa</span>
-    <input pInputText inputmode="numeric" [formField]="formulario.numeroCamisa" autocomplete="off" />
-    @if (formulario.numeroCamisa().touched() && formulario.numeroCamisa().invalid()) {
-      <small class="campo__erro">{{ formulario.numeroCamisa().errors()[0].message }}</small>
-    }
-  </label>
+  @if (!formulario.numeroCamisa().hidden()) {
+    <label class="campo">
+      <span>Número da camisa</span>
+      <input pInputText inputmode="numeric" [formField]="formulario.numeroCamisa" autocomplete="off" />
+      @if (formulario.numeroCamisa().touched() && formulario.numeroCamisa().invalid()) {
+        <small class="campo__erro">{{ formulario.numeroCamisa().errors()[0].message }}</small>
+      }
+    </label>
+  }
 
-  @let umEsporte = esportesVisiveis().length === 1;
-  @for (esporte of esportesVisiveis(); track esporte) {
-    @let rotulo = umEsporte ? 'Posições' : 'Posições no ' + rotuloEsporte[esporte];
-    @switch (esporte) {
-      @case ('campo') {
-        <label class="campo">
-          <span>{{ rotulo }}</span>
-          <p-multiselect
-            [formField]="formulario.posicoes.campo"
-            [options]="opcoesPosicao.campo"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Selecione"
-            display="chip"
-            [showToggleAll]="false"
-            [filter]="false"
-            appendTo="body"
-          />
-        </label>
-      }
-      @case ('society') {
-        <label class="campo">
-          <span>{{ rotulo }}</span>
-          <p-multiselect
-            [formField]="formulario.posicoes.society"
-            [options]="opcoesPosicao.society"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Selecione"
-            display="chip"
-            [showToggleAll]="false"
-            [filter]="false"
-            appendTo="body"
-          />
-        </label>
-      }
-      @case ('futsal') {
-        <label class="campo">
-          <span>{{ rotulo }}</span>
-          <p-multiselect
-            [formField]="formulario.posicoes.futsal"
-            [options]="opcoesPosicao.futsal"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Selecione"
-            display="chip"
-            [showToggleAll]="false"
-            [filter]="false"
-            appendTo="body"
-          />
-        </label>
+  @if (!formulario.posicoes().hidden()) {
+    @let umEsporte = esportesVisiveis().length === 1;
+    @for (esporte of esportesVisiveis(); track esporte) {
+      @let rotulo = umEsporte ? 'Posições' : 'Posições no ' + rotuloEsporte[esporte];
+      @switch (esporte) {
+        @case ('campo') {
+          <label class="campo">
+            <span>{{ rotulo }}</span>
+            <p-multiselect
+              [formField]="formulario.posicoes.campo"
+              [options]="opcoesPosicao.campo"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione"
+              display="chip"
+              [showToggleAll]="false"
+              [filter]="false"
+              appendTo="body"
+            />
+          </label>
+        }
+        @case ('society') {
+          <label class="campo">
+            <span>{{ rotulo }}</span>
+            <p-multiselect
+              [formField]="formulario.posicoes.society"
+              [options]="opcoesPosicao.society"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione"
+              display="chip"
+              [showToggleAll]="false"
+              [filter]="false"
+              appendTo="body"
+            />
+          </label>
+        }
+        @case ('futsal') {
+          <label class="campo">
+            <span>{{ rotulo }}</span>
+            <p-multiselect
+              [formField]="formulario.posicoes.futsal"
+              [options]="opcoesPosicao.futsal"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione"
+              display="chip"
+              [showToggleAll]="false"
+              [filter]="false"
+              appendTo="body"
+            />
+          </label>
+        }
       }
     }
+  }
+
+  @if (!formulario.vinculo().hidden()) {
+    <label class="campo">
+      <span>Vínculo</span>
+      <p-select
+        [formField]="formulario.vinculo"
+        [options]="opcoesVinculo"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+      />
+      <small class="campo__dica">Só atletas aparecem no Elenco. Sócios e colaboradores ficam em Gestão.</small>
+    </label>
   }
 
   @if (!formulario.modalidade().hidden()) {

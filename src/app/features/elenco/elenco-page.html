@@ -5,6 +5,13 @@
   }
 </div>
 
+@if (meuCadastroForaDoElenco(); as meu) {
+  <div class="cartao meu-cadastro">
+    <span class="texto-suave">Você está no time como <strong>{{ meu.rotulo }}</strong>.</span>
+    <p-button label="Meus dados" size="small" [text]="true" (onClick)="abrir(meu.cadastro)" />
+  </div>
+}
+
 @if (carregando() && atletas().length === 0) {
   <div class="lista">
     <p-skeleton height="4.5rem" />

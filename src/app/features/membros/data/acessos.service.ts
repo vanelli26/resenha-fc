@@ -55,6 +55,7 @@ export class AcessosService {
           uid: dados.uid,
           modalidade: destino.modalidade,
           posicoes: {},
+          vinculo: destino.vinculo,
           status: 'ativo',
           criadoEm: serverTimestamp(),
           atualizadoEm: serverTimestamp(),

@@ -10,12 +10,12 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
-import { Atleta } from '../../models/atleta.model';
+import { Atleta, TipoVinculo, VINCULOS } from '../../models/atleta.model';
 import { Solicitacao } from '../../models/convite.model';
 import { Modalidade } from '../../models/modalidade.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
-import { ROTULO_MODALIDADE, opcoes } from '../../shared/rotulos';
+import { ROTULO_MODALIDADE, ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
 import { SolicitacoesService } from './data/solicitacoes.service';
 
@@ -23,6 +23,7 @@ interface FormAprovacao {
   tipo: VinculoAtleta['tipo'];
   atletaId: string;
   modalidade: Modalidade;
+  vinculo: TipoVinculo;
 }
 
 @Component({
@@ -42,6 +43,7 @@ export class SolicitacoesPage {
   protected readonly pendentes = signal<ComId<Solicitacao>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
+  protected readonly opcoesVinculo = opcoes(VINCULOS, ROTULO_VINCULO);
   protected readonly opcoesModalidade = computed(() => opcoes(this.timeAtual.modalidadesHabilitadas(), ROTULO_MODALIDADE));
 
   // Atletas ainda sem conta vinculada, para "vincular a atleta existente".
@@ -52,14 +54,15 @@ export class SolicitacoesPage {
 
   protected readonly emAprovacao = signal<ComId<Solicitacao> | null>(null);
   protected readonly dialogAberto = signal(false);
-  protected readonly modelo = signal<FormAprovacao>({ tipo: 'novo', atletaId: '', modalidade: 'isento' });
+  protected readonly modelo = signal<FormAprovacao>({ tipo: 'novo', atletaId: '', modalidade: 'isento', vinculo: 'atleta' });
   protected readonly formulario = form(this.modelo, (p) => {
     required(p.atletaId, {
-      message: 'Escolha o atleta.',
+      message: 'Escolha o cadastro.',
       when: ({ valueOf }) => valueOf(p.tipo) === 'existente',
     });
     hidden(p.atletaId, { when: ({ valueOf }) => valueOf(p.tipo) !== 'existente' });
     hidden(p.modalidade, { when: ({ valueOf }) => valueOf(p.tipo) !== 'novo' });
+    hidden(p.vinculo, { when: ({ valueOf }) => valueOf(p.tipo) !== 'novo' });
   });
 
   constructor() {
@@ -78,7 +81,7 @@ export class SolicitacoesPage {
     this.emAprovacao.set(solicitacao);
     // Primeira modalidade habilitada no time (isento está sempre disponível).
     const modalidade = this.timeAtual.modalidadesHabilitadas()[0] ?? 'isento';
-    this.modelo.set({ tipo: 'novo', atletaId: '', modalidade });
+    this.modelo.set({ tipo: 'novo', atletaId: '', modalidade, vinculo: 'atleta' });
     this.dialogAberto.set(true);
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
@@ -96,8 +99,11 @@ export class SolicitacoesPage {
       const solicitacao = this.emAprovacao();
       const uid = this.auth.usuario()?.uid;
       if (!time || !solicitacao || !uid) return;
-      const { tipo, atletaId, modalidade } = this.modelo();
-      const vinculo: VinculoAtleta = tipo === 'existente' ? { tipo, atletaId } : { tipo, modalidade };
+      const f = this.modelo();
+      const vinculo: VinculoAtleta =
+        f.tipo === 'existente'
+          ? { tipo: f.tipo, atletaId: f.atletaId }
+          : { tipo: f.tipo, modalidade: f.modalidade, vinculo: f.vinculo };
       await this.executar(
         () => this.solicitacoesService.aprovar(time, solicitacao, vinculo, uid),
         `${solicitacao.nome} agora faz parte do time`,

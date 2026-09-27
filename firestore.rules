@@ -33,6 +33,7 @@ rules_version = '2';
 //   posicoes: { campo?: list 0..10, society?: list 0..6, futsal?: list 0..5 } das posições fixas de cada esporte
 //             (formato antigo, ainda aceito: list 0..6 das posições de society)
 //   numeroCamisa?: int 0..999 · status: 'ativo' | 'afastado' | 'inativo'
+//   vinculo?: 'atleta' | 'socio' | 'colaborador' (ausente = atleta; só a diretoria altera; sócio/colaborador exige uid)
 //   criadoEm (imutável) · atualizadoEm (= request.time)
 //
 // times/{timeId}/convites/{codigo}     codigo: 10..32 [A-Za-z0-9]
@@ -109,7 +110,7 @@ service cloud.firestore {
     }
 
     // Jogador editando o próprio atleta: vínculo nos dois lados (acesso.atletaId e atleta.uid)
-    // e só os campos pessoais, incluindo a foto do Google (nome, modalidade, status e uid continuam com a diretoria).
+    // e só os campos pessoais, incluindo nome e foto do Google (modalidade, status, vínculo e uid continuam com a diretoria).
     function ehProprioAtleta(timeId, atletaId) {
       return temAcesso(timeId)
         && get(acessoPath(timeId)).data.atletaId == atletaId
@@ -266,10 +267,15 @@ service cloud.firestore {
             && p.futsal.hasOnly(['goleiro', 'fixo', 'ala_direita', 'ala_esquerda', 'pivo']))));
     }
 
+    // Sócio e colaborador entram só por convite (com conta): vínculo diferente de atleta exige uid.
+    function vinculoComConta(data) {
+      return data.get('vinculo', 'atleta') == 'atleta' || data.uid != null;
+    }
+
     function isValidAtleta(data) {
       return data.keys().hasAll(['nome', 'apelido', 'uid', 'modalidade', 'posicoes', 'status', 'criadoEm', 'atualizadoEm'])
         && data.keys().hasOnly(['nome', 'apelido', 'telefone', 'fotoUrl', 'uid', 'modalidade', 'posicoes',
-          'numeroCamisa', 'status', 'criadoEm', 'atualizadoEm'])
+          'numeroCamisa', 'status', 'vinculo', 'criadoEm', 'atualizadoEm'])
         && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 100
         && data.apelido is string && data.apelido.size() <= 40
         && textoOpcional(data, 'telefone', 1, 20)
@@ -279,6 +285,7 @@ service cloud.firestore {
         && posicoesValidas(data.posicoes)
         && (!('numeroCamisa' in data) || (data.numeroCamisa is int && data.numeroCamisa >= 0 && data.numeroCamisa <= 999))
         && data.status in ['ativo', 'afastado', 'inativo']
+        && (!('vinculo' in data) || data.vinculo in ['atleta', 'socio', 'colaborador'])
         && data.criadoEm is timestamp
         && data.atualizadoEm == request.time;
     }
@@ -474,11 +481,14 @@ service cloud.firestore {
         allow create: if podeGerir(timeId)
           && isValidAtleta(request.resource.data)
           && request.resource.data.criadoEm == request.time
+          && vinculoComConta(request.resource.data)
           && modalidadeHabilitada(timeId, request.resource.data.modalidade);
 
-        // Modalidade só é conferida quando muda: atletas antigos continuam editáveis.
+        // Modalidade e vínculo só são conferidos quando mudam: cadastros antigos continuam editáveis
+        // (ex.: sócio removido do time fica sem conta e inativo).
         allow update: if isValidAtleta(request.resource.data)
           && inalterados(['criadoEm'])
+          && (inalterados(['vinculo']) || vinculoComConta(request.resource.data))
           && (podeGerir(timeId) || ehProprioAtleta(timeId, atletaId))
           && (inalterados(['modalidade']) || modalidadeHabilitada(timeId, request.resource.data.modalidade));
 

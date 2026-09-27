@@ -6,6 +6,7 @@ import { IdCard } from '@primeicons/angular/id-card';
 import { Link } from '@primeicons/angular/link';
 import { SlidersH } from '@primeicons/angular/sliders-h';
 import { UserPlus } from '@primeicons/angular/user-plus';
+import { Users } from '@primeicons/angular/users';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { SolicitacoesService } from '../solicitacoes/data/solicitacoes.service';
 
@@ -13,14 +14,14 @@ interface Item {
   caminho: string;
   titulo: string;
   descricao: string;
-  icone: 'membros' | 'convites' | 'solicitacoes' | 'esportes' | 'financeiro';
+  icone: 'membros' | 'convites' | 'solicitacoes' | 'socios' | 'esportes' | 'financeiro';
   selo?: number;
 }
 
 /** Entrada das telas de administração do time; cada item aparece conforme o papel. */
 @Component({
   selector: 'app-gestao-page',
-  imports: [RouterLink, ChevronRight, Flag, IdCard, Link, SlidersH, UserPlus],
+  imports: [RouterLink, ChevronRight, Flag, IdCard, Link, SlidersH, UserPlus, Users],
   templateUrl: './gestao-page.html',
   styleUrl: './gestao-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,6 +43,7 @@ export class GestaoPage {
           icone: 'solicitacoes',
           selo: this.solicitacoes.qtdPendentes(),
         },
+        { caminho: 'socios', titulo: 'Sócios e colaboradores', descricao: 'Quem apoia o time sem jogar', icone: 'socios' },
         { caminho: 'esportes', titulo: 'Esportes', descricao: 'Campo, society, futsal e posições', icone: 'esportes' },
       );
     }

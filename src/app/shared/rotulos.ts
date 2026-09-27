@@ -1,4 +1,4 @@
-import { StatusAtleta } from '../models/atleta.model';
+import { StatusAtleta, TipoVinculo } from '../models/atleta.model';
 import { TipoCobranca } from '../models/financeiro.model';
 import { Modalidade } from '../models/modalidade.model';
 import { PapelTime } from '../models/papel.model';
@@ -40,6 +40,12 @@ export const ROTULO_ESPORTE: Record<Esporte, string> = {
   campo: 'Campo',
   society: 'Society',
   futsal: 'Futsal',
+};
+
+export const ROTULO_VINCULO: Record<TipoVinculo, string> = {
+  atleta: 'Atleta',
+  socio: 'Sócio',
+  colaborador: 'Colaborador / torcedor',
 };
 
 export const ROTULO_STATUS_ATLETA: Record<StatusAtleta, string> = {

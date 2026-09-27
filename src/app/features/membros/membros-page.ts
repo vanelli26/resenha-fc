@@ -13,12 +13,12 @@ import { ComId } from '../../core/firebase/conversor';
 import { SessaoService } from '../../core/sessao/sessao.service';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Acesso } from '../../models/acesso.model';
-import { Atleta } from '../../models/atleta.model';
+import { Atleta, TipoVinculo, VINCULOS } from '../../models/atleta.model';
 import { Modalidade } from '../../models/modalidade.model';
 import { PAPEIS_TIME, PapelTime } from '../../models/papel.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
-import { ROTULO_MODALIDADE, ROTULO_PAPEL, opcoes } from '../../shared/rotulos';
+import { ROTULO_MODALIDADE, ROTULO_PAPEL, ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
 import { AcessosService } from './data/acessos.service';
 
@@ -33,6 +33,7 @@ interface FormMembro {
   papeis: MarcacaoPapeis;
   atleta: string;
   modalidade: Modalidade;
+  vinculo: TipoVinculo;
 }
 
 interface OpcaoUsuario {
@@ -70,6 +71,7 @@ export class MembrosPage {
   protected readonly papeisTime = PAPEIS_TIME;
   protected readonly rotuloPapel = ROTULO_PAPEL;
   protected readonly opcoesModalidade = computed(() => opcoes(this.timeAtual.modalidadesHabilitadas(), ROTULO_MODALIDADE));
+  protected readonly opcoesVinculo = opcoes(VINCULOS, ROTULO_VINCULO);
   protected readonly adminGeral = this.sessao.adminGeral;
 
   protected readonly membros = signal<ComId<Acesso>[]>([]);
@@ -93,8 +95,8 @@ export class MembrosPage {
       (a) => (a.uid === null && a.status !== 'inativo') || (uidMembro !== '' && a.uid === uidMembro),
     );
     return [
-      { label: 'Não está no elenco', value: SEM_ATLETA },
-      { label: 'Criar novo atleta', value: NOVO_ATLETA },
+      { label: 'Sem cadastro no time', value: SEM_ATLETA },
+      { label: 'Criar novo cadastro', value: NOVO_ATLETA },
       ...disponiveis.map((a) => ({ label: nomeAtleta(a), value: a.id })),
     ];
   });
@@ -104,10 +106,12 @@ export class MembrosPage {
     papeis: { ...SEM_PAPEIS },
     atleta: SEM_ATLETA,
     modalidade: 'isento',
+    vinculo: 'atleta',
   });
   protected readonly formulario = form(this.modelo, (p) => {
     required(p.uid, { message: 'Escolha um usuário.' });
     hidden(p.modalidade, { when: ({ valueOf }) => valueOf(p.atleta) !== NOVO_ATLETA });
+    hidden(p.vinculo, { when: ({ valueOf }) => valueOf(p.atleta) !== NOVO_ATLETA });
   });
 
   constructor() {
@@ -127,13 +131,25 @@ export class MembrosPage {
     const papeis = { ...SEM_PAPEIS };
     for (const p of membro.papeis) papeis[p] = true;
     this.emEdicao.set(membro);
-    this.modelo.set({ uid: membro.uid, papeis, atleta: membro.atletaId ?? SEM_ATLETA, modalidade: this.modalidadePadrao() });
+    this.modelo.set({
+      uid: membro.uid,
+      papeis,
+      atleta: membro.atletaId ?? SEM_ATLETA,
+      modalidade: this.modalidadePadrao(),
+      vinculo: 'atleta',
+    });
     this.abrirDialog();
   }
 
   protected async adicionar(): Promise<void> {
     this.emEdicao.set(null);
-    this.modelo.set({ uid: '', papeis: { ...SEM_PAPEIS, diretoria: true }, atleta: SEM_ATLETA, modalidade: this.modalidadePadrao() });
+    this.modelo.set({
+      uid: '',
+      papeis: { ...SEM_PAPEIS, diretoria: true },
+      atleta: SEM_ATLETA,
+      modalidade: this.modalidadePadrao(),
+      vinculo: 'atleta',
+    });
     this.abrirDialog();
     if (this.usuarios().length > 0) return;
     try {
@@ -155,7 +171,7 @@ export class MembrosPage {
       const uidLogado = this.auth.usuario()?.uid;
       if (!time || !uidLogado) return;
 
-      const { uid, atleta, modalidade } = this.modelo();
+      const { uid, atleta, modalidade, vinculo: tipoVinculo } = this.modelo();
       const papeis = marcados(this.modelo().papeis);
       if (papeis.length === 0) {
         this.aviso('Marque ao menos um papel. Para tirar a pessoa do time, use "Remover do time".');
@@ -172,7 +188,7 @@ export class MembrosPage {
         atleta === SEM_ATLETA
           ? null
           : atleta === NOVO_ATLETA
-            ? { tipo: 'novo', modalidade }
+            ? { tipo: 'novo', modalidade, vinculo: tipoVinculo }
             : { tipo: 'existente', atletaId: atleta };
 
       await this.executar(async () => {

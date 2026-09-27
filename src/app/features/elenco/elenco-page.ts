@@ -7,11 +7,17 @@ import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
 import { AuthService } from '../../core/auth/auth.service';
 import { TimeAtualService } from '../../core/time/time-atual.service';
-import { Atleta } from '../../models/atleta.model';
+import { Atleta, vinculoDe } from '../../models/atleta.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 import { esportesComPosicao } from '../../models/posicao.model';
-import { ROTULO_ESPORTE, ROTULO_MODALIDADE, ROTULO_POSICAO, ROTULO_STATUS_ATLETA } from '../../shared/rotulos';
+import {
+  ROTULO_ESPORTE,
+  ROTULO_MODALIDADE,
+  ROTULO_POSICAO,
+  ROTULO_STATUS_ATLETA,
+  ROTULO_VINCULO,
+} from '../../shared/rotulos';
 import { AtletaForm } from './atleta-form';
 import { AtletasService, DadosAtleta } from './data/atletas.service';
 
@@ -33,7 +39,17 @@ export class ElencoPage {
   protected readonly esportes = this.timeAtual.esportes;
   /** Atleta vinculado à conta logada neste time (null se não estiver no elenco). */
   protected readonly meuAtletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
-  protected readonly atletas = signal<ComId<Atleta>[]>([]);
+  /** Todo o cadastro do time (atletas, sócios e colaboradores): uma leitura só, coleção pequena. */
+  private readonly cadastros = signal<ComId<Atleta>[]>([]);
+  /** Só quem joga; sócios e colaboradores ficam em Gestão. */
+  protected readonly atletas = computed(() => this.cadastros().filter((a) => vinculoDe(a) === 'atleta'));
+  /** Cadastro da conta logada quando não é atleta (sócio/colaborador), para "Meus dados". */
+  protected readonly meuCadastroForaDoElenco = computed(() => {
+    const id = this.meuAtletaId();
+    const meu = this.cadastros().find((a) => a.id === id);
+    const vinculo = meu ? vinculoDe(meu) : 'atleta';
+    return meu && vinculo !== 'atleta' ? { cadastro: meu, rotulo: ROTULO_VINCULO[vinculo] } : null;
+  });
   /** Elenco em atividade (ativos e afastados). */
   protected readonly elenco = computed(() => this.atletas().filter((a) => a.status !== 'inativo'));
   /** Quem saiu do time: só a diretoria vê, para consultar ou reativar. */
@@ -74,7 +90,7 @@ export class ElencoPage {
     effect(() => {
       const timeId = this.timeAtual.timeId();
       untracked(() => {
-        this.atletas.set([]);
+        this.cadastros.set([]);
         this.dialogAberto.set(false);
         this.mostrarInativos.set(false);
         if (timeId) void this.carregar();
@@ -114,7 +130,7 @@ export class ElencoPage {
     try {
       const dados = await this.atletasService.listar(timeId);
       // Descarta resposta atrasada de um time anterior.
-      if (this.timeAtual.timeId() === timeId) this.atletas.set(dados);
+      if (this.timeAtual.timeId() === timeId) this.cadastros.set(dados);
       void this.sincronizarMinhaFoto(timeId);
     } catch (e) {
       this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o elenco', detail: mensagemDeErro(e) });
@@ -130,11 +146,11 @@ export class ElencoPage {
   private async sincronizarMinhaFoto(timeId: string): Promise<void> {
     const atletaId = this.meuAtletaId();
     const foto = this.auth.usuario()?.fotoUrl ?? null;
-    const meu = this.atletas().find((a) => a.id === atletaId);
+    const meu = this.cadastros().find((a) => a.id === atletaId);
     if (!atletaId || !meu || (meu.fotoUrl ?? null) === foto) return;
     try {
       await this.atletasService.atualizarFoto(timeId, atletaId, foto);
-      this.atletas.update((lista) =>
+      this.cadastros.update((lista) =>
         lista.map((a) => (a.id === atletaId ? { ...a, fotoUrl: foto ?? undefined } : a)),
       );
     } catch {

@@ -1,0 +1,63 @@
+<app-voltar para="gestao" rotulo="Gestão" />
+
+<div class="cabecalho-secao">
+  <h2>Sócios e colaboradores</h2>
+</div>
+
+<p class="texto-suave dica">
+  Entram pelo convite, com login, como qualquer membro. O vínculo é escolhido ao aprovar a solicitação
+  (ou depois, no Editar de quem já tem conta).
+</p>
+
+@if (carregando() && pessoas().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (pessoa of pessoas(); track pessoa.id) {
+      <li class="cartao atleta" [class.atleta--inativo]="pessoa.status !== 'ativo'">
+        <span class="atleta__foto">
+          <app-foto-pessoa [src]="pessoa.fotoUrl" [nome]="pessoa.apelido || pessoa.nome" />
+        </span>
+        <div class="atleta__texto">
+          <strong>{{ pessoa.apelido || pessoa.nome }}</strong>
+          @if (pessoa.apelido) {
+            <small class="texto-suave">{{ pessoa.nome }}</small>
+          }
+          <small class="texto-suave">{{ pessoa.rotuloVinculo }}</small>
+          @if (pessoa.telefone) {
+            <a class="texto-suave" [href]="'tel:' + pessoa.telefone">{{ pessoa.telefone }}</a>
+          }
+        </div>
+        <div class="atleta__tags">
+          <p-tag [value]="rotuloModalidade[pessoa.modalidade]" severity="secondary" />
+          @if (pessoa.status !== 'ativo') {
+            <p-tag [value]="rotuloStatus[pessoa.status]" severity="warn" />
+          }
+          <p-button label="Editar" size="small" [text]="true" (onClick)="editar(pessoa)" />
+        </div>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum sócio ou colaborador cadastrado.</li>
+    }
+  </ul>
+}
+
+<p-dialog
+  header="Editar cadastro"
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [style]="{ width: 'min(32rem, 100vw - 2rem)' }"
+>
+  @if (dialogAberto()) {
+    <app-atleta-form
+      [atleta]="emEdicao()"
+      [modalidades]="modalidades()"
+      [esportes]="esportes()"
+      (salvar)="salvar($event)"
+      (cancelar)="dialogAberto.set(false)"
+    />
+  }
+</p-dialog>

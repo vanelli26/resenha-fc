@@ -2,12 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { addDoc, collection, deleteField, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
-import { Atleta, AtletaGravado, StatusAtleta } from '../../../models/atleta.model';
+import { Atleta, AtletaGravado, StatusAtleta, TipoVinculo } from '../../../models/atleta.model';
 import { Modalidade } from '../../../models/modalidade.model';
 import { PosicoesAtleta, normalizarPosicoes } from '../../../models/posicao.model';
 
-/** Vínculo de uma conta com o elenco: atleta existente (sem conta) ou novo, com a modalidade escolhida. */
-export type VinculoAtleta = { tipo: 'existente'; atletaId: string } | { tipo: 'novo'; modalidade: Modalidade };
+/** Ligação de uma conta com o cadastro: existente (sem conta) ou novo, com modalidade e vínculo escolhidos. */
+export type VinculoAtleta =
+  | { tipo: 'existente'; atletaId: string }
+  | { tipo: 'novo'; modalidade: Modalidade; vinculo: TipoVinculo };
 
 /** Campos editáveis pela diretoria. Opcionais ausentes não são gravados. */
 export interface DadosAtleta {
@@ -18,9 +20,10 @@ export interface DadosAtleta {
   modalidade: Modalidade;
   posicoes: PosicoesAtleta;
   status: StatusAtleta;
+  vinculo: TipoVinculo;
 }
 
-/** times/{timeId}/atletas. Leitura: todos do time; escrita: diretoria. */
+/** times/{timeId}/atletas (atletas, sócios e colaboradores). Leitura: todos do time; escrita: diretoria. */
 @Injectable({ providedIn: 'root' })
 export class AtletasService {
   private readonly firestore = inject(FIRESTORE);

@@ -68,6 +68,12 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../solicitacoes/solicitacoes-page').then((m) => m.SolicitacoesPage),
       },
       {
+        path: 'gestao/socios',
+        canActivate: [diretoriaGuard],
+        title: 'Sócios e colaboradores · ResenhaFC',
+        loadComponent: () => import('../elenco/socios-page').then((m) => m.SociosPage),
+      },
+      {
         path: 'gestao/esportes',
         canActivate: [diretoriaGuard],
         title: 'Esportes · ResenhaFC',

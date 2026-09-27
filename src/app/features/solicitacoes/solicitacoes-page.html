@@ -28,16 +28,29 @@
 
 <p-dialog header="Aprovar entrada" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(28rem, 100vw - 2rem)' }">
   <form class="formulario" (submit)="$event.preventDefault(); aprovar()">
-    <p class="texto-suave">{{ emAprovacao()?.nome }} entra como jogador. Ele já está no elenco?</p>
+    <p class="texto-suave">{{ emAprovacao()?.nome }} recebe acesso de jogador. Já tem cadastro no time?</p>
 
     <label class="opcao">
       <p-radiobutton value="novo" [formField]="formulario.tipo" />
-      Não, criar novo atleta
+      Não, criar novo cadastro
     </label>
     @if (opcoesAtleta().length > 0) {
       <label class="opcao">
         <p-radiobutton value="existente" [formField]="formulario.tipo" />
-        Sim, vincular a um atleta cadastrado
+        Sim, vincular a um cadastro existente
+      </label>
+    }
+
+    @if (!formulario.vinculo().hidden()) {
+      <label class="campo">
+        <span>Entra como</span>
+        <p-select
+          [formField]="formulario.vinculo"
+          [options]="opcoesVinculo"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+        />
       </label>
     }
 
@@ -56,13 +69,13 @@
 
     @if (!formulario.atletaId().hidden()) {
       <label class="campo">
-        <span>Atleta</span>
+        <span>Cadastro</span>
         <p-select
           [formField]="formulario.atletaId"
           [options]="opcoesAtleta()"
           optionLabel="label"
           optionValue="value"
-          placeholder="Escolha o atleta"
+          placeholder="Escolha o cadastro"
           [filter]="true"
           appendTo="body"
         />
