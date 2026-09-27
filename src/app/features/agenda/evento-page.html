@@ -64,8 +64,12 @@
     }
   </section>
 
-  @if (e.status === 'realizado' && ehTesouraria()) {
-    <app-cobranca-avulsos class="avulsos" [evento]="e" [compareceram]="compareceram()" />
+  @if (e.status === 'realizado') {
+    @if (ehTesouraria()) {
+      <app-cobranca-avulsos class="avulsos" [evento]="e" [compareceram]="compareceram()" />
+    } @else if (ehDiretoria()) {
+      <p class="cartao texto-suave avulsos">A tesouraria gera a cobrança dos avulsos aqui, neste evento encerrado.</p>
+    }
   }
 
   <div class="grupos">

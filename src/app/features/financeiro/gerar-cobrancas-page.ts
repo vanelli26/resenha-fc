@@ -25,6 +25,7 @@ import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { CobrancasService, NovaCobranca } from './data/cobrancas.service';
+import { JogosParaCobrar } from './jogos-para-cobrar';
 
 /** Geração manual pela tesouraria. Planos avulsos saem dos jogos (Fase 3). */
 type TipoGeracao = 'mensal' | 'semestral';
@@ -39,7 +40,7 @@ interface Candidato {
 
 @Component({
   selector: 'app-gerar-cobrancas-page',
-  imports: [DatePipe, FormsModule, RouterLink, ButtonModule, CheckboxModule, SelectModule, SkeletonModule, ReaisPipe, Voltar],
+  imports: [DatePipe, FormsModule, RouterLink, ButtonModule, CheckboxModule, SelectModule, SkeletonModule, ReaisPipe, Voltar, JogosParaCobrar],
   templateUrl: './gerar-cobrancas-page.html',
   styleUrl: './gerar-cobrancas-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,6 +60,8 @@ export class GerarCobrancasPage {
       .filter((m): m is TipoGeracao => m === 'mensal' || m === 'semestral')
       .map((value) => ({ value, label: ROTULO_GERACAO[value] })),
   );
+  /** Time com plano avulso: mostra o atalho para os jogos encerrados. */
+  protected readonly temAvulso = computed(() => this.timeAtual.periodicidades().includes('avulso'));
   protected readonly tipo = linkedSignal<TipoGeracao | null>(() => this.opcoesTipo()[0]?.value ?? null);
 
   protected readonly opcoesReferencia = computed(() => {

@@ -1,0 +1,27 @@
+<section class="jogos">
+  <h3>Avulsos por jogo</h3>
+  <p class="texto-suave dica">
+    Depois que a diretoria encerra o evento (marcando quem compareceu), abra-o para gerar a cobrança dos avulsos.
+  </p>
+
+  @if (erro(); as mensagem) {
+    <p class="campo__erro">{{ mensagem }}</p>
+  } @else if (eventos(); as lista) {
+    <ul class="lista">
+      @for (e of lista; track e.id) {
+        <li>
+          <a class="cartao jogo" [routerLink]="['/t', timeId(), 'agenda', e.id]">
+            <span class="jogo__texto">
+              <strong>{{ e.titulo }}</strong>
+              <small class="texto-suave">{{ e.data.toDate() | date: 'EEE, dd/MM/yyyy' }}</small>
+            </span>
+            <span class="texto-suave">Cobrar</span>
+            <svg data-p-icon="chevron-right" [size]="16" aria-hidden="true"></svg>
+          </a>
+        </li>
+      } @empty {
+        <li class="texto-suave">Nenhum evento encerrado ainda.</li>
+      }
+    </ul>
+  }
+</section>

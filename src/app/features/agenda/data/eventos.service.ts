@@ -96,6 +96,14 @@ export class EventosService {
     return snap.docs[0] ? comId(snap.docs[0]) : null;
   }
 
+  /** Últimos eventos encerrados, mais recentes primeiro (cobrança de avulsos). Índice status + data desc. */
+  async listarRealizados(timeId: string, quantidade = 10): Promise<ComId<Evento>[]> {
+    const snap = await getDocs(
+      query(this.colecao(timeId), where('status', '==', 'realizado'), orderBy('data', 'desc'), limit(quantidade)),
+    );
+    return snap.docs.map(comId);
+  }
+
   async obter(timeId: string, eventoId: string): Promise<ComId<Evento> | null> {
     const snap = await getDoc(doc(this.colecao(timeId), eventoId));
     const dados = snap.data();

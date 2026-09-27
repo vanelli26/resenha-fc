@@ -80,3 +80,7 @@
     <p-button label="Gerar" [loading]="gerando()" [disabled]="selecionados().size === 0 || carregando()" (onClick)="gerar()" />
   </div>
 }
+
+@if (temAvulso()) {
+  <app-jogos-para-cobrar />
+}
