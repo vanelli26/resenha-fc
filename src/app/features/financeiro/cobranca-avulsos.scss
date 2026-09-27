@@ -1,0 +1,47 @@
+.avulsos {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.avulsos__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+.dica {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.avulsos__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.avulso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+
+  & + & {
+    border-top: 1px solid var(--p-content-border-color);
+  }
+
+  &--gerada {
+    opacity: 0.6;
+  }
+}
+
+.avulso__nome {
+  display: grid;
+}

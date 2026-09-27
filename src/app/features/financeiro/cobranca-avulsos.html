@@ -1,0 +1,34 @@
+<section class="cartao avulsos">
+  <div class="avulsos__topo">
+    <h3>Cobrança de avulsos</h3>
+    @if (!carregando() && pendentes().length > 0) {
+      <p-button
+        [label]="'Gerar ' + pendentes().length + ' · ' + (total() | reais)"
+        size="small"
+        [loading]="gerando()"
+        (onClick)="gerar()"
+      />
+    }
+  </div>
+  <p class="texto-suave dica">Quem compareceu e tem plano avulso. Vence na data do jogo.</p>
+
+  @if (!carregando()) {
+    <ul class="avulsos__lista">
+      @for (a of avulsos(); track a.atleta.id) {
+        <li class="avulso" [class.avulso--gerada]="a.jaGerada">
+          <span class="avulso__nome">
+            {{ a.atleta.apelido || a.atleta.nome }}
+            <small class="texto-suave">{{ a.plano.nome }}</small>
+          </span>
+          @if (a.jaGerada) {
+            <small class="texto-suave">Já gerada</small>
+          } @else {
+            <small>{{ a.plano.valorCentavos | reais }}</small>
+          }
+        </li>
+      } @empty {
+        <li class="texto-suave">Nenhum avulso compareceu.</li>
+      }
+    </ul>
+  }
+</section>

@@ -20,7 +20,14 @@
         }
       </span>
       <strong>{{ e.titulo }}</strong>
-      @if (e.adversario) {
+      @if (e.placarPro !== undefined && e.placarContra !== undefined) {
+        <small>
+          <strong>{{ e.placarPro }} x {{ e.placarContra }}</strong>
+          @if (e.adversario) {
+            {{ e.adversario }}
+          }
+        </small>
+      } @else if (e.adversario) {
         <small>x {{ e.adversario }}</small>
       }
       @if (e.local) {

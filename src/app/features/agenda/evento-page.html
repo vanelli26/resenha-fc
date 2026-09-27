@@ -14,7 +14,14 @@
       }
     </div>
     <h2>{{ e.titulo }}</h2>
-    @if (e.adversario) {
+    @if (e.placarPro !== undefined && e.placarContra !== undefined) {
+      <p class="detalhe__placar">
+        {{ e.placarPro }} <span class="texto-suave">x</span> {{ e.placarContra }}
+        @if (e.adversario) {
+          <small class="texto-suave">{{ e.adversario }}</small>
+        }
+      </p>
+    } @else if (e.adversario) {
       <p class="detalhe__linha">x {{ e.adversario }}</p>
     }
     <p class="detalhe__linha detalhe__quando">{{ e.data.toDate() | date: "EEEE, dd/MM/yyyy 'às' HH:mm" }}</p>
@@ -29,20 +36,37 @@
       </div>
     }
 
-    @if (ehDiretoria() && e.status !== 'realizado') {
+    @if (ehDiretoria()) {
       <div class="acoes">
-        <p-button
-          [label]="e.status === 'agendado' ? 'Cancelar evento' : 'Reativar'"
-          size="small"
-          [text]="true"
-          [severity]="e.status === 'agendado' ? 'danger' : 'secondary'"
-          [disabled]="processando()"
-          (onClick)="alternarCancelamento()"
-        />
-        <p-button label="Editar" size="small" [outlined]="true" [disabled]="processando()" (onClick)="dialogAberto.set(true)" />
+        @if (e.status !== 'realizado') {
+          <p-button
+            [label]="e.status === 'agendado' ? 'Cancelar evento' : 'Reativar'"
+            size="small"
+            [text]="true"
+            [severity]="e.status === 'agendado' ? 'danger' : 'secondary'"
+            [disabled]="processando()"
+            (onClick)="alternarCancelamento()"
+          />
+          <p-button label="Editar" size="small" [outlined]="true" [disabled]="processando()" (onClick)="dialogAberto.set(true)" />
+        }
+        @if (e.status === 'agendado') {
+          <p-button label="Encerrar" size="small" [disabled]="processando()" (onClick)="encerrandoAberto.set(true)" />
+        } @else if (e.status === 'realizado') {
+          <p-button
+            label="Editar encerramento"
+            size="small"
+            [outlined]="true"
+            [disabled]="processando()"
+            (onClick)="encerrandoAberto.set(true)"
+          />
+        }
       </div>
     }
   </section>
+
+  @if (e.status === 'realizado' && ehTesouraria()) {
+    <app-cobranca-avulsos class="avulsos" [evento]="e" [compareceram]="compareceram()" />
+  }
 
   <div class="grupos">
     @for (grupo of grupos(); track grupo.chave) {
@@ -72,6 +96,22 @@
         [salvando]="processando()"
         (salvar)="salvarEdicao($event)"
         (cancelar)="dialogAberto.set(false)"
+      />
+    }
+  </p-dialog>
+  <p-dialog
+    [header]="e.status === 'realizado' ? 'Editar encerramento' : 'Encerrar evento'"
+    [(visible)]="encerrandoAberto"
+    [modal]="true"
+    [style]="{ width: 'min(28rem, 100vw - 2rem)' }"
+  >
+    @if (encerrandoAberto()) {
+      <app-encerrar-evento
+        [evento]="e"
+        [participantes]="participantes()"
+        [salvando]="processando()"
+        (confirmar)="encerrar($event)"
+        (cancelar)="encerrandoAberto.set(false)"
       />
     }
   </p-dialog>

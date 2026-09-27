@@ -21,11 +21,10 @@ import {
   paraDataInput,
   referenciaMensal,
   referenciaSemestral,
-  rotuloReferencia,
 } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
-import { CobrancasService, nomeDaCobranca } from './data/cobrancas.service';
+import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
@@ -124,7 +123,7 @@ export class CobrancasPage {
         cobranca: c,
         situacao: situacaoDaCobranca(c, hoje),
         vencimento: c.vencimento.toDate(),
-        rotulo: `${nomeDaCobranca(c)} · ${rotuloReferencia(c.referencia)}`,
+        rotulo: `${nomeDaCobranca(c)} · ${competenciaDaCobranca(c)}`,
       }))
       .sort(
         (a, b) =>

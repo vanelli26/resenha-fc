@@ -37,6 +37,13 @@ export interface NovaCobranca {
   planoNome: string;
 }
 
+/** Competência legível: mês/semestre; avulso (referência = eventoId) mostra a data do jogo (= vencimento). */
+export function competenciaDaCobranca(c: Pick<Cobranca, 'tipo' | 'referencia' | 'vencimento'>): string {
+  if (c.tipo !== 'avulso') return rotuloReferencia(c.referencia);
+  const d = c.vencimento.toDate();
+  return `jogo de ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 /** Nome da cobrança: o plano da geração; cobranças antigas (sem plano) usam o tipo. */
 export function nomeDaCobranca(c: Pick<Cobranca, 'planoNome' | 'tipo'>): string {
   return c.planoNome ?? ROTULO_TIPO_COBRANCA[c.tipo];
@@ -141,7 +148,7 @@ export class CobrancasService {
       tipo: 'receita',
       // Categoria = nome do plano: o caixa separa por tipo de pagante (DIRETRIZES 2.6).
       categoria: nomeDaCobranca(cobranca),
-      descricao: `${nomeDaCobranca(cobranca)} ${rotuloReferencia(cobranca.referencia)} · ${cobranca.atletaNome}`,
+      descricao: `${nomeDaCobranca(cobranca)} ${competenciaDaCobranca(cobranca)} · ${cobranca.atletaNome}`,
       valorCentavos: cobranca.valorCentavos,
       data: pagoEm,
       cobrancaId: cobranca.id,

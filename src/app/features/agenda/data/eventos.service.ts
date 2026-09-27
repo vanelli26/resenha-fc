@@ -36,6 +36,18 @@ export interface DadosEvento {
   adversario?: string;
 }
 
+export interface Placar {
+  pro: number;
+  contra: number;
+}
+
+/** Presença efetiva no encerramento. `temPresenca`: já existe documento (respondeu ou marcado antes). */
+export interface Comparecimento {
+  atletaId: string;
+  compareceu: boolean;
+  temPresenca: boolean;
+}
+
 /** Quem participa de um tipo de evento: cadastro ativo; nos esportivos, só atletas (DIRETRIZES 2.7). */
 export function participa(tipo: TipoEvento, atleta: Pick<Atleta, 'status' | 'vinculo'>): boolean {
   return atleta.status === 'ativo' && (TIPOS_EVENTO_ABERTOS.includes(tipo) || vinculoDe(atleta) === 'atleta');
@@ -117,6 +129,28 @@ export class EventosService {
     await updateDoc(doc(this.firestore, 'times', timeId, 'eventos', eventoId), {
       status: cancelado ? 'cancelado' : 'agendado',
     });
+  }
+
+  /**
+   * Encerrar (ou corrigir o encerramento): status `realizado`, placar e `compareceu`, num lote só.
+   * Quem não tem presença só ganha documento se compareceu (evita escrever faltas de quem nem respondeu).
+   */
+  async encerrar(timeId: string, eventoId: string, placar: Placar | null, lista: Comparecimento[]): Promise<void> {
+    const batch = writeBatch(this.firestore);
+    batch.update(doc(this.firestore, 'times', timeId, 'eventos', eventoId), {
+      status: 'realizado',
+      placarPro: placar ? placar.pro : deleteField(),
+      placarContra: placar ? placar.contra : deleteField(),
+    });
+    for (const c of lista) {
+      if (!c.temPresenca && !c.compareceu) continue;
+      batch.set(
+        doc(this.presencas(timeId, eventoId), c.atletaId),
+        { compareceu: c.compareceu, atualizadoEm: serverTimestamp() },
+        { merge: true },
+      );
+    }
+    await batch.commit();
   }
 
   /** Minhas respostas nos eventos informados (uma leitura por evento). */

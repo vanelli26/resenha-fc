@@ -22,7 +22,7 @@ export interface Evento {
   local: string;
   esporte: Esporte;
   adversario?: string;
-  // Placar e campeonato: 3b e Fase 4.
+  /** Placar (0..99), informado no encerramento. Campeonato: Fase 4. */
   placarPro?: number;
   placarContra?: number;
   status: StatusEvento;
@@ -36,7 +36,8 @@ export type RespostaPresenca = (typeof RESPOSTAS_PRESENCA)[number];
 
 /** times/{timeId}/eventos/{eventoId}/presencas/{atletaId} */
 export interface Presenca {
-  resposta: RespostaPresenca;
+  /** Ausente quando a diretoria marcou `compareceu` de quem não respondeu. */
+  resposta?: RespostaPresenca;
   /** Marcado pela diretoria ao encerrar (3b). */
   compareceu?: boolean;
   atualizadoEm: Timestamp;

@@ -1,0 +1,58 @@
+<form class="formulario" (submit)="$event.preventDefault(); enviar()">
+  @if (temPlacar()) {
+    <fieldset class="placar">
+      <legend>Placar <small class="texto-suave">(opcional)</small></legend>
+      <p-inputnumber
+        [ngModel]="placarPro()"
+        (ngModelChange)="placarPro.set($event)"
+        name="pro"
+        [min]="0"
+        [max]="99"
+        [useGrouping]="false"
+        [inputStyle]="estiloNumero"
+        ariaLabel="Gols a favor"
+      />
+      <span aria-hidden="true">x</span>
+      <p-inputnumber
+        [ngModel]="placarContra()"
+        (ngModelChange)="placarContra.set($event)"
+        name="contra"
+        [min]="0"
+        [max]="99"
+        [useGrouping]="false"
+        [inputStyle]="estiloNumero"
+        [ariaLabel]="'Gols ' + (evento().adversario ?? 'contra')"
+      />
+    </fieldset>
+    @if (placarIncompleto()) {
+      <small class="campo__erro">Informe os dois lados do placar (ou deixe os dois vazios).</small>
+    }
+  }
+
+  <div class="presentes">
+    <span class="presentes__titulo">Compareceram ({{ marcados().size }})</span>
+    <ul class="presentes__lista">
+      @for (p of participantes(); track p.atleta.id) {
+        <li>
+          <label class="presente">
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="marcados().has(p.atleta.id)"
+              (ngModelChange)="alternar(p.atleta.id, $event)"
+              [name]="'presente-' + p.atleta.id"
+            />
+            <span class="presente__nome">{{ p.atleta.apelido || p.atleta.nome }}</span>
+            <small class="texto-suave">{{ p.resposta ? rotuloResposta[p.resposta] : 'Sem resposta' }}</small>
+          </label>
+        </li>
+      } @empty {
+        <li class="texto-suave">Ninguém no cadastro para este tipo de evento.</li>
+      }
+    </ul>
+  </div>
+
+  <div class="acoes">
+    <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar.emit()" />
+    <p-button label="Encerrar" type="submit" [loading]="salvando()" [disabled]="placarIncompleto()" />
+  </div>
+</form>

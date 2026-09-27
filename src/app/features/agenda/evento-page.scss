@@ -23,6 +23,25 @@
   margin: 0;
 }
 
+.detalhe__placar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+
+  small {
+    font-size: 0.875rem;
+    font-weight: 400;
+  }
+}
+
+.avulsos {
+  display: block;
+  margin-top: 1rem;
+}
+
 .detalhe__quando::first-letter {
   text-transform: uppercase;
 }
@@ -74,6 +93,7 @@
 }
 
 .grupo--sem .pessoa,
-.grupo--nao_vou .pessoa {
+.grupo--nao_vou .pessoa,
+.grupo--faltou .pessoa {
   opacity: 0.7;
 }

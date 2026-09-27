@@ -5,10 +5,9 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Cobranca } from '../../models/financeiro.model';
-import { rotuloReferencia } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
-import { CobrancasService, nomeDaCobranca } from './data/cobrancas.service';
+import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
@@ -45,7 +44,7 @@ export class MinhasCobrancasPage {
     return this.cobrancas().map((c) => ({
       cobranca: c,
       situacao: situacaoDaCobranca(c, hoje),
-      rotulo: `${nomeDaCobranca(c)} · ${rotuloReferencia(c.referencia)}`,
+      rotulo: `${nomeDaCobranca(c)} · ${competenciaDaCobranca(c)}`,
     }));
   });
   /** Em aberto primeiro (atrasadas no topo); o resto segue do mais recente ao mais antigo. */

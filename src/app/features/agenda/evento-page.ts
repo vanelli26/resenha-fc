@@ -16,13 +16,19 @@ import { ROTULO_ESPORTE, ROTULO_STATUS_EVENTO, ROTULO_TIPO_EVENTO } from '../../
 import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { DadosEvento, EventosService, participa, podeResponder } from './data/eventos.service';
+import { CobrancaAvulsos } from '../financeiro/cobranca-avulsos';
+import { EncerrarEvento, Encerramento, Participante } from './encerrar-evento';
 import { EventoForm } from './evento-form';
 import { SeletorPresenca } from './seletor-presenca';
 
 interface GrupoPresenca {
-  chave: RespostaPresenca | 'sem';
+  chave: RespostaPresenca | 'sem' | 'compareceu' | 'faltou';
   titulo: string;
   pessoas: ComId<Atleta>[];
+}
+
+function ordenarPorNome(lista: ComId<Atleta>[]): ComId<Atleta>[] {
+  return [...lista].sort((a, b) => (a.apelido || a.nome).localeCompare(b.apelido || b.nome, 'pt-BR'));
 }
 
 @Component({
@@ -34,6 +40,8 @@ interface GrupoPresenca {
     DialogModule,
     SkeletonModule,
     TagModule,
+    CobrancaAvulsos,
+    EncerrarEvento,
     EventoForm,
     FotoPessoa,
     SeletorPresenca,
@@ -55,6 +63,7 @@ export class EventoPage {
   readonly eventoId = input.required<string>();
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
+  protected readonly ehTesouraria = this.timeAtual.ehTesouraria;
   protected readonly esportes = this.timeAtual.esportes;
   protected readonly rotuloTipo = ROTULO_TIPO_EVENTO;
   protected readonly rotuloStatus = ROTULO_STATUS_EVENTO;
@@ -66,6 +75,7 @@ export class EventoPage {
   protected readonly respondendo = signal(false);
   protected readonly processando = signal(false);
   protected readonly dialogAberto = signal(false);
+  protected readonly encerrandoAberto = signal(false);
 
   protected readonly esporte = computed(() => {
     const e = this.evento();
@@ -86,25 +96,61 @@ export class EventoPage {
     return this.presencas().find((p) => p.id === id)?.resposta ?? null;
   });
 
-  /** Vão · Talvez · Não vão · Sem resposta (quem participa e ainda não respondeu). */
+  /** Lista do encerramento: quem participa do tipo ou tem presença; quem disse "Vou" já vem marcado. */
+  protected readonly participantes = computed<Participante[]>(() => {
+    const e = this.evento();
+    if (!e) return [];
+    const presencas = new Map(this.presencas().map((p) => [p.id, p]));
+    return ordenarPorNome(
+      this.cadastros().filter((a) => participa(e.tipo, a) || presencas.has(a.id)),
+    ).map((atleta) => {
+      const p = presencas.get(atleta.id);
+      return {
+        atleta,
+        resposta: p?.resposta ?? null,
+        compareceu: p?.compareceu ?? p?.resposta === 'vou',
+        temPresenca: !!p,
+      };
+    });
+  });
+
+  /** Quem compareceu (após o encerramento). */
+  protected readonly compareceram = computed(() => {
+    const presentes = new Set(this.presencas().filter((p) => p.compareceu).map((p) => p.id));
+    return this.cadastros().filter((a) => presentes.has(a.id));
+  });
+
+  /**
+   * Agendado: Vão · Talvez · Não vão · Sem resposta (quem participa e ainda não respondeu).
+   * Realizado: Compareceram · Faltaram (disseram "Vou" ou "Talvez" e não foram).
+   */
   protected readonly grupos = computed<GrupoPresenca[]>(() => {
     const e = this.evento();
     if (!e) return [];
+    if (e.status === 'realizado') {
+      const faltaram = this.presencas()
+        .filter((p) => !p.compareceu && (p.resposta === 'vou' || p.resposta === 'talvez'))
+        .map((p) => p.id);
+      const idsFaltaram = new Set(faltaram);
+      return [
+        { chave: 'compareceu', titulo: 'Compareceram', pessoas: ordenarPorNome(this.compareceram()) },
+        { chave: 'faltou', titulo: 'Faltaram', pessoas: ordenarPorNome(this.cadastros().filter((a) => idsFaltaram.has(a.id))) },
+      ];
+    }
     const porId = new Map(this.cadastros().map((a) => [a.id, a]));
-    const respostas = new Map(this.presencas().map((p) => [p.id, p.resposta]));
+    const respostas = new Map<string, RespostaPresenca>();
+    for (const p of this.presencas()) if (p.resposta) respostas.set(p.id, p.resposta);
     const doGrupo = (r: RespostaPresenca) =>
       [...respostas].flatMap(([id, resp]) => {
         const pessoa = porId.get(id);
         return resp === r && pessoa ? [pessoa] : [];
       });
     const semResposta = this.cadastros().filter((a) => participa(e.tipo, a) && !respostas.has(a.id));
-    const ordenar = (lista: ComId<Atleta>[]) =>
-      lista.sort((a, b) => (a.apelido || a.nome).localeCompare(b.apelido || b.nome, 'pt-BR'));
     return [
-      { chave: 'vou', titulo: 'Vão', pessoas: ordenar(doGrupo('vou')) },
-      { chave: 'talvez', titulo: 'Talvez', pessoas: ordenar(doGrupo('talvez')) },
-      { chave: 'nao_vou', titulo: 'Não vão', pessoas: ordenar(doGrupo('nao_vou')) },
-      { chave: 'sem', titulo: 'Sem resposta', pessoas: ordenar(semResposta) },
+      { chave: 'vou', titulo: 'Vão', pessoas: ordenarPorNome(doGrupo('vou')) },
+      { chave: 'talvez', titulo: 'Talvez', pessoas: ordenarPorNome(doGrupo('talvez')) },
+      { chave: 'nao_vou', titulo: 'Não vão', pessoas: ordenarPorNome(doGrupo('nao_vou')) },
+      { chave: 'sem', titulo: 'Sem resposta', pessoas: ordenarPorNome(semResposta) },
     ];
   });
 
@@ -148,6 +194,18 @@ export class EventoPage {
     if (!timeId || !e || !editado) return;
     const ok = await this.executar(() => this.eventosService.atualizar(timeId, e.id, editado), 'Evento atualizado');
     if (ok) this.dialogAberto.set(false);
+  }
+
+  protected async encerrar(encerramento: Encerramento): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const e = this.evento();
+    if (!timeId || !e) return;
+    const jaRealizado = e.status === 'realizado';
+    const ok = await this.executar(
+      () => this.eventosService.encerrar(timeId, e.id, encerramento.placar, encerramento.lista),
+      jaRealizado ? 'Encerramento atualizado' : 'Evento encerrado',
+    );
+    if (ok) this.encerrandoAberto.set(false);
   }
 
   protected alternarCancelamento(): void {

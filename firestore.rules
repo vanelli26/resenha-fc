@@ -58,11 +58,13 @@ rules_version = '2';
 //
 // times/{timeId}/eventos/{eventoId}   (não é excluído: cancelado fica na agenda)
 //   tipo: 'jogo'|'treino'|'amistoso'|'campeonato'|'confraternizacao'|'outro' · titulo (1..80) · data: timestamp
-//   local (0..120) · esporte: 'campo'|'society'|'futsal' · adversario? (1..60) · status: 'agendado'|'cancelado'
-//   ('realizado' e placar: encerramento, Fase 3b) · criadoPor (= request.auth.uid) · criadoEm (= request.time); ambos imutáveis
+//   local (0..120) · esporte: 'campo'|'society'|'futsal' · adversario? (1..60) · status: 'agendado'|'cancelado'|'realizado'
+//   placarPro?/placarContra? (int 0..99, juntos, só em realizado) · criadoPor (= request.auth.uid) · criadoEm (= request.time); imutáveis
+//   Transições: agendado ↔ cancelado; agendado → realizado (encerrar); realizado não volta.
 //
 // times/{timeId}/eventos/{eventoId}/presencas/{atletaId}
-//   resposta: 'vou'|'nao_vou'|'talvez' · atualizadoEm (= request.time)   (compareceu: Fase 3b)
+//   resposta?: 'vou'|'nao_vou'|'talvez' (da própria pessoa) · compareceu?: bool (só diretoria, no encerramento)
+//   atualizadoEm (= request.time)
 //
 // Demais coleções (recados, campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
@@ -332,22 +334,35 @@ service cloud.firestore {
 
     function isValidEvento(data) {
       return data.keys().hasAll(['tipo', 'titulo', 'data', 'local', 'esporte', 'status', 'criadoPor', 'criadoEm'])
-        && data.keys().hasOnly(['tipo', 'titulo', 'data', 'local', 'esporte', 'adversario', 'status', 'criadoPor', 'criadoEm'])
+        && data.keys().hasOnly(['tipo', 'titulo', 'data', 'local', 'esporte', 'adversario', 'placarPro', 'placarContra',
+          'status', 'criadoPor', 'criadoEm'])
         && data.tipo in ['jogo', 'treino', 'amistoso', 'campeonato', 'confraternizacao', 'outro']
         && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 80
         && data.data is timestamp
         && data.local is string && data.local.size() <= 120
         && data.esporte in ['campo', 'society', 'futsal']
         && textoOpcional(data, 'adversario', 1, 60)
-        && data.status in ['agendado', 'cancelado']
+        && data.status in ['agendado', 'cancelado', 'realizado']
+        && (('placarPro' in data) == ('placarContra' in data))
+        && (!('placarPro' in data) || (data.status == 'realizado'
+          && data.placarPro is int && data.placarPro >= 0 && data.placarPro <= 99
+          && data.placarContra is int && data.placarContra >= 0 && data.placarContra <= 99))
         && data.criadoPor is string && data.criadoPor.size() <= 128
         && data.criadoEm is timestamp;
     }
 
+    // agendado ↔ cancelado; agendado → realizado; realizado fica realizado (corrigir encerramento).
+    function transicaoEventoValida(antes, depois) {
+      return antes == depois
+        || (antes in ['agendado', 'cancelado'] && depois in ['agendado', 'cancelado'])
+        || (antes == 'agendado' && depois == 'realizado');
+    }
+
     function isValidPresenca(data) {
-      return data.keys().hasAll(['resposta', 'atualizadoEm'])
-        && data.keys().hasOnly(['resposta', 'atualizadoEm'])
-        && data.resposta in ['vou', 'nao_vou', 'talvez']
+      return data.keys().hasAll(['atualizadoEm'])
+        && data.keys().hasOnly(['resposta', 'compareceu', 'atualizadoEm'])
+        && (!('resposta' in data) || data.resposta in ['vou', 'nao_vou', 'talvez'])
+        && (!('compareceu' in data) || data.compareceu is bool)
         && data.atualizadoEm == request.time;
     }
 
@@ -362,6 +377,11 @@ service cloud.firestore {
         && atleta.status == 'ativo'
         && evento.status == 'agendado'
         && (evento.tipo in ['confraternizacao', 'outro'] || atleta.get('vinculo', 'atleta') == 'atleta');
+    }
+
+    function diretoriaNoEvento(timeId, eventoId) {
+      return podeGerir(timeId)
+        && existsAfter(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId));
     }
 
     function isValidConvite(data, codigo) {
@@ -647,18 +667,27 @@ service cloud.firestore {
 
         allow update: if podeGerir(timeId)
           && isValidEvento(request.resource.data)
-          && inalterados(['criadoPor', 'criadoEm']);
+          && inalterados(['criadoPor', 'criadoEm'])
+          && transicaoEventoValida(resource.data.status, request.resource.data.status);
 
         allow delete: if false;
 
-        // Presença: cada um responde pelo próprio cadastro; a diretoria por qualquer um.
+        // Presença: cada um responde pelo próprio cadastro (só `resposta`); a diretoria por qualquer um,
+        // incluindo `compareceu` no encerramento.
         match /presencas/{atletaId} {
           allow read: if temAcesso(timeId) || isAdminGeral();
 
-          allow create, update: if isValidPresenca(request.resource.data)
-            && (respondeProprio(timeId, eventoId, atletaId)
-              || (podeGerir(timeId)
-                && exists(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId))));
+          allow create: if isValidPresenca(request.resource.data)
+            && ((respondeProprio(timeId, eventoId, atletaId)
+                && 'resposta' in request.resource.data
+                && !('compareceu' in request.resource.data))
+              || diretoriaNoEvento(timeId, eventoId));
+
+          allow update: if isValidPresenca(request.resource.data)
+            && ((respondeProprio(timeId, eventoId, atletaId)
+                && 'resposta' in request.resource.data
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resposta', 'atualizadoEm']))
+              || diretoriaNoEvento(timeId, eventoId));
 
           allow delete: if false;
         }
