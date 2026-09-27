@@ -55,7 +55,7 @@ function paraDados(f: FormAtleta): DadosAtleta {
 })
 export class AtletaForm {
   readonly atleta = input<Atleta | null>(null);
-  /** 'proprio': jogador editando o próprio cadastro (sem nome, modalidade e status). */
+  /** 'proprio': jogador editando o próprio cadastro (sem modalidade e status). */
   readonly modo = input<'completo' | 'proprio'>('completo');
   /** Modalidades habilitadas no time (DIRETRIZES 2.4). */
   readonly modalidades = input<readonly Modalidade[]>(MODALIDADES);
@@ -80,7 +80,6 @@ export class AtletaForm {
     pattern(p.telefone, /^[0-9()+\-\s]*$/, { message: 'Use só números, espaço, (, ), + e -.' });
     pattern(p.numeroCamisa, /^\d{0,3}$/, { message: 'Número de 0 a 999.' });
     const proprio = () => this.modo() === 'proprio';
-    hidden(p.nome, { when: proprio });
     hidden(p.modalidade, { when: proprio });
     hidden(p.status, { when: proprio });
   });

@@ -50,11 +50,12 @@ export class AtletasService {
   }
 
   /**
-   * Jogador editando o próprio atleta: só apelido, telefone, posições e camisa.
-   * Nome, modalidade e status continuam com a diretoria (Rules).
+   * Jogador editando o próprio atleta: nome, apelido, telefone, posições e camisa.
+   * Modalidade e status continuam com a diretoria (Rules).
    */
   async atualizarProprio(timeId: string, atletaId: string, dados: DadosAtleta): Promise<void> {
     await updateDoc(doc(this.colecao(timeId), atletaId), {
+      nome: dados.nome,
       apelido: dados.apelido,
       posicoes: dados.posicoes,
       telefone: dados.telefone ?? deleteField(),

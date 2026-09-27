@@ -112,7 +112,7 @@ service cloud.firestore {
         && get(acessoPath(timeId)).data.atletaId == atletaId
         && resource.data.uid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['apelido', 'telefone', 'posicoes', 'numeroCamisa', 'fotoUrl', 'atualizadoEm']);
+          .hasOnly(['nome', 'apelido', 'telefone', 'posicoes', 'numeroCamisa', 'fotoUrl', 'atualizadoEm']);
     }
 
     function nomeDoTime(timeId) {

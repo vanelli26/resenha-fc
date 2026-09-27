@@ -1,13 +1,11 @@
 <form class="formulario" (submit)="$event.preventDefault(); enviar()">
-  @if (!formulario.nome().hidden()) {
-    <label class="campo">
-      <span>Nome</span>
-      <input pInputText [formField]="formulario.nome" autocomplete="off" />
-      @if (formulario.nome().touched() && formulario.nome().invalid()) {
-        <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
-      }
-    </label>
-  }
+  <label class="campo">
+    <span>Nome</span>
+    <input pInputText [formField]="formulario.nome" autocomplete="off" />
+    @if (formulario.nome().touched() && formulario.nome().invalid()) {
+      <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
+    }
+  </label>
 
   <label class="campo">
     <span>Apelido</span>

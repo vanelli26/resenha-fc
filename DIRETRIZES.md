@@ -192,7 +192,7 @@ times/{timeId}/campeonatos/{campeonatoId}/estatisticas/{atletaId}
 | `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
 | `times/{timeId}` | quem tem acesso ao time | adminGeral (nome, cor, escudo); tesouraria/adminGeral: só `financeiro`, validado |
 | `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel) |
-| `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só apelido, telefone, posições, camisa e `fotoUrl` (sincronizada da foto do Google ao abrir o elenco) |
+| `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
@@ -319,7 +319,7 @@ src/app/
 | 26/09/2026 | Cor do time escolhida em lista de paletas (substitui temas fixos `piratas`/`profissa`; campo `tema` removido ao salvar o time). |
 | 26/09/2026 | Escudo por upload, gravado como data URL no documento do time (sem Storage/Blaze). Substitui arquivos em `public/escudos/`. |
 | 26/09/2026 | Vínculo conta ↔ atleta editável em Membros (vincular existente, criar novo ou desvincular), independente do papel `jogador`. |
-| 26/09/2026 | Jogador edita no próprio atleta: apelido, telefone, posições e camisa. Nome, modalidade e status continuam com a diretoria. |
+| 26/09/2026 | Jogador edita no próprio atleta: apelido, telefone, posições e camisa. Nome, modalidade e status continuam com a diretoria. (Substituída abaixo: nome passou ao jogador.) |
 | 26/09/2026 | Foto do atleta = foto do Google da conta vinculada, copiada pelo próprio jogador para `atletas.fotoUrl` (diretoria não lê `usuarios`). Visível ao time. |
 | 26/09/2026 | Identidade visual: marca oficial do usuário (`public/marca/`) em logo, favicon, ícone do iPhone e fundo do modo escuro; barra inferior de navegação no celular. Manifest/PWA continua na Fase 5. Repositório público no GitHub (`vanelli26/resenha-fc`). |
 | 26/09/2026 | "Remover do time" (Membros) apaga o acesso, desvincula a conta e marca o atleta como `inativo`. Elenco mostra só ativos/afastados; inativos ficam ocultos, e só a diretoria pode exibi-los (reativar pelo Editar). |
@@ -330,6 +330,7 @@ src/app/
 | 26/09/2026 | Financeiro navega por período (barra ‹ período ›, `?periodo=AAAA-MM` ou `AAAA-S1/S2` na URL): por mês se o time tem mensal (ou nenhuma), por semestre se tem semestral; com as duas, o usuário escolhe. Cobranças do período = vencimento dentro dele; visão "Em aberto" lista todas as pendentes. O caixa (2b) usa a mesma barra, por mês. |
 | 26/09/2026 | Caixa: saldo geral via `sum` no servidor (receitas − despesas); totais do mês somados na tela a partir da lista do mês (já carregada e limitada a 500), sem consultas de agregação extras. Lançamento de baixa (`cob_`) não é editável nem excluível no caixa. Despesas recorrentes cadastradas na Configuração financeira e lançadas no Caixa, mês a mês. |
 | 26/09/2026 | Minhas cobranças (`/t/:timeId/financeiro/minhas`): qualquer membro com atleta vinculado vê só as próprias (consulta por `atletaId`, índice composto `atletaId + vencimento`), em aberto primeiro e histórico. Jogador vê a aba Financeiro só com essa tela; quem gere e joga vê a aba "Minhas". "Meus times" mostra selo de pendentes por time (`count` no servidor, índice `atletaId + status`). |
+| 26/09/2026 | Jogador vinculado (após aprovação do convite) edita no próprio atleta também o **nome**. Modalidade de cobrança e status continuam só com a diretoria. Cobranças antigas mantêm o `atletaNome` da geração (3.2). |
 
 ---
 
