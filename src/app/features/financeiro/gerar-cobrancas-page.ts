@@ -154,7 +154,8 @@ export class GerarCobrancasPage {
     try {
       await this.cobrancasService.gerar(timeId, novas);
       this.mensagens.add({ severity: 'success', summary: `${novas.length} cobrança(s) gerada(s)` });
-      await this.router.navigate(['/t', timeId, 'financeiro', 'cobrancas'], { queryParams: { ref: referencia } });
+      // Abre Cobranças no período gerado (o mês ou o semestre da referência).
+      await this.router.navigate(['/t', timeId, 'financeiro', 'cobrancas'], { queryParams: { periodo: referencia } });
     } catch (e) {
       this.mensagens.add({ severity: 'error', summary: 'Não foi possível gerar', detail: mensagemDeErro(e) });
       await this.carregarExistentes(timeId, referencia);

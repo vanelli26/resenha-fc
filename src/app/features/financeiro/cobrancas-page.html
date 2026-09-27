@@ -6,15 +6,19 @@
 </div>
 
 <div class="filtros">
-  <p-select
-    class="filtros__competencia"
-    [options]="opcoesFiltro()"
+  <p-selectbutton
+    class="filtros__visao"
+    [options]="opcoesVisao()"
     optionLabel="label"
     optionValue="value"
-    [ngModel]="filtro()"
-    (ngModelChange)="filtro.set($event)"
-    ariaLabel="Competência"
+    [allowEmpty]="false"
+    [ngModel]="visaoAtual()"
+    (ngModelChange)="trocarVisao($event)"
+    ariaLabel="Visão"
   />
+  @if (visaoAtual() !== 'aberto') {
+    <app-navegador-periodo [periodo]="periodoAtual()" (mudou)="irParaPeriodo($event)" />
+  }
   <input
     pInputText
     class="filtros__busca"
@@ -86,7 +90,17 @@
         </div>
       </li>
     } @empty {
-      <li class="texto-suave">Nenhuma cobrança {{ filtro() === 'aberto' ? 'em aberto' : 'nesta competência' }}.</li>
+      <li class="texto-suave">@switch (visaoAtual()) {
+          @case ('aberto') {
+            Nenhuma cobrança em aberto.
+          }
+          @case ('semestre') {
+            Nenhuma cobrança vencendo neste semestre.
+          }
+          @default {
+            Nenhuma cobrança vencendo neste mês.
+          }
+        }</li>
     }
   </ul>
 }

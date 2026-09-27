@@ -6,6 +6,7 @@ import {
   doc,
   getDocs,
   limit,
+  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -52,6 +53,19 @@ export class CobrancasService {
 
   async listarPorReferencia(timeId: string, referencia: string): Promise<ComId<Cobranca>[]> {
     const snap = await getDocs(query(this.colecao(timeId), where('referencia', '==', referencia)));
+    return snap.docs.map(comId);
+  }
+
+  /** Cobranças com vencimento no intervalo [inicio, fim) — mensais e semestrais do mês juntas. */
+  async listarPorVencimento(timeId: string, inicio: Date, fim: Date): Promise<ComId<Cobranca>[]> {
+    const snap = await getDocs(
+      query(
+        this.colecao(timeId),
+        where('vencimento', '>=', Timestamp.fromDate(inicio)),
+        where('vencimento', '<', Timestamp.fromDate(fim)),
+        orderBy('vencimento'),
+      ),
+    );
     return snap.docs.map(comId);
   }
 

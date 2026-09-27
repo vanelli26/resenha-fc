@@ -81,3 +81,36 @@ export function deDataInput(valor: string): Date {
 }
 
 export const NOMES_MESES = MESES;
+
+/** `AAAA-MM` válido (mês 01–12). */
+export function ehReferenciaMensal(valor: string | undefined): valor is string {
+  return !!valor && RE_MENSAL.test(valor) && Number(valor.slice(5)) >= 1 && Number(valor.slice(5)) <= 12;
+}
+
+/** `AAAA-S1` ou `AAAA-S2`. */
+export function ehReferenciaSemestral(valor: string | undefined): valor is string {
+  return !!valor && RE_SEMESTRAL.test(valor);
+}
+
+/**
+ * Período de navegação do financeiro: mês (`AAAA-MM`) ou semestre (`AAAA-S1`/`AAAA-S2`).
+ * `somarPeriodos` anda no mesmo tipo: ("2026-12", 1) → "2027-01"; ("2026-S2", 1) → "2027-S1".
+ */
+export function somarPeriodos(periodo: string, quantidade: number): string {
+  const { inicio } = intervaloDoPeriodo(periodo);
+  const meses = ehReferenciaSemestral(periodo) ? quantidade * 6 : quantidade;
+  const data = new Date(inicio.getFullYear(), inicio.getMonth() + meses, 1);
+  return ehReferenciaSemestral(periodo) ? referenciaSemestral(data) : referenciaMensal(data);
+}
+
+/** Intervalo [início, fim) do mês ou semestre (datas locais). */
+export function intervaloDoPeriodo(periodo: string): { inicio: Date; fim: Date } {
+  const semestral = RE_SEMESTRAL.exec(periodo);
+  if (semestral) {
+    const ano = Number(semestral[1]);
+    const mesInicial = semestral[2] === '1' ? 0 : 6;
+    return { inicio: new Date(ano, mesInicial, 1), fim: new Date(ano, mesInicial + 6, 1) };
+  }
+  const [ano, mes] = periodo.split('-').map(Number);
+  return { inicio: new Date(ano, mes - 1, 1), fim: new Date(ano, mes, 1) };
+}

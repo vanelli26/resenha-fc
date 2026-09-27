@@ -1,13 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import { SelectModule } from 'primeng/select';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
@@ -15,19 +15,25 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Cobranca } from '../../models/financeiro.model';
 import {
   deDataInput,
+  ehReferenciaMensal,
+  ehReferenciaSemestral,
+  intervaloDoPeriodo,
   paraDataInput,
-  referenciasMensais,
-  referenciasSemestrais,
+  referenciaMensal,
+  referenciaSemestral,
   rotuloReferencia,
 } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
 import { ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
 import { CobrancasService } from './data/cobrancas.service';
+import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
-/** Filtro da lista: todas as pendentes ou uma competência (AAAA-MM / AAAA-S1). */
-const EM_ABERTO = 'aberto';
+/** Visão da lista: o que vence no mês/semestre escolhido, ou todas as pendentes (qualquer período). */
+type Visao = 'mes' | 'semestre' | 'aberto';
+
+const ROTULO_VISAO: Record<Visao, string> = { mes: 'Por mês', semestre: 'Por semestre', aberto: 'Em aberto' };
 
 interface CobrancaVisao {
   cobranca: ComId<Cobranca>;
@@ -46,10 +52,11 @@ interface CobrancaVisao {
     ConfirmDialogModule,
     DialogModule,
     InputTextModule,
-    SelectModule,
+    SelectButtonModule,
     SkeletonModule,
     ReaisPipe,
     SituacaoCobrancaTag,
+    NavegadorPeriodo,
   ],
   providers: [ConfirmationService],
   templateUrl: './cobrancas-page.html',
@@ -62,27 +69,45 @@ export class CobrancasPage {
   private readonly cobrancasService = inject(CobrancasService);
   private readonly mensagens = inject(MessageService);
   private readonly confirmacao = inject(ConfirmationService);
+  private readonly router = inject(Router);
 
-  /** `?ref=` vindo de "Gerar cobranças": abre direto na competência gerada. */
-  readonly ref = input<string>();
+  // Período e visão ficam na URL (?periodo=AAAA-MM | AAAA-S1 & visao=aberto): voltar do celular e links funcionam.
+  readonly periodo = input<string>();
+  readonly visao = input<string>();
 
   protected readonly ehTesouraria = this.timeAtual.ehTesouraria;
   protected readonly timeId = this.timeAtual.timeId;
 
-  protected readonly opcoesFiltro = computed(() => {
-    const hoje = new Date();
+  /** Navegação por período conforme as modalidades do time: só semestral → semestres; mensal (ou nenhuma) → meses. */
+  private readonly visoesPeriodo = computed<Visao[]>(() => {
     const habilitadas = this.timeAtual.modalidadesHabilitadas();
-    return [
-      { label: 'Em aberto (todas)', value: EM_ABERTO },
-      ...(habilitadas.includes('mensal')
-        ? referenciasMensais(hoje).map((r) => ({ label: rotuloReferencia(r), value: r }))
-        : []),
-      ...(habilitadas.includes('semestral')
-        ? referenciasSemestrais(hoje).map((r) => ({ label: rotuloReferencia(r), value: r }))
-        : []),
-    ];
+    const semestral = habilitadas.includes('semestral');
+    const mensal = habilitadas.includes('mensal') || !semestral;
+    const visoes: Visao[] = [];
+    if (mensal) visoes.push('mes');
+    if (semestral) visoes.push('semestre');
+    return visoes;
   });
-  protected readonly filtro = linkedSignal(() => this.ref() || EM_ABERTO);
+  protected readonly opcoesVisao = computed(() => {
+    const visoes: Visao[] = [...this.visoesPeriodo(), 'aberto'];
+    return visoes.map((value) => ({ value, label: ROTULO_VISAO[value] }));
+  });
+
+  protected readonly visaoAtual = computed<Visao>(() => {
+    if (this.visao() === 'aberto') return 'aberto';
+    const doLink = ehReferenciaSemestral(this.periodo()) ? 'semestre' : ehReferenciaMensal(this.periodo()) ? 'mes' : null;
+    return doLink && this.visoesPeriodo().includes(doLink) ? doLink : this.visoesPeriodo()[0];
+  });
+  /** Mês ou semestre na tela (da URL, se for do tipo da visão; senão o de hoje). */
+  protected readonly periodoAtual = computed(() => {
+    const periodo = this.periodo();
+    if (this.visaoAtual() === 'semestre') {
+      return ehReferenciaSemestral(periodo) ? periodo : referenciaSemestral(new Date());
+    }
+    return ehReferenciaMensal(periodo) ? periodo : referenciaMensal(new Date());
+  });
+  /** Chave única do que está na tela: 'aberto' ou o período. */
+  private readonly filtro = computed(() => (this.visaoAtual() === 'aberto' ? 'aberto' : this.periodoAtual()));
   protected readonly busca = signal('');
 
   private readonly cobrancas = signal<ComId<Cobranca>[]>([]);
@@ -126,7 +151,7 @@ export class CobrancasPage {
   protected readonly baixaAberta = computed(() => this.emBaixa() !== null);
 
   constructor() {
-    // Recarrega ao trocar de time (tela reaproveitada) ou de filtro.
+    // Recarrega ao trocar de time (tela reaproveitada), de mês ou de visão.
     effect(() => {
       const timeId = this.timeAtual.timeId();
       const filtro = this.filtro();
@@ -136,6 +161,22 @@ export class CobrancasPage {
         if (timeId) void this.carregar(timeId, filtro);
       });
     });
+  }
+
+  protected irParaPeriodo(periodo: string): void {
+    this.atualizarUrl({ periodo, visao: null });
+  }
+
+  /** Ao trocar entre mês e semestre, abre o período de hoje do novo tipo. */
+  protected trocarVisao(visao: Visao | null): void {
+    if (visao === 'aberto') this.atualizarUrl({ visao: 'aberto' });
+    else if (visao === 'semestre') this.atualizarUrl({ visao: null, periodo: referenciaSemestral(new Date()) });
+    else if (visao === 'mes') this.atualizarUrl({ visao: null, periodo: referenciaMensal(new Date()) });
+  }
+
+  /** Só troca a URL (sem empilhar histórico a cada clique); os inputs recarregam a lista. */
+  private atualizarUrl(queryParams: Record<string, string | null>): void {
+    void this.router.navigate([], { queryParams, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   protected abrirBaixa(cobranca: ComId<Cobranca>): void {
@@ -214,9 +255,9 @@ export class CobrancasPage {
     this.carregando.set(true);
     try {
       const dados =
-        filtro === EM_ABERTO
+        filtro === 'aberto'
           ? await this.cobrancasService.listarEmAberto(timeId)
-          : await this.cobrancasService.listarPorReferencia(timeId, filtro);
+          : await this.listarDoPeriodo(timeId, filtro);
       // Descarta resposta atrasada (outro time ou outro filtro).
       if (this.timeAtual.timeId() === timeId && this.filtro() === filtro) this.cobrancas.set(dados);
     } catch (e) {
@@ -224,5 +265,10 @@ export class CobrancasPage {
     } finally {
       this.carregando.set(false);
     }
+  }
+
+  private listarDoPeriodo(timeId: string, periodo: string) {
+    const { inicio, fim } = intervaloDoPeriodo(periodo);
+    return this.cobrancasService.listarPorVencimento(timeId, inicio, fim);
   }
 }
