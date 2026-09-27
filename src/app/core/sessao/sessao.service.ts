@@ -2,7 +2,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { collection, collectionGroup, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore';
 import { Acesso } from '../../models/acesso.model';
 import { PapelTime } from '../../models/papel.model';
-import { Time } from '../../models/time.model';
+import { TimeGravado } from '../../models/time.model';
 import { AuthService } from '../auth/auth.service';
 import { conversor } from '../firebase/conversor';
 import { FIRESTORE } from '../firebase/firestore.token';
@@ -72,7 +72,7 @@ export class SessaoService {
       const acessoPorTime = new Map(acessos.docs.map((d) => [d.data().timeId, d.data()]));
 
       // Documentos dos times (nome atual e escudo): adminGeral lista todos; os demais leem só os seus.
-      const colecaoTimes = collection(this.firestore, 'times').withConverter(conversor<Time>());
+      const colecaoTimes = collection(this.firestore, 'times').withConverter(conversor<TimeGravado>());
       const times = admin
         ? (await getDocs(query(colecaoTimes, orderBy('nome')))).docs
         : await Promise.all([...acessoPorTime.keys()].map((id) => getDoc(doc(colecaoTimes, id))));

@@ -4,101 +4,41 @@
   <h2>Configuração financeira</h2>
 </div>
 
-<p class="texto-suave dica">
-  Modalidades que o time aceita e seus valores. Mudar o valor não altera cobranças já geradas.
-</p>
+<app-planos-cobranca [usoPorPlano]="usoPorPlano()" />
 
-<form class="formulario" (submit)="$event.preventDefault(); salvar()">
-  <section class="cartao modalidade">
-    <label class="modalidade__topo">
-      <span>
-        <strong>Mensal</strong>
-        <small class="texto-suave">Cobrança todo mês (ex.: 2026-10).</small>
-      </span>
-      <p-toggleswitch [formField]="formulario.mensal.ativo" />
-    </label>
-    @if (modelo().mensal.ativo) {
-      <div class="modalidade__campos">
-        <label class="campo">
-          <span>Valor</span>
-          <p-inputnumber [formField]="formulario.mensal.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
-          @if (formulario.mensal.valor().touched() && formulario.mensal.valor().invalid()) {
-            <small class="campo__erro">{{ formulario.mensal.valor().errors()[0].message }}</small>
-          }
-        </label>
-        <label class="campo">
-          <span>Dia do vencimento</span>
-          <p-inputnumber [formField]="formulario.mensal.dia" [useGrouping]="false" [fluid]="true" />
-          @if (formulario.mensal.dia().touched() && formulario.mensal.dia().invalid()) {
-            <small class="campo__erro">{{ formulario.mensal.dia().errors()[0].message }}</small>
-          }
-        </label>
-      </div>
-    }
-  </section>
+<section class="vencimentos">
+  <h3>Vencimentos</h3>
+  <p class="texto-suave dica">Valem para todos os planos da mesma periodicidade. Avulso vence na data do jogo.</p>
 
-  <section class="cartao modalidade">
-    <label class="modalidade__topo">
-      <span>
-        <strong>Semestral</strong>
-        <small class="texto-suave">1º semestre (jan–jun) e 2º semestre (jul–dez).</small>
-      </span>
-      <p-toggleswitch [formField]="formulario.semestral.ativo" />
-    </label>
-    @if (modelo().semestral.ativo) {
-      <div class="modalidade__campos">
-        <label class="campo">
-          <span>Valor por semestre</span>
-          <p-inputnumber [formField]="formulario.semestral.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
-          @if (formulario.semestral.valor().touched() && formulario.semestral.valor().invalid()) {
-            <small class="campo__erro">{{ formulario.semestral.valor().errors()[0].message }}</small>
-          }
-        </label>
-        <label class="campo">
-          <span>Dia do vencimento</span>
-          <p-inputnumber [formField]="formulario.semestral.dia" [useGrouping]="false" [fluid]="true" />
-          @if (formulario.semestral.dia().touched() && formulario.semestral.dia().invalid()) {
-            <small class="campo__erro">{{ formulario.semestral.dia().errors()[0].message }}</small>
-          }
-        </label>
-        <label class="campo">
-          <span>Mês de vencimento do 1º semestre</span>
-          <p-select [formField]="formulario.semestral.mesS1" [options]="mesesS1" optionLabel="label" optionValue="value" appendTo="body" />
-        </label>
-        <label class="campo">
-          <span>Mês de vencimento do 2º semestre</span>
-          <p-select [formField]="formulario.semestral.mesS2" [options]="mesesS2" optionLabel="label" optionValue="value" appendTo="body" />
-        </label>
-      </div>
-    }
-  </section>
-
-  <section class="cartao modalidade">
-    <label class="modalidade__topo">
-      <span>
-        <strong>Avulso</strong>
-        <small class="texto-suave">Pago por jogo. As cobranças saem dos jogos (Agenda, Fase 3).</small>
-      </span>
-      <p-toggleswitch [formField]="formulario.avulso.ativo" />
-    </label>
-    @if (modelo().avulso.ativo) {
-      <div class="modalidade__campos">
-        <label class="campo">
-          <span>Valor por jogo</span>
-          <p-inputnumber [formField]="formulario.avulso.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
-          @if (formulario.avulso.valor().touched() && formulario.avulso.valor().invalid()) {
-            <small class="campo__erro">{{ formulario.avulso.valor().errors()[0].message }}</small>
-          }
-        </label>
-      </div>
-    }
-  </section>
-
-  <p class="texto-suave dica">Isento (ex.: goleiros) está sempre disponível e nunca gera cobrança.</p>
-
-  <div class="acoes">
-    <p-button label="Salvar" type="submit" [loading]="formulario().submitting()" />
-  </div>
-</form>
+  <form class="cartao formulario" (submit)="$event.preventDefault(); salvarVencimentos()">
+    <div class="vencimentos__campos">
+      <label class="campo">
+        <span>Mensal: dia do vencimento</span>
+        <p-inputnumber [formField]="formulario.diaMensal" [useGrouping]="false" [fluid]="true" />
+        @if (formulario.diaMensal().touched() && formulario.diaMensal().invalid()) {
+          <small class="campo__erro">{{ formulario.diaMensal().errors()[0].message }}</small>
+        }
+      </label>
+      <label class="campo">
+        <span>Semestral: dia do vencimento</span>
+        <p-inputnumber [formField]="formulario.diaSemestral" [useGrouping]="false" [fluid]="true" />
+        @if (formulario.diaSemestral().touched() && formulario.diaSemestral().invalid()) {
+          <small class="campo__erro">{{ formulario.diaSemestral().errors()[0].message }}</small>
+        }
+      </label>
+      <label class="campo">
+        <span>Mês de vencimento do 1º semestre</span>
+        <p-select [formField]="formulario.mesS1" [options]="mesesS1" optionLabel="label" optionValue="value" appendTo="body" />
+      </label>
+      <label class="campo">
+        <span>Mês de vencimento do 2º semestre</span>
+        <p-select [formField]="formulario.mesS2" [options]="mesesS2" optionLabel="label" optionValue="value" appendTo="body" />
+      </label>
+    </div>
+    <div class="acoes">
+      <p-button label="Salvar vencimentos" type="submit" [loading]="formulario().submitting()" />
+    </div>
+  </form>
+</section>
 
 <app-despesas-recorrentes />

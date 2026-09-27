@@ -1,27 +1,18 @@
+.vencimentos {
+  margin-top: 2rem;
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.125rem;
+  }
+}
+
 .dica {
   margin: 0 0 1rem;
   font-size: 0.875rem;
 }
 
-.modalidade {
-  display: grid;
-  gap: 1rem;
-}
-
-.modalidade__topo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  cursor: pointer;
-
-  span {
-    display: grid;
-    gap: 0.125rem;
-  }
-}
-
-.modalidade__campos {
+.vencimentos__campos {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));

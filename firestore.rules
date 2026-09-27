@@ -17,9 +17,11 @@ rules_version = '2';
 //   nome: string (1..60) · slug: string (= timeId, imutável) · cor: nome de paleta (lista fixa)
 //   escudo: data URL base64 de imagem webp/png/jpeg (<= 120000 caracteres) | null · criadoEm: timestamp (imutável)
 //   (campo antigo `tema` só pode ser removido)
-//   financeiro: { mensal: {ativo, valorCentavos, diaVencimento}, semestral: {+ mesVencimentoS1 1..6, mesVencimentoS2 7..12},
-//                 avulso: {ativo, valorCentavos}, despesasRecorrentes: list 0..10 de {id, descricao, categoria, valorCentavos, diaVencimento} }
-//   (nasce com o padrão desligado; depois só tesouraria/adminGeral altera, e só esse campo)
+//   financeiro: { planos: list 0..10 de {id [a-z0-9]{3,20} (≠ isento), nome 1..40, periodicidade: 'mensal'|'semestral'|'avulso', valorCentavos > 0},
+//                 vencimentos: {diaMensal, diaSemestral 1..31, mesS1 1..6, mesS2 7..12},
+//                 despesasRecorrentes: list 0..10 de {id, descricao, categoria, valorCentavos, diaVencimento} }
+//   (nasce sem planos; depois só tesouraria/adminGeral altera, e só esse campo. Times antigos ainda podem ter o
+//    formato anterior {mensal, semestral, avulso, despesasRecorrentes}: é lido, e a próxima gravação converte.)
 //   esportes?: list 1..3 de 'campo' | 'society' | 'futsal' (ausente = só society; adminGeral ou diretoria altera)
 //
 // times/{timeId}/acessos/{uid}
@@ -29,7 +31,7 @@ rules_version = '2';
 //
 // times/{timeId}/atletas/{atletaId}
 //   nome (1..100) · apelido (0..40) · telefone? (1..20) · fotoUrl? (https) · uid: string | null
-//   modalidade: 'mensal' | 'semestral' | 'avulso' | 'isento'
+//   modalidade: id de um plano do time | 'isento' (conferida só quando muda)
 //   posicoes: { campo?: list 0..10, society?: list 0..6, futsal?: list 0..5 } das posições fixas de cada esporte
 //             (formato antigo, ainda aceito: list 0..6 das posições de society)
 //   numeroCamisa?: int 0..999 · status: 'ativo' | 'afastado' | 'inativo'
@@ -46,7 +48,8 @@ rules_version = '2';
 // times/{timeId}/cobrancas/{atletaId}_{referencia}
 //   atletaId (1..40) · atletaNome (1..100) · tipo: 'mensal' | 'semestral' | 'avulso'
 //   referencia: AAAA-MM | AAAA-S1/S2 | eventoId (conforme o tipo) · valorCentavos: int > 0 · vencimento: timestamp
-//   status: 'pendente' | 'pago' | 'cancelado' · pagoEm?: timestamp · baixadoPor?: uid · observacao? (0..200)
+//   planoNome? (1..40, nome do plano na geração) · status: 'pendente' | 'pago' | 'cancelado'
+//   pagoEm?: timestamp · baixadoPor?: uid · observacao? (0..200)
 //   Imutáveis após criar: tudo menos status/pagoEm/baixadoPor/observacao. Nunca excluída.
 //
 // times/{timeId}/lancamentos/{id}      id: cob_{cobrancaId} (baixa) | rec_{recorrenteId}_{AAAA-MM} | automático (manual)
@@ -151,9 +154,8 @@ service cloud.firestore {
 
     function financeiroPadrao() {
       return {
-        'mensal': { 'ativo': false, 'valorCentavos': 0, 'diaVencimento': 10 },
-        'semestral': { 'ativo': false, 'valorCentavos': 0, 'diaVencimento': 10, 'mesVencimentoS1': 1, 'mesVencimentoS2': 7 },
-        'avulso': { 'ativo': false, 'valorCentavos': 0 },
+        'planos': [],
+        'vencimentos': { 'diaMensal': 10, 'diaSemestral': 10, 'mesS1': 1, 'mesS2': 7 },
         'despesasRecorrentes': []
       };
     }
@@ -192,31 +194,61 @@ service cloud.firestore {
         && (l.size() < 10 || isValidDespesaRecorrente(l[9]));
     }
 
+    function isValidPlano(p) {
+      return p is map
+        && p.keys().hasAll(['id', 'nome', 'periodicidade', 'valorCentavos'])
+        && p.keys().hasOnly(['id', 'nome', 'periodicidade', 'valorCentavos'])
+        && p.id is string && p.id.matches('^[a-z0-9]{3,20}$') && p.id != 'isento'
+        && p.nome is string && p.nome.size() >= 1 && p.nome.size() <= 40
+        && p.periodicidade in ['mensal', 'semestral', 'avulso']
+        && ehCentavos(p.valorCentavos) && p.valorCentavos > 0;
+    }
+
+    // Sem laço: cada posição da lista (máx. 10) é validada explicitamente.
+    function planosValidos(l) {
+      return l is list && l.size() <= 10
+        && (l.size() < 1 || isValidPlano(l[0]))
+        && (l.size() < 2 || isValidPlano(l[1]))
+        && (l.size() < 3 || isValidPlano(l[2]))
+        && (l.size() < 4 || isValidPlano(l[3]))
+        && (l.size() < 5 || isValidPlano(l[4]))
+        && (l.size() < 6 || isValidPlano(l[5]))
+        && (l.size() < 7 || isValidPlano(l[6]))
+        && (l.size() < 8 || isValidPlano(l[7]))
+        && (l.size() < 9 || isValidPlano(l[8]))
+        && (l.size() < 10 || isValidPlano(l[9]));
+    }
+
+    function planoNaLista(l, id) {
+      return (l.size() > 0 && l[0].id == id) || (l.size() > 1 && l[1].id == id)
+        || (l.size() > 2 && l[2].id == id) || (l.size() > 3 && l[3].id == id)
+        || (l.size() > 4 && l[4].id == id) || (l.size() > 5 && l[5].id == id)
+        || (l.size() > 6 && l[6].id == id) || (l.size() > 7 && l[7].id == id)
+        || (l.size() > 8 && l[8].id == id) || (l.size() > 9 && l[9].id == id);
+    }
+
+    // Toda gravação da configuração usa o formato de planos (converte times antigos).
     function isValidFinanceiro(f) {
       return f is map
-        && f.keys().hasAll(['mensal', 'semestral', 'avulso', 'despesasRecorrentes'])
-        && f.keys().hasOnly(['mensal', 'semestral', 'avulso', 'despesasRecorrentes'])
-        && f.mensal is map
-        && f.mensal.keys().hasAll(['ativo', 'valorCentavos', 'diaVencimento'])
-        && f.mensal.keys().hasOnly(['ativo', 'valorCentavos', 'diaVencimento'])
-        && f.mensal.ativo is bool && ehCentavos(f.mensal.valorCentavos) && ehDia(f.mensal.diaVencimento)
-        && f.semestral is map
-        && f.semestral.keys().hasAll(['ativo', 'valorCentavos', 'diaVencimento', 'mesVencimentoS1', 'mesVencimentoS2'])
-        && f.semestral.keys().hasOnly(['ativo', 'valorCentavos', 'diaVencimento', 'mesVencimentoS1', 'mesVencimentoS2'])
-        && f.semestral.ativo is bool && ehCentavos(f.semestral.valorCentavos) && ehDia(f.semestral.diaVencimento)
-        && f.semestral.mesVencimentoS1 is int && f.semestral.mesVencimentoS1 >= 1 && f.semestral.mesVencimentoS1 <= 6
-        && f.semestral.mesVencimentoS2 is int && f.semestral.mesVencimentoS2 >= 7 && f.semestral.mesVencimentoS2 <= 12
-        && f.avulso is map
-        && f.avulso.keys().hasAll(['ativo', 'valorCentavos'])
-        && f.avulso.keys().hasOnly(['ativo', 'valorCentavos'])
-        && f.avulso.ativo is bool && ehCentavos(f.avulso.valorCentavos)
+        && f.keys().hasAll(['planos', 'vencimentos', 'despesasRecorrentes'])
+        && f.keys().hasOnly(['planos', 'vencimentos', 'despesasRecorrentes'])
+        && planosValidos(f.planos)
+        && f.vencimentos is map
+        && f.vencimentos.keys().hasAll(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])
+        && f.vencimentos.keys().hasOnly(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])
+        && ehDia(f.vencimentos.diaMensal) && ehDia(f.vencimentos.diaSemestral)
+        && f.vencimentos.mesS1 is int && f.vencimentos.mesS1 >= 1 && f.vencimentos.mesS1 <= 6
+        && f.vencimentos.mesS2 is int && f.vencimentos.mesS2 >= 7 && f.vencimentos.mesS2 <= 12
         && despesasValidas(f.despesasRecorrentes);
     }
 
-    // Atleta só recebe modalidade habilitada no time (DIRETRIZES 2.4); isento sempre vale.
+    // Atleta só recebe plano existente no time (DIRETRIZES 2.4); isento sempre vale.
+    // Time ainda no formato antigo: modalidade = nome da modalidade ativa.
     function modalidadeHabilitada(timeId, modalidade) {
+      let f = get(/databases/$(database)/documents/times/$(timeId)).data.financeiro;
       return modalidade == 'isento'
-        || get(/databases/$(database)/documents/times/$(timeId)).data.financeiro[modalidade].ativo == true;
+        || ('planos' in f && planoNaLista(f.planos, modalidade))
+        || (!('planos' in f) && modalidade in ['mensal', 'semestral', 'avulso'] && f[modalidade].ativo == true);
     }
 
     function isValidTime(data, timeId) {
@@ -281,7 +313,7 @@ service cloud.firestore {
         && textoOpcional(data, 'telefone', 1, 20)
         && (!('fotoUrl' in data) || isValidUrl(data.fotoUrl))
         && (data.uid == null || (data.uid is string && data.uid.size() <= 128))
-        && data.modalidade in ['mensal', 'semestral', 'avulso', 'isento']
+        && data.modalidade is string && data.modalidade.matches('^[a-z0-9]{3,20}$')
         && posicoesValidas(data.posicoes)
         && (!('numeroCamisa' in data) || (data.numeroCamisa is int && data.numeroCamisa >= 0 && data.numeroCamisa <= 999))
         && data.status in ['ativo', 'afastado', 'inativo']
@@ -316,7 +348,8 @@ service cloud.firestore {
     function isValidCobranca(data, cobrancaId) {
       return data.keys().hasAll(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento', 'status'])
         && data.keys().hasOnly(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento', 'status',
-          'pagoEm', 'baixadoPor', 'observacao'])
+          'planoNome', 'pagoEm', 'baixadoPor', 'observacao'])
+        && textoOpcional(data, 'planoNome', 1, 40)
         && data.atletaId is string && data.atletaId.size() >= 1 && data.atletaId.size() <= 40
         && data.atletaNome is string && data.atletaNome.size() >= 1 && data.atletaNome.size() <= 100
         && data.tipo in ['mensal', 'semestral', 'avulso']
@@ -533,7 +566,7 @@ service cloud.firestore {
 
         allow update: if podeFinanceiro(timeId)
           && isValidCobranca(request.resource.data, cobrancaId)
-          && inalterados(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento'])
+          && inalterados(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento', 'planoNome'])
           && transicaoCobrancaValida(timeId, cobrancaId);
 
         allow delete: if false;

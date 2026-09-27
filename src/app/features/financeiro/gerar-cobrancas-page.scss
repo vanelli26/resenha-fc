@@ -45,6 +45,11 @@
   }
 }
 
+.candidato__nome {
+  display: grid;
+  padding-block: 0.375rem;
+}
+
 .candidato__rotulo {
   flex: 1;
   display: flex;

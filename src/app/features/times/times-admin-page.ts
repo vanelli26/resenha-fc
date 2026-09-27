@@ -9,7 +9,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { SessaoService } from '../../core/sessao/sessao.service';
 import { amostraDaCor } from '../../core/theme/app-theme';
 import { ESPORTES, ESPORTES_PADRAO, Esporte } from '../../models/posicao.model';
-import { CORES_TIME, CorTime, TAMANHO_MAX_ESCUDO, Time } from '../../models/time.model';
+import { CORES_TIME, CorTime, TAMANHO_MAX_ESCUDO, TimeGravado } from '../../models/time.model';
 import { Escudo } from '../../shared/escudo';
 import { mensagemDeErro } from '../../shared/erros';
 import { imagemParaDataUrl } from '../../shared/imagem';
@@ -38,7 +38,7 @@ export class TimesAdminPage {
   private readonly sessao = inject(SessaoService);
   private readonly mensagens = inject(MessageService);
 
-  protected readonly times = signal<ComId<Time>[]>([]);
+  protected readonly times = signal<ComId<TimeGravado>[]>([]);
   protected readonly editandoId = signal<string | null>(null);
   protected readonly cores = CORES_TIME.map((cor) => ({ cor, rotulo: ROTULO_COR[cor], amostra: amostraDaCor(cor) }));
   protected readonly rotuloCor = ROTULO_COR;
@@ -65,7 +65,7 @@ export class TimesAdminPage {
     void this.carregar();
   }
 
-  protected editar(time: ComId<Time>): void {
+  protected editar(time: ComId<TimeGravado>): void {
     this.editandoId.set(time.id);
     // Times antigos (campo `tema`) não têm `cor`: começa na cor base até salvar.
     this.modelo.set({

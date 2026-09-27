@@ -10,7 +10,7 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
 import { DespesaRecorrente } from '../../models/time.model';
 import { ReaisPipe, centavosParaReais, reaisParaCentavos } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
-import { ConfigFinanceiraService, MAX_DESPESAS_RECORRENTES, novoIdRecorrente } from './data/config-financeira.service';
+import { ConfigFinanceiraService, MAX_DESPESAS_RECORRENTES, novoIdConfiguracao } from './data/config-financeira.service';
 
 interface FormDespesa {
   descricao: string;
@@ -80,7 +80,7 @@ export class DespesasRecorrentes {
       const f = this.modelo();
       const atual = this.emEdicao();
       const despesa: DespesaRecorrente = {
-        id: atual?.id ?? novoIdRecorrente(),
+        id: atual?.id ?? novoIdConfiguracao(),
         descricao: f.descricao.trim(),
         categoria: f.categoria.trim(),
         valorCentavos: reaisParaCentavos(f.valor),
@@ -115,8 +115,9 @@ export class DespesasRecorrentes {
     if (!time) return false;
     this.salvando.set(true);
     try {
-      await this.service.salvarDespesas(time.id, despesasRecorrentes);
-      this.timeAtual.definirFinanceiro({ ...time.financeiro, despesasRecorrentes });
+      const financeiro = { ...time.financeiro, despesasRecorrentes };
+      await this.service.salvar(time.id, financeiro);
+      this.timeAtual.definirFinanceiro(financeiro);
       this.mensagens.add({ severity: 'success', summary: sucesso });
       return true;
     } catch (e) {

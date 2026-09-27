@@ -3,7 +3,7 @@ import { collection, deleteField, doc, getDoc, getDocs, orderBy, query, serverTi
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
 import { Esporte } from '../../../models/posicao.model';
-import { ConfigFinanceira, CorTime, Time } from '../../../models/time.model';
+import { ConfigFinanceira, CorTime, TimeGravado, VENCIMENTOS_PADRAO } from '../../../models/time.model';
 
 export interface DadosTime {
   nome: string;
@@ -12,11 +12,10 @@ export interface DadosTime {
   esportes: Esporte[];
 }
 
-// Configuração financeira nasce desligada; é definida na Fase 2 (tesouraria).
+// Configuração financeira nasce sem planos; a tesouraria define depois (Rules exigem este padrão).
 const FINANCEIRO_PADRAO: ConfigFinanceira = {
-  mensal: { ativo: false, valorCentavos: 0, diaVencimento: 10 },
-  semestral: { ativo: false, valorCentavos: 0, diaVencimento: 10, mesVencimentoS1: 1, mesVencimentoS2: 7 },
-  avulso: { ativo: false, valorCentavos: 0 },
+  planos: [],
+  vencimentos: VENCIMENTOS_PADRAO,
   despesasRecorrentes: [],
 };
 
@@ -25,9 +24,9 @@ const FINANCEIRO_PADRAO: ConfigFinanceira = {
 export class TimesService {
   private readonly firestore = inject(FIRESTORE);
 
-  async listar(): Promise<ComId<Time>[]> {
+  async listar(): Promise<ComId<TimeGravado>[]> {
     const snap = await getDocs(
-      query(collection(this.firestore, 'times').withConverter(conversor<Time>()), orderBy('nome')),
+      query(collection(this.firestore, 'times').withConverter(conversor<TimeGravado>()), orderBy('nome')),
     );
     return snap.docs.map(comId);
   }

@@ -5,7 +5,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { Atleta, STATUS_ATLETA, StatusAtleta, TipoVinculo, VINCULOS, vinculoDe } from '../../models/atleta.model';
-import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
+import { ISENTO, Modalidade } from '../../models/modalidade.model';
 import {
   ESPORTES,
   ESPORTES_PADRAO,
@@ -18,8 +18,8 @@ import {
   esportesComPosicao,
 } from '../../models/posicao.model';
 import {
+  Opcao,
   ROTULO_ESPORTE,
-  ROTULO_MODALIDADE,
   ROTULO_POSICAO,
   ROTULO_STATUS_ATLETA,
   ROTULO_VINCULO,
@@ -85,24 +85,27 @@ function paraDados(f: FormAtleta): DadosAtleta {
   selector: 'app-atleta-form',
   imports: [FormField, ButtonModule, InputTextModule, MultiSelectModule, SelectModule],
   templateUrl: './atleta-form.html',
+  styleUrl: './atleta-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AtletaForm {
   readonly atleta = input<Atleta | null>(null);
   /** 'proprio': jogador editando o próprio cadastro (sem modalidade, status e vínculo). */
   readonly modo = input<'completo' | 'proprio'>('completo');
-  /** Modalidades habilitadas no time (DIRETRIZES 2.4). */
-  readonly modalidades = input<readonly Modalidade[]>(MODALIDADES);
+  /** Planos do time + Isento (DIRETRIZES 2.4). */
+  readonly opcoesModalidade = input<Opcao<Modalidade>[]>([{ value: ISENTO, label: 'Isento' }]);
+  /** Modalidade de um cadastro novo. */
+  readonly modalidadePadrao = input<Modalidade>(ISENTO);
   /** Esportes do time: um grupo de posições para cada. */
   readonly esportes = input<readonly Esporte[]>(ESPORTES_PADRAO);
   readonly salvar = output<DadosAtleta>();
   readonly cancelar = output<void>();
 
-  /** Habilitadas + a atual do atleta (mesmo se desabilitada depois), para não forçar troca ao editar. */
-  protected readonly opcoesModalidade = computed(() => {
+  /** Opções + a atual do atleta, mesmo se o plano foi removido (não força troca ao editar). */
+  protected readonly opcoesModalidadeComAtual = computed(() => {
     const atual = this.atleta()?.modalidade;
-    const lista = atual && !this.modalidades().includes(atual) ? [...this.modalidades(), atual] : this.modalidades();
-    return opcoes(lista, ROTULO_MODALIDADE);
+    const opcoes = this.opcoesModalidade();
+    return atual && !opcoes.some((o) => o.value === atual) ? [...opcoes, { value: atual, label: 'Plano removido' }] : opcoes;
   });
   /** Esportes do time + os que o atleta já tem posição (não apaga dado se o time deixar um esporte). */
   protected readonly esportesVisiveis = computed(() => {
@@ -119,7 +122,7 @@ export class AtletaForm {
   protected readonly opcoesStatus = opcoes(STATUS_ATLETA, ROTULO_STATUS_ATLETA);
 
   protected readonly modelo = linkedSignal(() =>
-    paraFormulario(this.atleta(), this.modalidades()[0] ?? 'isento'),
+    paraFormulario(this.atleta(), this.modalidadePadrao()),
   );
   protected readonly formulario = form(this.modelo, (p) => {
     required(p.nome, { message: 'Informe o nome.' });

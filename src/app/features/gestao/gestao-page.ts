@@ -51,7 +51,7 @@ export class GestaoPage {
       itens.push({
         caminho: 'financeiro',
         titulo: 'Configuração financeira',
-        descricao: 'Modalidades, valores e vencimentos',
+        descricao: 'Planos de cobrança, vencimentos e despesas fixas',
         icone: 'financeiro',
       });
     }

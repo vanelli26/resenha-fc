@@ -34,6 +34,12 @@ export interface NovaCobranca {
   referencia: string;
   valorCentavos: number;
   vencimento: Date;
+  planoNome: string;
+}
+
+/** Nome da cobrança: o plano da geração; cobranças antigas (sem plano) usam o tipo. */
+export function nomeDaCobranca(c: Pick<Cobranca, 'planoNome' | 'tipo'>): string {
+  return c.planoNome ?? ROTULO_TIPO_COBRANCA[c.tipo];
 }
 
 /** ID determinístico: gerar duas vezes não duplica (DIRETRIZES 2.5). */
@@ -109,6 +115,7 @@ export class CobrancasService {
           referencia: c.referencia,
           valorCentavos: c.valorCentavos,
           vencimento: Timestamp.fromDate(c.vencimento),
+          planoNome: c.planoNome,
           status: 'pendente',
         });
       }
@@ -132,8 +139,9 @@ export class CobrancasService {
     });
     batch.set(doc(this.firestore, 'times', timeId, 'lancamentos', idLancamentoDaCobranca(cobranca.id)), {
       tipo: 'receita',
-      categoria: ROTULO_TIPO_COBRANCA[cobranca.tipo],
-      descricao: `${ROTULO_TIPO_COBRANCA[cobranca.tipo]} ${rotuloReferencia(cobranca.referencia)} · ${cobranca.atletaNome}`,
+      // Categoria = nome do plano: o caixa separa por tipo de pagante (DIRETRIZES 2.6).
+      categoria: nomeDaCobranca(cobranca),
+      descricao: `${nomeDaCobranca(cobranca)} ${rotuloReferencia(cobranca.referencia)} · ${cobranca.atletaNome}`,
       valorCentavos: cobranca.valorCentavos,
       data: pagoEm,
       cobrancaId: cobranca.id,

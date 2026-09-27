@@ -24,7 +24,7 @@ Não inventar collections, campos, regras de negócio, papéis, permissões, cla
 - Dois times independentes: **Piratas FC** e **Futebol Profissa**. Cada um tem elenco, caixa, agenda, mural e campeonatos próprios. Nenhum dado financeiro é compartilhado entre times.
 - Uma mesma pessoa pode estar nos dois times, com cadastro, modalidade de cobrança e papéis independentes em cada um.
 - Papéis por time: `diretoria`, `tesouraria`, `jogador`. Papel global: `adminGeral`.
-- Modalidades de cobrança: `mensal`, `semestral`, `avulso` (por jogo), `isento` (ex.: goleiros).
+- Cobrança por planos configuráveis por time (nome, periodicidade `mensal`/`semestral`/`avulso`, valor), para atletas, sócios e colaboradores; ou `isento` (ex.: goleiros). Ver DIRETRIZES 2.4.
 - Benefícios da semestralidade do Profissa **não** são gerenciados pelo sistema.
 - Dinheiro sempre em centavos (inteiro). Nunca `number` com casas decimais para valores.
 

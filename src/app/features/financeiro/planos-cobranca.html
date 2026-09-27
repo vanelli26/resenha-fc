@@ -1,0 +1,92 @@
+<section class="despesas planos">
+  <div class="cabecalho-secao">
+    <h3>Planos de cobrança</h3>
+    @if (podeAdicionar()) {
+      <p-button label="Novo plano" size="small" [outlined]="true" (onClick)="adicionar()" />
+    }
+  </div>
+  <p class="texto-suave dica">
+    Cada pessoa do time recebe um plano (no Editar do cadastro) ou fica Isenta. Ex.: Atleta semestral, Sócio
+    semestral, Torcedor mensal. Mudar o valor não altera cobranças já geradas. Até {{ maximo }}.
+  </p>
+
+  <ul class="lista">
+    @for (plano of planos(); track plano.id) {
+      <li>
+        <button type="button" class="cartao despesa" (click)="editar(plano)">
+          <span class="despesa__texto">
+            <strong>{{ plano.nome }}</strong>
+            <small class="texto-suave">
+              {{ rotuloPeriodicidade[plano.periodicidade] }}
+              @if (usoPorPlano(); as uso) {
+                · {{ uso.get(plano.id) ?? 0 }} pessoa(s)
+              }
+            </small>
+          </span>
+          <strong>{{ plano.valorCentavos | reais }}</strong>
+        </button>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum plano. Sem plano, todos ficam como Isento.</li>
+    }
+  </ul>
+</section>
+
+<p-dialog
+  [header]="emEdicao() ? 'Editar plano' : 'Novo plano'"
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [style]="{ width: 'min(26rem, 100vw - 2rem)' }"
+>
+  <form class="formulario" (submit)="$event.preventDefault(); salvar()">
+    <label class="campo">
+      <span>Nome</span>
+      <input pInputText [formField]="formulario.nome" placeholder="Ex.: Sócio semestral" autocomplete="off" />
+      <small class="campo__dica">Também é a categoria da receita no Caixa.</small>
+      @if (formulario.nome().touched() && formulario.nome().invalid()) {
+        <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Periodicidade</span>
+      <p-select
+        [formField]="formulario.periodicidade"
+        [options]="opcoesPeriodicidade"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+      />
+    </label>
+    <label class="campo">
+      <span>Valor</span>
+      <p-inputnumber [formField]="formulario.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
+      @if (formulario.valor().touched() && formulario.valor().invalid()) {
+        <small class="campo__erro">{{ formulario.valor().errors()[0].message }}</small>
+      }
+    </label>
+
+    @if (usoDoEmEdicao() > 0) {
+      <small class="texto-suave">
+        {{ usoDoEmEdicao() }} pessoa(s) neste plano. Para remover, troque o plano delas antes.
+      </small>
+    }
+
+    <div class="acoes">
+      @if (emEdicao() && usoDoEmEdicao() === 0) {
+        <p-button
+          label="Remover"
+          severity="danger"
+          [text]="true"
+          type="button"
+          class="acoes__remover"
+          [disabled]="salvando() || usoPorPlano() === null"
+          (onClick)="remover()"
+        />
+      }
+      <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
+      <p-button label="Salvar" type="submit" [loading]="salvando()" />
+    </div>
+  </form>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

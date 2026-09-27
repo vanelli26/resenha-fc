@@ -25,8 +25,7 @@ import {
 } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
-import { ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
-import { CobrancasService } from './data/cobrancas.service';
+import { CobrancasService, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
@@ -80,11 +79,11 @@ export class CobrancasPage {
   protected readonly ehTesouraria = this.timeAtual.ehTesouraria;
   protected readonly timeId = this.timeAtual.timeId;
 
-  /** Navegação por período conforme as modalidades do time: só semestral → semestres; mensal (ou nenhuma) → meses. */
+  /** Navegação por período conforme os planos do time: só semestrais → semestres; mensais (ou nenhum) → meses. */
   private readonly visoesPeriodo = computed<Visao[]>(() => {
-    const habilitadas = this.timeAtual.modalidadesHabilitadas();
-    const semestral = habilitadas.includes('semestral');
-    const mensal = habilitadas.includes('mensal') || !semestral;
+    const periodicidades = this.timeAtual.periodicidades();
+    const semestral = periodicidades.includes('semestral');
+    const mensal = periodicidades.includes('mensal') || !semestral;
     const visoes: Visao[] = [];
     if (mensal) visoes.push('mes');
     if (semestral) visoes.push('semestre');
@@ -125,7 +124,7 @@ export class CobrancasPage {
         cobranca: c,
         situacao: situacaoDaCobranca(c, hoje),
         vencimento: c.vencimento.toDate(),
-        rotulo: `${ROTULO_TIPO_COBRANCA[c.tipo]} · ${rotuloReferencia(c.referencia)}`,
+        rotulo: `${nomeDaCobranca(c)} · ${rotuloReferencia(c.referencia)}`,
       }))
       .sort(
         (a, b) =>

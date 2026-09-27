@@ -6,14 +6,13 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
 import { AuthService } from '../../core/auth/auth.service';
-import { TimeAtualService } from '../../core/time/time-atual.service';
+import { TimeAtualService, nomeDaModalidade } from '../../core/time/time-atual.service';
 import { Atleta, vinculoDe } from '../../models/atleta.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 import { esportesComPosicao } from '../../models/posicao.model';
 import {
   ROTULO_ESPORTE,
-  ROTULO_MODALIDADE,
   ROTULO_POSICAO,
   ROTULO_STATUS_ATLETA,
   ROTULO_VINCULO,
@@ -35,7 +34,13 @@ export class ElencoPage {
   private readonly mensagens = inject(MessageService);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
-  protected readonly modalidades = this.timeAtual.modalidadesHabilitadas;
+  protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
+  protected readonly modalidadePadrao = this.timeAtual.modalidadePadrao;
+  /** Nome do plano (ou Isento) de cada cadastro. */
+  protected readonly nomeModalidade = computed(() => {
+    const nomes = this.timeAtual.nomesModalidade();
+    return (modalidade: string) => nomeDaModalidade(nomes, modalidade);
+  });
   protected readonly esportes = this.timeAtual.esportes;
   /** Atleta vinculado à conta logada neste time (null se não estiver no elenco). */
   protected readonly meuAtletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
@@ -82,7 +87,6 @@ export class ElencoPage {
     );
   });
 
-  protected readonly rotuloModalidade = ROTULO_MODALIDADE;
   protected readonly rotuloStatus = ROTULO_STATUS_ATLETA;
 
   constructor() {

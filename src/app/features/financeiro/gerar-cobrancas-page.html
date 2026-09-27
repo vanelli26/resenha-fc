@@ -6,13 +6,13 @@
 
 @if (opcoesTipo().length === 0) {
   <p class="cartao texto-suave">
-    Nenhuma modalidade mensal ou semestral está ativa.
-    <a [routerLink]="['/t', timeId(), 'gestao', 'financeiro']">Ative na configuração financeira</a>.
+    Nenhum plano mensal ou semestral cadastrado.
+    <a [routerLink]="['/t', timeId(), 'gestao', 'financeiro']">Crie na configuração financeira</a>.
   </p>
 } @else {
   <div class="filtros">
     <label class="campo">
-      <span>Modalidade</span>
+      <span>Planos</span>
       <p-select [options]="opcoesTipo()" optionLabel="label" optionValue="value" [ngModel]="tipo()" (ngModelChange)="tipo.set($event)" />
     </label>
     <label class="campo">
@@ -27,15 +27,15 @@
     </label>
   </div>
 
-  @if (condicoes(); as c) {
+  @if (vencimento(); as v) {
     <p class="cartao condicoes">
       <span>
-        <small class="texto-suave">Valor</small>
-        <strong>{{ c.valorCentavos | reais }}</strong>
+        <small class="texto-suave">Vencimento</small>
+        <strong>{{ v | date: 'dd/MM/yyyy' }}</strong>
       </span>
       <span>
-        <small class="texto-suave">Vencimento</small>
-        <strong>{{ c.vencimento | date: 'dd/MM/yyyy' }}</strong>
+        <small class="texto-suave">Valor</small>
+        <strong>o do plano de cada pessoa</strong>
       </span>
     </p>
   }
@@ -56,14 +56,19 @@
               [ngModel]="c.jaGerada || selecionados().has(c.atleta.id)"
               (ngModelChange)="alternar(c.atleta.id, $event)"
             />
-            <span>{{ c.atleta.apelido || c.atleta.nome }}</span>
+            <span class="candidato__nome">
+              {{ c.atleta.apelido || c.atleta.nome }}
+              <small class="texto-suave">{{ c.plano.nome }}</small>
+            </span>
           </label>
           @if (c.jaGerada) {
             <small class="texto-suave">Já gerada</small>
+          } @else {
+            <small>{{ c.plano.valorCentavos | reais }}</small>
           }
         </li>
       } @empty {
-        <li class="texto-suave">Nenhum atleta ativo nesta modalidade. Confira a modalidade no Elenco.</li>
+        <li class="texto-suave">Ninguém ativo com plano desta periodicidade. Confira o plano no Editar do cadastro.</li>
       }
     </ul>
   }

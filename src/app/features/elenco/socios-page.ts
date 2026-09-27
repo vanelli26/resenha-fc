@@ -5,11 +5,11 @@ import { DialogModule } from 'primeng/dialog';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
-import { TimeAtualService } from '../../core/time/time-atual.service';
+import { TimeAtualService, nomeDaModalidade } from '../../core/time/time-atual.service';
 import { Atleta, vinculoDe } from '../../models/atleta.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { FotoPessoa } from '../../shared/foto-pessoa';
-import { ROTULO_MODALIDADE, ROTULO_STATUS_ATLETA, ROTULO_VINCULO } from '../../shared/rotulos';
+import { ROTULO_STATUS_ATLETA, ROTULO_VINCULO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
 import { AtletaForm } from './atleta-form';
 import { AtletasService, DadosAtleta } from './data/atletas.service';
@@ -27,7 +27,13 @@ export class SociosPage {
   private readonly atletasService = inject(AtletasService);
   private readonly mensagens = inject(MessageService);
 
-  protected readonly modalidades = this.timeAtual.modalidadesHabilitadas;
+  protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
+  protected readonly modalidadePadrao = this.timeAtual.modalidadePadrao;
+  /** Nome do plano (ou Isento) de cada cadastro. */
+  protected readonly nomeModalidade = computed(() => {
+    const nomes = this.timeAtual.nomesModalidade();
+    return (modalidade: string) => nomeDaModalidade(nomes, modalidade);
+  });
   protected readonly esportes = this.timeAtual.esportes;
 
   private readonly cadastros = signal<ComId<Atleta>[]>([]);
@@ -42,7 +48,6 @@ export class SociosPage {
   protected readonly dialogAberto = signal(false);
   protected readonly emEdicao = signal<ComId<Atleta> | null>(null);
 
-  protected readonly rotuloModalidade = ROTULO_MODALIDADE;
   protected readonly rotuloStatus = ROTULO_STATUS_ATLETA;
 
   constructor() {

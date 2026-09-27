@@ -1,6 +1,6 @@
 import { StatusAtleta, TipoVinculo } from '../models/atleta.model';
 import { TipoCobranca } from '../models/financeiro.model';
-import { Modalidade } from '../models/modalidade.model';
+import { Periodicidade } from '../models/modalidade.model';
 import { PapelTime } from '../models/papel.model';
 import { Esporte, Posicao } from '../models/posicao.model';
 import { CorTime } from '../models/time.model';
@@ -12,11 +12,10 @@ export const ROTULO_PAPEL: Record<PapelTime, string> = {
   jogador: 'Jogador',
 };
 
-export const ROTULO_MODALIDADE: Record<Modalidade, string> = {
+export const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = {
   mensal: 'Mensal',
   semestral: 'Semestral',
-  avulso: 'Avulso',
-  isento: 'Isento',
+  avulso: 'Avulso (por jogo)',
 };
 
 export const ROTULO_POSICAO: Record<Posicao, string> = {
@@ -54,7 +53,7 @@ export const ROTULO_STATUS_ATLETA: Record<StatusAtleta, string> = {
   inativo: 'Inativo',
 };
 
-/** Também é a categoria da receita criada na baixa (DIRETRIZES 2.5). */
+/** Nome de cobranças antigas (sem `planoNome`) e categoria da receita na baixa delas. */
 export const ROTULO_TIPO_COBRANCA: Record<TipoCobranca, string> = {
   mensal: 'Mensalidade',
   semestral: 'Semestralidade',

@@ -15,7 +15,7 @@ import { Solicitacao } from '../../models/convite.model';
 import { Modalidade } from '../../models/modalidade.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
-import { ROTULO_MODALIDADE, ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
+import { ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
 import { SolicitacoesService } from './data/solicitacoes.service';
 
@@ -44,7 +44,7 @@ export class SolicitacoesPage {
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
   protected readonly opcoesVinculo = opcoes(VINCULOS, ROTULO_VINCULO);
-  protected readonly opcoesModalidade = computed(() => opcoes(this.timeAtual.modalidadesHabilitadas(), ROTULO_MODALIDADE));
+  protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
 
   // Atletas ainda sem conta vinculada, para "vincular a atleta existente".
   private readonly atletasSemConta = signal<ComId<Atleta>[]>([]);
@@ -79,8 +79,7 @@ export class SolicitacoesPage {
 
   protected async abrirAprovacao(solicitacao: ComId<Solicitacao>): Promise<void> {
     this.emAprovacao.set(solicitacao);
-    // Primeira modalidade habilitada no time (isento está sempre disponível).
-    const modalidade = this.timeAtual.modalidadesHabilitadas()[0] ?? 'isento';
+    const modalidade = this.timeAtual.modalidadePadrao();
     this.modelo.set({ tipo: 'novo', atletaId: '', modalidade, vinculo: 'atleta' });
     this.dialogAberto.set(true);
     const timeId = this.timeAtual.timeId();

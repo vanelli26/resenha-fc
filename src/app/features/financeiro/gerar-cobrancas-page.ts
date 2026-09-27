@@ -10,6 +10,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
+import { PlanoCobranca } from '../../models/time.model';
 import {
   referenciaMensal,
   referenciaSemestral,
@@ -25,13 +26,14 @@ import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { CobrancasService, NovaCobranca } from './data/cobrancas.service';
 
-/** Geração manual pela tesouraria. Avulso sai dos jogos (Fase 3). */
+/** Geração manual pela tesouraria. Planos avulsos saem dos jogos (Fase 3). */
 type TipoGeracao = 'mensal' | 'semestral';
 
-const ROTULO_GERACAO: Record<TipoGeracao, string> = { mensal: 'Mensalidade', semestral: 'Semestralidade' };
+const ROTULO_GERACAO: Record<TipoGeracao, string> = { mensal: 'Planos mensais', semestral: 'Planos semestrais' };
 
 interface Candidato {
   atleta: ComId<Atleta>;
+  plano: PlanoCobranca;
   jaGerada: boolean;
 }
 
@@ -53,7 +55,7 @@ export class GerarCobrancasPage {
 
   protected readonly opcoesTipo = computed(() =>
     this.timeAtual
-      .modalidadesHabilitadas()
+      .periodicidades()
       .filter((m): m is TipoGeracao => m === 'mensal' || m === 'semestral')
       .map((value) => ({ value, label: ROTULO_GERACAO[value] })),
   );
@@ -68,23 +70,15 @@ export class GerarCobrancasPage {
     this.tipo() === 'semestral' ? referenciaSemestral(new Date()) : referenciaMensal(new Date()),
   );
 
-  /** Valor e vencimento vêm da configuração do time no momento da geração (DIRETRIZES 2.5). */
-  protected readonly condicoes = computed(() => {
-    const financeiro = this.timeAtual.time()?.financeiro;
+  /** Vencimento da configuração do time; valor, do plano de cada pessoa (copiados na geração, DIRETRIZES 2.5). */
+  protected readonly vencimento = computed(() => {
+    const v = this.timeAtual.time()?.financeiro.vencimentos;
     const tipo = this.tipo();
     const referencia = this.referencia();
-    if (!financeiro || !tipo) return null;
-    if (tipo === 'mensal') {
-      return {
-        valorCentavos: financeiro.mensal.valorCentavos,
-        vencimento: vencimentoMensal(referencia, financeiro.mensal.diaVencimento),
-      };
-    }
-    const s = financeiro.semestral;
-    return {
-      valorCentavos: s.valorCentavos,
-      vencimento: vencimentoSemestral(referencia, s.diaVencimento, s.mesVencimentoS1, s.mesVencimentoS2),
-    };
+    if (!v || !tipo) return null;
+    return tipo === 'mensal'
+      ? vencimentoMensal(referencia, v.diaMensal)
+      : vencimentoSemestral(referencia, v.diaSemestral, v.mesS1, v.mesS2);
   });
 
   private readonly atletas = signal<ComId<Atleta>[]>([]);
@@ -92,19 +86,31 @@ export class GerarCobrancasPage {
   protected readonly carregando = signal(true);
   protected readonly gerando = signal(false);
 
+  /** Ativos (atletas, sócios e colaboradores) cujo plano tem a periodicidade escolhida. */
   protected readonly candidatos = computed<Candidato[]>(() => {
     const tipo = this.tipo();
     const existentes = this.existentes();
-    return this.atletas()
-      .filter((a) => a.status === 'ativo' && a.modalidade === tipo)
-      .map((atleta) => ({ atleta, jaGerada: existentes.has(atleta.id) }));
+    const planos = new Map(this.timeAtual.planos().map((p) => [p.id, p]));
+    const lista: Candidato[] = [];
+    for (const atleta of this.atletas()) {
+      const plano = planos.get(atleta.modalidade);
+      if (atleta.status === 'ativo' && plano?.periodicidade === tipo) {
+        lista.push({ atleta, plano, jaGerada: existentes.has(atleta.id) });
+      }
+    }
+    return lista;
   });
 
   /** Marcados por padrão: todos que ainda não têm cobrança nesta competência. */
   protected readonly selecionados = linkedSignal<ReadonlySet<string>>(
     () => new Set(this.candidatos().filter((c) => !c.jaGerada).map((c) => c.atleta.id)),
   );
-  protected readonly total = computed(() => this.selecionados().size * (this.condicoes()?.valorCentavos ?? 0));
+  protected readonly total = computed(() => {
+    const selecionados = this.selecionados();
+    return this.candidatos()
+      .filter((c) => !c.jaGerada && selecionados.has(c.atleta.id))
+      .reduce((soma, c) => soma + c.plano.valorCentavos, 0);
+  });
 
   constructor() {
     effect(() => {
@@ -134,9 +140,9 @@ export class GerarCobrancasPage {
   protected async gerar(): Promise<void> {
     const timeId = this.timeAtual.timeId();
     const tipo = this.tipo();
-    const condicoes = this.condicoes();
+    const vencimento = this.vencimento();
     const referencia = this.referencia();
-    if (!timeId || !tipo || !condicoes) return;
+    if (!timeId || !tipo || !vencimento) return;
     const selecionados = this.selecionados();
     const novas: NovaCobranca[] = this.candidatos()
       .filter((c) => !c.jaGerada && selecionados.has(c.atleta.id))
@@ -145,8 +151,9 @@ export class GerarCobrancasPage {
         atletaNome: c.atleta.nome,
         tipo,
         referencia,
-        valorCentavos: condicoes.valorCentavos,
-        vencimento: condicoes.vencimento,
+        valorCentavos: c.plano.valorCentavos,
+        vencimento,
+        planoNome: c.plano.nome,
       }));
     if (novas.length === 0) return;
 

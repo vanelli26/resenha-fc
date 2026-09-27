@@ -46,7 +46,7 @@
           }
         </div>
         <div class="atleta__tags">
-          <p-tag [value]="rotuloModalidade[atleta.modalidade]" severity="secondary" />
+          <p-tag [value]="nomeModalidade()(atleta.modalidade)" severity="secondary" />
           @if (atleta.status !== 'ativo') {
             <p-tag [value]="rotuloStatus[atleta.status]" severity="warn" />
           }
@@ -79,7 +79,8 @@
     <app-atleta-form
       [atleta]="emEdicao()"
       [modo]="modoForm()"
-      [modalidades]="modalidades()"
+      [opcoesModalidade]="opcoesModalidade()"
+      [modalidadePadrao]="modalidadePadrao()"
       [esportes]="esportes()"
       (salvar)="salvar($event)"
       (cancelar)="dialogAberto.set(false)"

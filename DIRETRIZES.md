@@ -41,22 +41,26 @@ Uma pessoa que joga nos dois times tem **um atleta em cada time**, ambos ligados
 
 Uma pessoa pode acumular papéis (ex.: `["jogador", "tesouraria"]`). O caixa do time (saldo, lançamentos, relatórios) é visível apenas para `diretoria` e `tesouraria`; `jogador` nunca vê o caixa. A diretoria poderá tornar público algum valor específico (ex.: custo de um evento), mas isso é funcionalidade futura, ainda não especificada.
 
-### 2.4 Modalidades de cobrança
+### 2.4 Planos e modalidade de cobrança
 
-| Modalidade | Referência | Geração |
+A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "Atleta semestral", "Sócio semestral", "Torcedor mensal"), periodicidade e valor. Cada pessoa do cadastro (atleta, sócio ou colaborador) recebe um plano ou fica `isento`; isso é a **modalidade** dela (`atletas.modalidade` = id do plano ou `isento`). Valores diferentes para atletas, sócios e colaboradores = planos diferentes.
+
+| Periodicidade | Referência | Geração |
 |---|---|---|
 | `mensal` | `AAAA-MM` (ex.: `2026-10`) | tesouraria gera as cobranças do mês |
 | `semestral` | `AAAA-S1` (jan–jun) / `AAAA-S2` (jul–dez) | tesouraria gera as cobranças do semestre |
-| `avulso` | `eventoId` | tesouraria gera após o evento, para avulsos com presença confirmada como `compareceu` |
-| `isento` | — | nunca gera cobrança |
+| `avulso` | `eventoId` | tesouraria gera após o evento, para quem tem plano avulso e presença `compareceu` |
+| (`isento`) | — | nunca gera cobrança; sempre disponível, não é um plano |
 
-Quais modalidades um time aceita e seus valores ficam na configuração financeira do time (seção 3). Um time só pode atribuir a um atleta modalidades habilitadas nele.
+- Vencimentos únicos por periodicidade na configuração (dia do mês; dia e mês de cada semestre); avulso vence na data do jogo.
+- Um cadastro só recebe plano existente no time (Rules conferem quando a modalidade muda). Plano em uso não pode ser removido (bloqueio na UI).
+- Migração do formato antigo (valores fixos `mensal`/`semestral`/`avulso`): cada modalidade ativa vira um plano com id igual ao nome (`mensal` → "Mensalidade", `semestral` → "Semestralidade", `avulso` → "Avulso"), então cadastros antigos seguem apontando para o plano certo. O app converte ao carregar e grava no formato novo na primeira alteração da configuração.
 
 ### 2.5 Cobrança
 
 - Status armazenado: `pendente`, `pago`, `cancelado`.
 - **Atrasado é derivado** (`pendente` e `vencimento` < hoje), calculado na UI. Não é gravado.
-- Valor copiado da configuração no momento da geração (mudança de preço não altera cobranças já geradas).
+- Valor e nome do plano (`planoNome`) copiados no momento da geração (mudança de preço ou nome não altera cobranças já geradas). O `tipo` da cobrança é a periodicidade do plano.
 - ID determinístico `{atletaId}_{referencia}`: gerar duas vezes não duplica.
 - Baixa (marcar como paga): na mesma escrita em lote, cobrança → `pago` + criação do lançamento de receita com ID `cob_{cobrancaId}`.
 - Estorno: cobrança volta a `pendente` e o lançamento `cob_{cobrancaId}` é removido, na mesma escrita em lote.
@@ -65,7 +69,7 @@ Quais modalidades um time aceita e seus valores ficam na configuração financei
 
 ### 2.6 Lançamentos (caixa)
 
-- Movimentos efetivos de caixa: `receita` ou `despesa`, com categoria (texto livre; a UI sugere as já usadas), descrição, valor e data. Receita de baixa usa a categoria do tipo (Mensalidade, Semestralidade, Avulso).
+- Movimentos efetivos de caixa: `receita` ou `despesa`, com categoria (texto livre; a UI sugere as já usadas), descrição, valor e data. Receita de baixa usa como categoria o nome do plano da cobrança (`planoNome`); cobranças antigas, sem plano, usam o tipo (Mensalidade, Semestralidade, Avulso).
 - Receitas de cobrança são criadas apenas pela baixa (2.5), nunca manualmente.
 - Despesas recorrentes (ex.: campo do Piratas) ficam na configuração do time; a tesouraria lança a do mês com um clique, ID `rec_{recorrenteId}_{AAAA-MM}` (idempotente).
 - Saldo = soma de receitas − soma de despesas, via agregação no Firestore. Sem documento de saldo desnormalizado.
@@ -111,11 +115,10 @@ times/{timeId}                           // timeId = slug (imutável; usado na U
   nome, slug, cor, escudo, criadoEm      // cor = paleta da lista; escudo = data URL (upload) | null (ver 6.1)
   esportes?: ("campo" | "society" | "futsal")[]   // ausente = ["society"]
   financeiro: {
-    mensal:    { ativo, valorCentavos, diaVencimento }
-    semestral: { ativo, valorCentavos, diaVencimento, mesVencimentoS1, mesVencimentoS2 }
-    avulso:    { ativo, valorCentavos }
+    planos: [{ id, nome, periodicidade: "mensal" | "semestral" | "avulso", valorCentavos }]   // até 10
+    vencimentos: { diaMensal, diaSemestral, mesS1, mesS2 }
     despesasRecorrentes: [{ id, descricao, categoria, valorCentavos, diaVencimento }]
-  }
+  }                                      // formato antigo {mensal, semestral, avulso, ...} ainda lido (2.4)
 
 times/{timeId}/acessos/{uid}             // permissões do usuário no time
   uid, timeId, timeNome                  // repetidos para a consulta "Meus times" (collection group)
@@ -127,7 +130,7 @@ times/{timeId}/acessos/{uid}             // permissões do usuário no time
 times/{timeId}/atletas/{atletaId}
   nome, apelido, telefone?, fotoUrl?
   uid: string | null                     // conta vinculada
-  modalidade: "mensal" | "semestral" | "avulso" | "isento"
+  modalidade: string                     // id de um plano do time ou "isento" (2.4)
   posicoes: { campo?: [], society?: [], futsal?: [] }   // por esporte, ver 3.1
   numeroCamisa?, status: "ativo" | "afastado" | "inativo"
   vinculo?: "atleta" | "socio" | "colaborador"   // ausente = atleta (2.2)
@@ -144,6 +147,7 @@ times/{timeId}/cobrancas/{atletaId_referencia}
   atletaId, atletaNome                   // nome desnormalizado para listagem
   tipo: "mensal" | "semestral" | "avulso"
   referencia, valorCentavos, vencimento (Timestamp)
+  planoNome?                             // nome do plano na geração (ausente nas antigas)
   status: "pendente" | "pago" | "cancelado"
   pagoEm?, baixadoPor?, observacao?
 
@@ -220,7 +224,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 
 ## 5. Fluxos principais
 
-- **Gerar cobranças** (tesouraria): escolhe modalidade e referência → sistema lista atletas ativos daquela modalidade → confirma → escrita em lote com IDs determinísticos (existentes são ignorados).
+- **Gerar cobranças** (tesouraria): escolhe a periodicidade (mensal/semestral) e a referência → sistema lista os cadastros ativos cujo plano tem essa periodicidade, cada um com o valor do próprio plano → confirma → escrita em lote com IDs determinísticos (existentes são ignorados).
 - **Cobrar avulsos** (tesouraria): a partir de evento `realizado` → atletas `avulso` com `compareceu == true` → escrita em lote.
 - **Baixa / estorno**: seção 2.5.
 - **Lançar despesa recorrente**: seção 2.6.
@@ -345,6 +349,7 @@ src/app/
 | 26/09/2026 | Esportes por time (`campo`, `society`, `futsal`), editáveis por adminGeral e diretoria; um time segue com elenco e caixa únicos. Posições do atleta por esporte (3.1), com as listas de campo e futsal aprovadas pelo usuário. |
 | 26/09/2026 | Próximas entregas aprovadas: vínculo no cadastro de atletas (`atleta`, `socio`, `colaborador`; Elenco mostra só atletas) e planos de cobrança configuráveis (nome, periodicidade, valor) no lugar dos valores fixos por modalidade; receita da baixa com categoria = nome do plano. |
 | 26/09/2026 | Vínculo no cadastro (`atletas.vinculo`: atleta, sócio, colaborador/torcedor), sem coleção nova: cobranças, convite e Minhas cobranças valem para todos. Elenco lista só atletas (filtro na tela: a coleção é pequena e cadastros antigos não têm o campo); Gestão › Sócios e colaboradores lista os demais (só edição: entram por convite, com login). |
+| 27/09/2026 | Planos de cobrança (2.4) substituem os valores fixos por modalidade: até 10 por time, validados item a item nas Rules; vencimentos únicos por periodicidade. `atletas.modalidade` passa a ser id de plano ou `isento` (planos migrados mantêm os ids `mensal`/`semestral`/`avulso`, sem regravar cadastros). Cobrança guarda `planoNome`, usado como categoria da receita na baixa. Toda gravação da configuração financeira grava o objeto inteiro (converte times antigos). |
 
 ---
 

@@ -1,10 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import { Acesso } from '../../models/acesso.model';
-import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
+import { ISENTO, Periodicidade } from '../../models/modalidade.model';
 import { PapelTime } from '../../models/papel.model';
 import { ESPORTES, ESPORTES_PADRAO, Esporte } from '../../models/posicao.model';
-import { ConfigFinanceira, Time } from '../../models/time.model';
+import { ConfigFinanceira, Time, TimeGravado, normalizarFinanceiro } from '../../models/time.model';
+import { Opcao, ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
 import { AuthService } from '../auth/auth.service';
 import { ComId, conversor } from '../firebase/conversor';
 import { FIRESTORE } from '../firebase/firestore.token';
@@ -30,11 +31,21 @@ export class TimeAtualService {
   /** Diretoria ou tesouraria: veem caixa e cobranças (DIRETRIZES 2.3). */
   readonly ehGestao = computed(() => this.ehDiretoria() || this.ehTesouraria());
 
-  /** Modalidades que o time aceita (DIRETRIZES 2.4). `isento` é sempre permitido. */
-  readonly modalidadesHabilitadas = computed<Modalidade[]>(() => {
-    const financeiro = this._time()?.financeiro;
-    return MODALIDADES.filter((m) => m === 'isento' || financeiro?.[m].ativo === true);
-  });
+  /** Planos de cobrança do time (DIRETRIZES 2.4). */
+  readonly planos = computed(() => this._time()?.financeiro.planos ?? []);
+  /** Periodicidades com ao menos um plano (define a navegação por mês/semestre e a geração). */
+  readonly periodicidades = computed<Periodicidade[]>(() => [...new Set(this.planos().map((p) => p.periodicidade))]);
+  /** Opções de modalidade do atleta: planos do time + Isento (sempre disponível). */
+  readonly opcoesModalidade = computed<Opcao<string>[]>(() => [
+    ...this.planos().map((p) => ({ value: p.id, label: p.nome })),
+    { value: ISENTO, label: 'Isento' },
+  ]);
+  /** Nome de exibição por modalidade (id de plano ou isento). */
+  readonly nomesModalidade = computed<ReadonlyMap<string, string>>(
+    () => new Map(this.opcoesModalidade().map((o) => [o.value, o.label])),
+  );
+  /** Modalidade padrão de um cadastro novo: primeiro plano, ou isento. */
+  readonly modalidadePadrao = computed(() => this.planos()[0]?.id ?? ISENTO);
 
   /** Esportes do time, na ordem de exibição. */
   readonly esportes = computed<Esporte[]>(() => {
@@ -70,12 +81,13 @@ export class TimeAtualService {
       ]);
       if (!acessoSnap.exists() && !admin) return false;
 
-      const timeSnap = await getDoc(doc(this.firestore, 'times', timeId).withConverter(conversor<Time>()));
-      if (!timeSnap.exists()) return false;
+      const timeSnap = await getDoc(doc(this.firestore, 'times', timeId).withConverter(conversor<TimeGravado>()));
+      const gravado = timeSnap.data();
+      if (!gravado) return false;
 
-      this._time.set({ ...timeSnap.data(), id: timeSnap.id });
+      this._time.set({ ...gravado, financeiro: normalizarFinanceiro(gravado.financeiro), id: timeSnap.id });
       this._acesso.set(acessoSnap.data() ?? null);
-      aplicarTemaDoTime(timeSnap.data().cor);
+      aplicarTemaDoTime(gravado.cor);
       return true;
     } catch {
       return false;
@@ -107,3 +119,10 @@ export class TimeAtualService {
     aplicarTemaDoTime(null);
   }
 }
+
+/** Nome da modalidade para exibição; plano removido (id sem plano) mostra o nome antigo ou o aviso. */
+export function nomeDaModalidade(nomes: ReadonlyMap<string, string>, modalidade: string): string {
+  return nomes.get(modalidade) ?? LEGADO[modalidade] ?? 'Plano removido';
+}
+
+const LEGADO: Record<string, string | undefined> = { ...ROTULO_TIPO_COBRANCA };

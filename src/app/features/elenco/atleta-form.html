@@ -1,134 +1,147 @@
-<form class="formulario" (submit)="$event.preventDefault(); enviar()">
-  <label class="campo">
-    <span>Nome</span>
-    <input pInputText [formField]="formulario.nome" autocomplete="off" />
-    @if (formulario.nome().touched() && formulario.nome().invalid()) {
-      <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
-    }
-  </label>
-
-  <label class="campo">
-    <span>Apelido</span>
-    <input pInputText [formField]="formulario.apelido" autocomplete="off" />
-    @if (formulario.apelido().touched() && formulario.apelido().invalid()) {
-      <small class="campo__erro">{{ formulario.apelido().errors()[0].message }}</small>
-    }
-  </label>
-
-  <label class="campo">
-    <span>Telefone</span>
-    <input pInputText type="tel" [formField]="formulario.telefone" autocomplete="off" />
-    <small class="campo__dica">Visível para todos do time.</small>
-    @if (formulario.telefone().touched() && formulario.telefone().invalid()) {
-      <small class="campo__erro">{{ formulario.telefone().errors()[0].message }}</small>
-    }
-  </label>
-
-  @if (!formulario.numeroCamisa().hidden()) {
+<form class="formulario atleta-form" (submit)="$event.preventDefault(); enviar()">
+  <div class="grade">
     <label class="campo">
-      <span>Número da camisa</span>
-      <input pInputText inputmode="numeric" [formField]="formulario.numeroCamisa" autocomplete="off" />
-      @if (formulario.numeroCamisa().touched() && formulario.numeroCamisa().invalid()) {
-        <small class="campo__erro">{{ formulario.numeroCamisa().errors()[0].message }}</small>
+      <span>Nome</span>
+      <input pInputText [formField]="formulario.nome" autocomplete="off" />
+      @if (formulario.nome().touched() && formulario.nome().invalid()) {
+        <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
       }
     </label>
-  }
+
+    <label class="campo">
+      <span>Apelido</span>
+      <input pInputText [formField]="formulario.apelido" autocomplete="off" />
+      @if (formulario.apelido().touched() && formulario.apelido().invalid()) {
+        <small class="campo__erro">{{ formulario.apelido().errors()[0].message }}</small>
+      }
+    </label>
+
+    <label class="campo" [class.grade__inteira]="formulario.numeroCamisa().hidden()">
+      <span>Telefone <small class="texto-suave">(visível ao time)</small></span>
+      <input pInputText type="tel" [formField]="formulario.telefone" autocomplete="off" />
+      @if (formulario.telefone().touched() && formulario.telefone().invalid()) {
+        <small class="campo__erro">{{ formulario.telefone().errors()[0].message }}</small>
+      }
+    </label>
+
+    @if (!formulario.numeroCamisa().hidden()) {
+      <label class="campo">
+        <span>Camisa</span>
+        <input pInputText inputmode="numeric" [formField]="formulario.numeroCamisa" autocomplete="off" />
+        @if (formulario.numeroCamisa().touched() && formulario.numeroCamisa().invalid()) {
+          <small class="campo__erro">{{ formulario.numeroCamisa().errors()[0].message }}</small>
+        }
+      </label>
+    }
+  </div>
 
   @if (!formulario.posicoes().hidden()) {
     @let umEsporte = esportesVisiveis().length === 1;
-    @for (esporte of esportesVisiveis(); track esporte) {
-      @let rotulo = umEsporte ? 'Posições' : 'Posições no ' + rotuloEsporte[esporte];
-      @switch (esporte) {
+    <div class="posicoes" [class.posicoes--varias]="!umEsporte">
+      @if (!umEsporte) {
+        <span class="grupo__titulo">Posições</span>
+      }
+      @for (esporte of esportesVisiveis(); track esporte) {
+        @switch (esporte) {
         @case ('campo') {
-          <label class="campo">
-            <span>{{ rotulo }}</span>
+          <label class="posicao">
+            <span>{{ umEsporte ? 'Posições' : rotuloEsporte[esporte] }}</span>
             <p-multiselect
-              [formField]="formulario.posicoes.campo"
-              [options]="opcoesPosicao.campo"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Selecione"
-              display="chip"
-              [showToggleAll]="false"
-              [filter]="false"
-              appendTo="body"
-            />
+            [formField]="formulario.posicoes.campo"
+            [options]="opcoesPosicao.campo"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione"
+            display="comma"
+            [showToggleAll]="false"
+            [filter]="false"
+            [fluid]="true"
+            appendTo="body"
+          />
           </label>
         }
         @case ('society') {
-          <label class="campo">
-            <span>{{ rotulo }}</span>
+          <label class="posicao">
+            <span>{{ umEsporte ? 'Posições' : rotuloEsporte[esporte] }}</span>
             <p-multiselect
-              [formField]="formulario.posicoes.society"
-              [options]="opcoesPosicao.society"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Selecione"
-              display="chip"
-              [showToggleAll]="false"
-              [filter]="false"
-              appendTo="body"
-            />
+            [formField]="formulario.posicoes.society"
+            [options]="opcoesPosicao.society"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione"
+            display="comma"
+            [showToggleAll]="false"
+            [filter]="false"
+            [fluid]="true"
+            appendTo="body"
+          />
           </label>
         }
         @case ('futsal') {
-          <label class="campo">
-            <span>{{ rotulo }}</span>
+          <label class="posicao">
+            <span>{{ umEsporte ? 'Posições' : rotuloEsporte[esporte] }}</span>
             <p-multiselect
-              [formField]="formulario.posicoes.futsal"
-              [options]="opcoesPosicao.futsal"
+            [formField]="formulario.posicoes.futsal"
+            [options]="opcoesPosicao.futsal"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecione"
+            display="comma"
+            [showToggleAll]="false"
+            [filter]="false"
+            [fluid]="true"
+            appendTo="body"
+          />
+          </label>
+        }
+        }
+      }
+    </div>
+  }
+
+  @if (!formulario.modalidade().hidden()) {
+    <div class="grupo">
+      <span class="grupo__titulo">No time</span>
+      <div class="grade">
+        @if (!formulario.vinculo().hidden()) {
+          <label class="campo">
+            <span>Vínculo</span>
+            <p-select
+              [formField]="formulario.vinculo"
+              [options]="opcoesVinculo"
               optionLabel="label"
               optionValue="value"
-              placeholder="Selecione"
-              display="chip"
-              [showToggleAll]="false"
-              [filter]="false"
+              [fluid]="true"
               appendTo="body"
             />
           </label>
         }
-      }
-    }
-  }
 
-  @if (!formulario.vinculo().hidden()) {
-    <label class="campo">
-      <span>Vínculo</span>
-      <p-select
-        [formField]="formulario.vinculo"
-        [options]="opcoesVinculo"
-        optionLabel="label"
-        optionValue="value"
-        appendTo="body"
-      />
-      <small class="campo__dica">Só atletas aparecem no Elenco. Sócios e colaboradores ficam em Gestão.</small>
-    </label>
-  }
+        <label class="campo">
+          <span>Status</span>
+          <p-select
+            [formField]="formulario.status"
+            [options]="opcoesStatus"
+            optionLabel="label"
+            optionValue="value"
+            [fluid]="true"
+            appendTo="body"
+          />
+        </label>
 
-  @if (!formulario.modalidade().hidden()) {
-    <label class="campo">
-      <span>Modalidade de cobrança</span>
-      <p-select
-        [formField]="formulario.modalidade"
-        [options]="opcoesModalidade()"
-        optionLabel="label"
-        optionValue="value"
-        appendTo="body"
-      />
-    </label>
-  }
-
-  @if (!formulario.status().hidden()) {
-    <label class="campo">
-      <span>Status</span>
-      <p-select
-        [formField]="formulario.status"
-        [options]="opcoesStatus"
-        optionLabel="label"
-        optionValue="value"
-        appendTo="body"
-      />
-    </label>
+        <label class="campo grade__inteira">
+          <span>Plano de cobrança</span>
+          <p-select
+            [formField]="formulario.modalidade"
+            [options]="opcoesModalidadeComAtual()"
+            optionLabel="label"
+            optionValue="value"
+            [fluid]="true"
+            appendTo="body"
+          />
+        </label>
+      </div>
+    </div>
   }
 
   <div class="acoes">

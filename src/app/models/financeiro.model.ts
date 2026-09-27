@@ -1,8 +1,8 @@
 import { Timestamp } from 'firebase/firestore';
-import { Modalidade } from './modalidade.model';
+import { Periodicidade } from './modalidade.model';
 
-export type TipoCobranca = Exclude<Modalidade, 'isento'>;
-export const TIPOS_COBRANCA: readonly TipoCobranca[] = ['mensal', 'semestral', 'avulso'];
+/** Tipo da cobrança = periodicidade do plano que a gerou. */
+export type TipoCobranca = Periodicidade;
 
 /** Status gravado. "Atrasado" é derivado na UI (pendente e vencimento < hoje), nunca gravado. */
 export const STATUS_COBRANCA = ['pendente', 'pago', 'cancelado'] as const;
@@ -17,6 +17,8 @@ export interface Cobranca {
   referencia: string;
   valorCentavos: number;
   vencimento: Timestamp;
+  /** Nome do plano na geração; vira a categoria da receita na baixa. Ausente em cobranças antigas. */
+  planoNome?: string;
   status: StatusCobranca;
   pagoEm?: Timestamp;
   baixadoPor?: string;

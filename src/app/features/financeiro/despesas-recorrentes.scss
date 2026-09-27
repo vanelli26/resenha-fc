@@ -1,6 +1,11 @@
 .despesas {
   margin-top: 2rem;
 
+  // Planos de cobrança (mesmo visual) abrem a página.
+  &.planos {
+    margin-top: 0;
+  }
+
   h3 {
     margin: 0;
     font-size: 1.125rem;

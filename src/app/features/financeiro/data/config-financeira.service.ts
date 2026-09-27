@@ -1,15 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { doc, updateDoc } from 'firebase/firestore';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
-import { ConfigFinanceira, DespesaRecorrente } from '../../../models/time.model';
+import { ConfigFinanceira } from '../../../models/time.model';
 
-export type ModalidadesFinanceiras = Pick<ConfigFinanceira, 'mensal' | 'semestral' | 'avulso'>;
-
-/** Limite das Rules (validam item a item, sem laço). */
+/** Limites das Rules (validam item a item, sem laço). */
 export const MAX_DESPESAS_RECORRENTES = 10;
+export const MAX_PLANOS = 10;
 
-/** ID da despesa recorrente: minúsculas e dígitos (entra no ID do lançamento `rec_{id}_{AAAA-MM}`). */
-export function novoIdRecorrente(): string {
+/** ID de plano ou despesa recorrente: minúsculas e dígitos (entra em IDs como `rec_{id}_{AAAA-MM}`). */
+export function novoIdConfiguracao(): string {
   const alfabeto = 'abcdefghijklmnopqrstuvwxyz0123456789';
   const bytes = crypto.getRandomValues(new Uint8Array(10));
   return Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join('');
@@ -20,17 +19,11 @@ export function novoIdRecorrente(): string {
 export class ConfigFinanceiraService {
   private readonly firestore = inject(FIRESTORE);
 
-  /** Grava só as modalidades; as despesas recorrentes ficam como estão. */
-  async salvarModalidades(timeId: string, dados: ModalidadesFinanceiras): Promise<void> {
-    await updateDoc(doc(this.firestore, 'times', timeId), {
-      'financeiro.mensal': dados.mensal,
-      'financeiro.semestral': dados.semestral,
-      'financeiro.avulso': dados.avulso,
-    });
-  }
-
-  /** Substitui a lista inteira de despesas recorrentes; as modalidades ficam como estão. */
-  async salvarDespesas(timeId: string, despesas: DespesaRecorrente[]): Promise<void> {
-    await updateDoc(doc(this.firestore, 'times', timeId), { 'financeiro.despesasRecorrentes': despesas });
+  /**
+   * Grava a configuração inteira (planos, vencimentos e despesas). Sempre no formato de planos:
+   * a primeira gravação de um time antigo já converte o formato (DIRETRIZES 2.4).
+   */
+  async salvar(timeId: string, financeiro: ConfigFinanceira): Promise<void> {
+    await updateDoc(doc(this.firestore, 'times', timeId), { financeiro });
   }
 }

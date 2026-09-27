@@ -18,7 +18,7 @@ import { Modalidade } from '../../models/modalidade.model';
 import { PAPEIS_TIME, PapelTime } from '../../models/papel.model';
 import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
-import { ROTULO_MODALIDADE, ROTULO_PAPEL, ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
+import { ROTULO_PAPEL, ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
 import { AcessosService } from './data/acessos.service';
 
@@ -70,7 +70,7 @@ export class MembrosPage {
 
   protected readonly papeisTime = PAPEIS_TIME;
   protected readonly rotuloPapel = ROTULO_PAPEL;
-  protected readonly opcoesModalidade = computed(() => opcoes(this.timeAtual.modalidadesHabilitadas(), ROTULO_MODALIDADE));
+  protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
   protected readonly opcoesVinculo = opcoes(VINCULOS, ROTULO_VINCULO);
   protected readonly adminGeral = this.sessao.adminGeral;
 
@@ -135,7 +135,7 @@ export class MembrosPage {
       uid: membro.uid,
       papeis,
       atleta: membro.atletaId ?? SEM_ATLETA,
-      modalidade: this.modalidadePadrao(),
+      modalidade: this.timeAtual.modalidadePadrao(),
       vinculo: 'atleta',
     });
     this.abrirDialog();
@@ -147,7 +147,7 @@ export class MembrosPage {
       uid: '',
       papeis: { ...SEM_PAPEIS, diretoria: true },
       atleta: SEM_ATLETA,
-      modalidade: this.modalidadePadrao(),
+      modalidade: this.timeAtual.modalidadePadrao(),
       vinculo: 'atleta',
     });
     this.abrirDialog();
@@ -211,11 +211,6 @@ export class MembrosPage {
       return;
     }
     await this.executar(() => this.acessosService.remover(time.id, membro), 'Membro removido');
-  }
-
-  /** Primeira modalidade habilitada no time (isento está sempre disponível). */
-  private modalidadePadrao(): Modalidade {
-    return this.timeAtual.modalidadesHabilitadas()[0] ?? 'isento';
   }
 
   private abrirDialog(): void {

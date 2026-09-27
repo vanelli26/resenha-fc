@@ -8,8 +8,7 @@ import { Cobranca } from '../../models/financeiro.model';
 import { rotuloReferencia } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
-import { ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
-import { CobrancasService } from './data/cobrancas.service';
+import { CobrancasService, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
@@ -46,7 +45,7 @@ export class MinhasCobrancasPage {
     return this.cobrancas().map((c) => ({
       cobranca: c,
       situacao: situacaoDaCobranca(c, hoje),
-      rotulo: `${ROTULO_TIPO_COBRANCA[c.tipo]} · ${rotuloReferencia(c.referencia)}`,
+      rotulo: `${nomeDaCobranca(c)} · ${rotuloReferencia(c.referencia)}`,
     }));
   });
   /** Em aberto primeiro (atrasadas no topo); o resto segue do mais recente ao mais antigo. */

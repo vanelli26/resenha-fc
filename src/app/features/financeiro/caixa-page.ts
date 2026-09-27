@@ -116,11 +116,12 @@ export class CaixaPage {
     }));
   });
 
-  /** Sugestões de categoria (texto livre): as já usadas no mês, as das recorrentes e as das cobranças. */
+  /** Sugestões de categoria (texto livre): as já usadas no mês, as das recorrentes, os planos e os tipos antigos. */
   protected readonly categorias = computed(() => {
     const todas = [
       ...this.lancamentos().map((l) => l.categoria),
       ...(this.timeAtual.time()?.financeiro.despesasRecorrentes ?? []).map((d) => d.categoria),
+      ...this.timeAtual.planos().map((p) => p.nome),
       ...Object.values(ROTULO_TIPO_COBRANCA),
     ];
     return [...new Set(todas)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
