@@ -67,7 +67,7 @@
         <strong>{{ time.nome }}</strong>
         <small>/t/{{ time.id }}</small>
       </div>
-      <p-button label="Membros" size="small" [text]="true" [routerLink]="['/t', time.id, 'membros']" />
+      <p-button label="Membros" size="small" [text]="true" [routerLink]="['/t', time.id, 'gestao', 'membros']" />
       <p-button label="Editar" size="small" [outlined]="true" (onClick)="editar(time)" />
     </li>
   } @empty {

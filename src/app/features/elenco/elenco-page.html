@@ -74,6 +74,7 @@
     <app-atleta-form
       [atleta]="emEdicao()"
       [modo]="modoForm()"
+      [modalidades]="modalidades()"
       (salvar)="salvar($event)"
       (cancelar)="dialogAberto.set(false)"
     />

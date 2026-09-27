@@ -1,0 +1,77 @@
+<app-voltar para="financeiro/cobrancas" rotulo="Cobranças" />
+
+<div class="cabecalho-secao">
+  <h2>Gerar cobranças</h2>
+</div>
+
+@if (opcoesTipo().length === 0) {
+  <p class="cartao texto-suave">
+    Nenhuma modalidade mensal ou semestral está ativa.
+    <a [routerLink]="['/t', timeId(), 'gestao', 'financeiro']">Ative na configuração financeira</a>.
+  </p>
+} @else {
+  <div class="filtros">
+    <label class="campo">
+      <span>Modalidade</span>
+      <p-select [options]="opcoesTipo()" optionLabel="label" optionValue="value" [ngModel]="tipo()" (ngModelChange)="tipo.set($event)" />
+    </label>
+    <label class="campo">
+      <span>Competência</span>
+      <p-select
+        [options]="opcoesReferencia()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="referencia()"
+        (ngModelChange)="referencia.set($event)"
+      />
+    </label>
+  </div>
+
+  @if (condicoes(); as c) {
+    <p class="cartao condicoes">
+      <span>
+        <small class="texto-suave">Valor</small>
+        <strong>{{ c.valorCentavos | reais }}</strong>
+      </span>
+      <span>
+        <small class="texto-suave">Vencimento</small>
+        <strong>{{ c.vencimento | date: 'dd/MM/yyyy' }}</strong>
+      </span>
+    </p>
+  }
+
+  @if (carregando() && candidatos().length === 0) {
+    <div class="lista">
+      <p-skeleton height="3rem" />
+      <p-skeleton height="3rem" />
+    </div>
+  } @else {
+    <ul class="lista candidatos">
+      @for (c of candidatos(); track c.atleta.id) {
+        <li class="candidato" [class.candidato--gerada]="c.jaGerada">
+          <label class="candidato__rotulo">
+            <p-checkbox
+              [binary]="true"
+              [disabled]="c.jaGerada"
+              [ngModel]="c.jaGerada || selecionados().has(c.atleta.id)"
+              (ngModelChange)="alternar(c.atleta.id, $event)"
+            />
+            <span>{{ c.atleta.apelido || c.atleta.nome }}</span>
+          </label>
+          @if (c.jaGerada) {
+            <small class="texto-suave">Já gerada</small>
+          }
+        </li>
+      } @empty {
+        <li class="texto-suave">Nenhum atleta ativo nesta modalidade. Confira a modalidade no Elenco.</li>
+      }
+    </ul>
+  }
+
+  <div class="rodape">
+    <span>
+      <strong>{{ selecionados().size }}</strong> cobrança(s) · <strong>{{ total() | reais }}</strong>
+    </span>
+    <p-button label="Gerar" [loading]="gerando()" [disabled]="selecionados().size === 0 || carregando()" (onClick)="gerar()" />
+  </div>
+}

@@ -1,0 +1,36 @@
+<div class="cabecalho-secao">
+  <h2>Gestão</h2>
+</div>
+
+<ul class="lista">
+  @for (item of itens(); track item.caminho) {
+    <li>
+      <a class="item" [routerLink]="item.caminho">
+        <span class="item__icone">
+          @switch (item.icone) {
+            @case ('membros') {
+              <svg data-p-icon="id-card" [size]="20" aria-hidden="true"></svg>
+            }
+            @case ('convites') {
+              <svg data-p-icon="link" [size]="20" aria-hidden="true"></svg>
+            }
+            @case ('solicitacoes') {
+              <svg data-p-icon="user-plus" [size]="20" aria-hidden="true"></svg>
+            }
+            @case ('financeiro') {
+              <svg data-p-icon="sliders-h" [size]="20" aria-hidden="true"></svg>
+            }
+          }
+        </span>
+        <span class="item__texto">
+          <strong>{{ item.titulo }}</strong>
+          <small class="texto-suave">{{ item.descricao }}</small>
+        </span>
+        @if (item.selo) {
+          <span class="item__selo" [attr.aria-label]="item.selo + ' pendentes'">{{ item.selo }}</span>
+        }
+        <svg class="item__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+      </a>
+    </li>
+  }
+</ul>

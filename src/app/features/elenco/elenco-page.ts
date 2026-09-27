@@ -28,6 +28,7 @@ export class ElencoPage {
   private readonly mensagens = inject(MessageService);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
+  protected readonly modalidades = this.timeAtual.modalidadesHabilitadas;
   /** Atleta vinculado à conta logada neste time (null se não estiver no elenco). */
   protected readonly meuAtletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
   protected readonly atletas = signal<ComId<Atleta>[]>([]);

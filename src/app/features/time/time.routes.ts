@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { diretoriaGuard, timeGuard } from '../../core/time/time.guards';
+import { diretoriaGuard, gestaoGuard, tesourariaGuard, timeGuard } from '../../core/time/time.guards';
 import { TimeLayout } from './time-layout';
 
 export const TIME_ROUTES: Routes = [
@@ -14,24 +14,58 @@ export const TIME_ROUTES: Routes = [
         title: 'Elenco · ResenhaFC',
         loadComponent: () => import('../elenco/elenco-page').then((m) => m.ElencoPage),
       },
+
+      // Financeiro: diretoria consulta, tesouraria opera (DIRETRIZES 2.3).
+      { path: 'financeiro', pathMatch: 'full', redirectTo: 'financeiro/cobrancas' },
       {
-        path: 'membros',
+        path: 'financeiro/cobrancas',
+        canActivate: [gestaoGuard],
+        title: 'Cobranças · ResenhaFC',
+        loadComponent: () => import('../financeiro/cobrancas-page').then((m) => m.CobrancasPage),
+      },
+      {
+        path: 'financeiro/gerar',
+        canActivate: [tesourariaGuard],
+        title: 'Gerar cobranças · ResenhaFC',
+        loadComponent: () => import('../financeiro/gerar-cobrancas-page').then((m) => m.GerarCobrancasPage),
+      },
+
+      // Gestão: hub + telas de administração do time.
+      {
+        path: 'gestao',
+        canActivate: [gestaoGuard],
+        title: 'Gestão · ResenhaFC',
+        loadComponent: () => import('../gestao/gestao-page').then((m) => m.GestaoPage),
+      },
+      {
+        path: 'gestao/membros',
         canActivate: [diretoriaGuard],
         title: 'Membros · ResenhaFC',
         loadComponent: () => import('../membros/membros-page').then((m) => m.MembrosPage),
       },
       {
-        path: 'convites',
+        path: 'gestao/convites',
         canActivate: [diretoriaGuard],
         title: 'Convites · ResenhaFC',
         loadComponent: () => import('../convites/convites-page').then((m) => m.ConvitesPage),
       },
       {
-        path: 'solicitacoes',
+        path: 'gestao/solicitacoes',
         canActivate: [diretoriaGuard],
         title: 'Solicitações · ResenhaFC',
         loadComponent: () => import('../solicitacoes/solicitacoes-page').then((m) => m.SolicitacoesPage),
       },
+      {
+        path: 'gestao/financeiro',
+        canActivate: [tesourariaGuard],
+        title: 'Configuração financeira · ResenhaFC',
+        loadComponent: () => import('../financeiro/config-financeira-page').then((m) => m.ConfigFinanceiraPage),
+      },
+
+      // Endereços da Fase 1 (links já compartilhados/favoritos).
+      { path: 'membros', redirectTo: 'gestao/membros' },
+      { path: 'convites', redirectTo: 'gestao/convites' },
+      { path: 'solicitacoes', redirectTo: 'gestao/solicitacoes' },
     ],
   },
 ];

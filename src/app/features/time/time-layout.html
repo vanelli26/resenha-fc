@@ -4,7 +4,7 @@
     <h1 class="cabecalho__nome">{{ t.nome }}</h1>
   </header>
 
-  <!-- Uma aba só (jogador) não precisa de navegação. No celular vira barra inferior. -->
+  <!-- Uma aba só não precisa de navegação. No celular vira barra inferior. -->
   @if (abas().length > 1) {
     <nav class="abas" aria-label="Seções do time">
       @for (aba of abas(); track aba.caminho) {
@@ -19,14 +19,11 @@
               @case ('elenco') {
                 <svg data-p-icon="users" [size]="20"></svg>
               }
-              @case ('membros') {
-                <svg data-p-icon="id-card" [size]="20"></svg>
+              @case ('financeiro') {
+                <svg data-p-icon="wallet" [size]="20"></svg>
               }
-              @case ('convites') {
-                <svg data-p-icon="link" [size]="20"></svg>
-              }
-              @case ('solicitacoes') {
-                <svg data-p-icon="user-plus" [size]="20"></svg>
+              @case ('gestao') {
+                <svg data-p-icon="briefcase" [size]="20"></svg>
               }
             }
             @if (aba.selo) {

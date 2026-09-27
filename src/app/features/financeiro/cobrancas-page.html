@@ -1,0 +1,124 @@
+<div class="cabecalho-secao">
+  <h2>Cobranças</h2>
+  @if (ehTesouraria()) {
+    <p-button label="Gerar cobranças" size="small" [routerLink]="['/t', timeId(), 'financeiro', 'gerar']" />
+  }
+</div>
+
+<div class="filtros">
+  <p-select
+    class="filtros__competencia"
+    [options]="opcoesFiltro()"
+    optionLabel="label"
+    optionValue="value"
+    [ngModel]="filtro()"
+    (ngModelChange)="filtro.set($event)"
+    ariaLabel="Competência"
+  />
+  <input
+    pInputText
+    class="filtros__busca"
+    type="search"
+    placeholder="Buscar atleta"
+    aria-label="Buscar atleta"
+    [ngModel]="busca()"
+    (ngModelChange)="busca.set($event)"
+  />
+</div>
+
+<div class="resumo">
+  <div class="cartao resumo__item">
+    <small class="texto-suave">A receber</small>
+    <strong>{{ resumo().aReceber | reais }}</strong>
+    @if (resumo().atrasadas) {
+      <small class="resumo__alerta">{{ resumo().atrasadas }} atrasada(s)</small>
+    }
+  </div>
+  <div class="cartao resumo__item">
+    <small class="texto-suave">Recebido</small>
+    <strong>{{ resumo().recebido | reais }}</strong>
+  </div>
+</div>
+
+@if (carregando() && lista().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (item of lista(); track item.cobranca.id) {
+      <li class="cartao cobranca">
+        <div class="cobranca__texto">
+          <strong>{{ item.cobranca.atletaNome }}</strong>
+          <small class="texto-suave">{{ item.rotulo }}</small>
+          <small class="texto-suave">
+            @if (item.cobranca.pagoEm; as pagoEm) {
+              Pago em {{ pagoEm.toDate() | date: 'dd/MM/yyyy' }}
+            } @else {
+              Vence em {{ item.vencimento | date: 'dd/MM/yyyy' }}
+            }
+          </small>
+          @if (item.cobranca.observacao) {
+            <small class="texto-suave">{{ item.cobranca.observacao }}</small>
+          }
+        </div>
+        <div class="cobranca__lado">
+          <strong class="cobranca__valor">{{ item.cobranca.valorCentavos | reais }}</strong>
+          <app-situacao-cobranca [situacao]="item.situacao" />
+          @if (ehTesouraria()) {
+            <div class="cobranca__acoes">
+              @switch (item.cobranca.status) {
+                @case ('pendente') {
+                  <p-button label="Cancelar" size="small" [text]="true" severity="secondary" [disabled]="processando()" (onClick)="cancelar(item.cobranca)" />
+                  <p-button label="Dar baixa" size="small" [disabled]="processando()" (onClick)="abrirBaixa(item.cobranca)" />
+                }
+                @case ('pago') {
+                  <p-button label="Estornar" size="small" [text]="true" severity="danger" [disabled]="processando()" (onClick)="estornar(item.cobranca)" />
+                }
+                @case ('cancelado') {
+                  <p-button label="Reabrir" size="small" [text]="true" [disabled]="processando()" (onClick)="reabrir(item.cobranca)" />
+                }
+              }
+            </div>
+          }
+        </div>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhuma cobrança {{ filtro() === 'aberto' ? 'em aberto' : 'nesta competência' }}.</li>
+    }
+  </ul>
+}
+
+<p-dialog
+  header="Dar baixa"
+  [visible]="baixaAberta()"
+  (visibleChange)="fecharBaixa($event)"
+  [modal]="true"
+  [style]="{ width: 'min(24rem, 100vw - 2rem)' }"
+>
+  @if (emBaixa(); as cobranca) {
+    <form class="formulario" (submit)="$event.preventDefault(); confirmarBaixa()">
+      <p class="baixa__resumo">
+        <strong>{{ cobranca.atletaNome }}</strong>
+        <span>{{ cobranca.valorCentavos | reais }}</span>
+      </p>
+      <label class="campo">
+        <span>Data do pagamento</span>
+        <input pInputText type="date" name="dataPagamento" required [ngModel]="dataPagamento()" (ngModelChange)="dataPagamento.set($event)" />
+      </label>
+      <label class="campo">
+        <span>Observação (opcional)</span>
+        <input pInputText name="observacao" maxlength="200" placeholder="Ex.: Pix, dinheiro" [ngModel]="observacao()" (ngModelChange)="observacao.set($event)" />
+      </label>
+      <p class="texto-suave baixa__dica">A receita entra no caixa na data do pagamento.</p>
+      <div class="acoes">
+        <p-button label="Cancelar" [text]="true" type="button" (onClick)="emBaixa.set(null)" />
+        <p-button label="Confirmar pagamento" type="submit" [loading]="processando()" [disabled]="!dataPagamento()" />
+      </div>
+    </form>
+  }
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

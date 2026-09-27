@@ -12,8 +12,9 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { Solicitacao } from '../../models/convite.model';
-import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
+import { Modalidade } from '../../models/modalidade.model';
 import { mensagemDeErro } from '../../shared/erros';
+import { Voltar } from '../../shared/voltar';
 import { ROTULO_MODALIDADE, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
 import { SolicitacoesService } from './data/solicitacoes.service';
@@ -26,7 +27,7 @@ interface FormAprovacao {
 
 @Component({
   selector: 'app-solicitacoes-page',
-  imports: [DatePipe, FormField, ButtonModule, DialogModule, RadioButtonModule, SelectModule, SkeletonModule],
+  imports: [DatePipe, FormField, ButtonModule, DialogModule, RadioButtonModule, SelectModule, SkeletonModule, Voltar],
   templateUrl: './solicitacoes-page.html',
   styleUrl: './solicitacoes-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,7 +42,7 @@ export class SolicitacoesPage {
   protected readonly pendentes = signal<ComId<Solicitacao>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
-  protected readonly opcoesModalidade = opcoes(MODALIDADES, ROTULO_MODALIDADE);
+  protected readonly opcoesModalidade = computed(() => opcoes(this.timeAtual.modalidadesHabilitadas(), ROTULO_MODALIDADE));
 
   // Atletas ainda sem conta vinculada, para "vincular a atleta existente".
   private readonly atletasSemConta = signal<ComId<Atleta>[]>([]);
@@ -51,7 +52,7 @@ export class SolicitacoesPage {
 
   protected readonly emAprovacao = signal<ComId<Solicitacao> | null>(null);
   protected readonly dialogAberto = signal(false);
-  protected readonly modelo = signal<FormAprovacao>({ tipo: 'novo', atletaId: '', modalidade: 'mensal' });
+  protected readonly modelo = signal<FormAprovacao>({ tipo: 'novo', atletaId: '', modalidade: 'isento' });
   protected readonly formulario = form(this.modelo, (p) => {
     required(p.atletaId, {
       message: 'Escolha o atleta.',
@@ -75,7 +76,9 @@ export class SolicitacoesPage {
 
   protected async abrirAprovacao(solicitacao: ComId<Solicitacao>): Promise<void> {
     this.emAprovacao.set(solicitacao);
-    this.modelo.set({ tipo: 'novo', atletaId: '', modalidade: 'mensal' });
+    // Primeira modalidade habilitada no time (isento está sempre disponível).
+    const modalidade = this.timeAtual.modalidadesHabilitadas()[0] ?? 'isento';
+    this.modelo.set({ tipo: 'novo', atletaId: '', modalidade });
     this.dialogAberto.set(true);
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;

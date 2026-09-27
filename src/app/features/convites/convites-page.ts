@@ -9,6 +9,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Convite } from '../../models/convite.model';
 import { mensagemDeErro } from '../../shared/erros';
+import { Voltar } from '../../shared/voltar';
 import { ConvitesService, VALIDADE_CONVITE_DIAS, conviteValido } from './data/convites.service';
 
 type Situacao = 'ativo' | 'expirado' | 'desativado';
@@ -22,7 +23,7 @@ interface ConviteVisao {
 
 @Component({
   selector: 'app-convites-page',
-  imports: [DatePipe, ButtonModule, SkeletonModule, TagModule],
+  imports: [DatePipe, ButtonModule, SkeletonModule, TagModule, Voltar],
   templateUrl: './convites-page.html',
   styleUrl: './convites-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

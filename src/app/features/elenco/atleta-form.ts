@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
 import { FormField, form, hidden, maxLength, pattern, required, submit } from '@angular/forms/signals';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -21,13 +21,13 @@ interface FormAtleta {
   status: StatusAtleta;
 }
 
-function paraFormulario(atleta: Atleta | null): FormAtleta {
+function paraFormulario(atleta: Atleta | null, modalidadePadrao: Modalidade): FormAtleta {
   return {
     nome: atleta?.nome ?? '',
     apelido: atleta?.apelido ?? '',
     telefone: atleta?.telefone ?? '',
     numeroCamisa: atleta?.numeroCamisa?.toString() ?? '',
-    modalidade: atleta?.modalidade ?? 'mensal',
+    modalidade: atleta?.modalidade ?? modalidadePadrao,
     posicoes: atleta?.posicoes ?? [],
     status: atleta?.status ?? 'ativo',
   };
@@ -57,14 +57,21 @@ export class AtletaForm {
   readonly atleta = input<Atleta | null>(null);
   /** 'proprio': jogador editando o próprio cadastro (sem nome, modalidade e status). */
   readonly modo = input<'completo' | 'proprio'>('completo');
+  /** Modalidades habilitadas no time (DIRETRIZES 2.4). */
+  readonly modalidades = input<readonly Modalidade[]>(MODALIDADES);
   readonly salvar = output<DadosAtleta>();
   readonly cancelar = output<void>();
 
-  protected readonly opcoesModalidade = opcoes(MODALIDADES, ROTULO_MODALIDADE);
+  /** Habilitadas + a atual do atleta (mesmo se desabilitada depois), para não forçar troca ao editar. */
+  protected readonly opcoesModalidade = computed(() => {
+    const atual = this.atleta()?.modalidade;
+    const lista = atual && !this.modalidades().includes(atual) ? [...this.modalidades(), atual] : this.modalidades();
+    return opcoes(lista, ROTULO_MODALIDADE);
+  });
   protected readonly opcoesPosicao = opcoes(POSICOES, ROTULO_POSICAO);
   protected readonly opcoesStatus = opcoes(STATUS_ATLETA, ROTULO_STATUS_ATLETA);
 
-  protected readonly modelo = linkedSignal(() => paraFormulario(this.atleta()));
+  protected readonly modelo = linkedSignal(() => paraFormulario(this.atleta(), this.modalidades()[0] ?? 'isento'));
   protected readonly formulario = form(this.modelo, (p) => {
     required(p.nome, { message: 'Informe o nome.' });
     maxLength(p.nome, 100, { message: 'Máximo de 100 caracteres.' });

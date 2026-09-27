@@ -42,7 +42,7 @@ module.exports = defineConfig([
       // Componentes de formulário do PrimeNG contam como controle dentro de <label>.
       '@angular-eslint/template/label-has-associated-control': [
         'error',
-        { controlComponents: ['p-select', 'p-multiselect', 'p-checkbox', 'p-radiobutton'] },
+        { controlComponents: ['p-select', 'p-multiselect', 'p-checkbox', 'p-radiobutton', 'p-inputnumber', 'p-toggleswitch'] },
       ],
     },
   },

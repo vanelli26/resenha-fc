@@ -1,4 +1,5 @@
 import { StatusAtleta } from '../models/atleta.model';
+import { TipoCobranca } from '../models/financeiro.model';
 import { Modalidade } from '../models/modalidade.model';
 import { PapelTime } from '../models/papel.model';
 import { Posicao } from '../models/posicao.model';
@@ -31,6 +32,13 @@ export const ROTULO_STATUS_ATLETA: Record<StatusAtleta, string> = {
   ativo: 'Ativo',
   afastado: 'Afastado',
   inativo: 'Inativo',
+};
+
+/** Também é a categoria da receita criada na baixa (DIRETRIZES 2.5). */
+export const ROTULO_TIPO_COBRANCA: Record<TipoCobranca, string> = {
+  mensal: 'Mensalidade',
+  semestral: 'Semestralidade',
+  avulso: 'Avulso',
 };
 
 export const ROTULO_COR: Record<CorTime, string> = {

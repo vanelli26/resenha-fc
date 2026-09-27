@@ -1,0 +1,76 @@
+.filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.condicoes {
+  display: flex;
+  gap: 2rem;
+  margin: 0 0 1rem;
+
+  span {
+    display: grid;
+    gap: 0.125rem;
+  }
+}
+
+.candidatos {
+  gap: 0;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-border-radius-lg);
+  background: var(--p-content-background);
+  overflow: hidden;
+}
+
+.candidato {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 1rem;
+
+  & + & {
+    border-top: 1px solid var(--p-content-border-color);
+  }
+
+  &--gerada {
+    opacity: 0.6;
+  }
+
+  &.texto-suave,
+  &:only-child {
+    padding-block: 0.75rem;
+  }
+}
+
+.candidato__rotulo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  cursor: pointer;
+}
+
+// Resumo e ação fixos no rodapé da tela (celular) ou ao fim da lista.
+.rodape {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--p-border-radius-lg);
+  border: 1px solid var(--p-content-border-color);
+  background: var(--p-content-background);
+}
+
+@media (max-width: 767px) {
+  .rodape {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}

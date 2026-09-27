@@ -14,9 +14,10 @@ import { SessaoService } from '../../core/sessao/sessao.service';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Acesso } from '../../models/acesso.model';
 import { Atleta } from '../../models/atleta.model';
-import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
+import { Modalidade } from '../../models/modalidade.model';
 import { PAPEIS_TIME, PapelTime } from '../../models/papel.model';
 import { mensagemDeErro } from '../../shared/erros';
+import { Voltar } from '../../shared/voltar';
 import { ROTULO_MODALIDADE, ROTULO_PAPEL, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
 import { AcessosService } from './data/acessos.service';
@@ -52,7 +53,7 @@ function nomeAtleta(a: Atleta): string {
 
 @Component({
   selector: 'app-membros-page',
-  imports: [FormField, ButtonModule, CheckboxModule, DialogModule, SelectModule, SkeletonModule, TagModule],
+  imports: [FormField, ButtonModule, CheckboxModule, DialogModule, SelectModule, SkeletonModule, TagModule, Voltar],
   templateUrl: './membros-page.html',
   styleUrl: './membros-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,7 +69,7 @@ export class MembrosPage {
 
   protected readonly papeisTime = PAPEIS_TIME;
   protected readonly rotuloPapel = ROTULO_PAPEL;
-  protected readonly opcoesModalidade = opcoes(MODALIDADES, ROTULO_MODALIDADE);
+  protected readonly opcoesModalidade = computed(() => opcoes(this.timeAtual.modalidadesHabilitadas(), ROTULO_MODALIDADE));
   protected readonly adminGeral = this.sessao.adminGeral;
 
   protected readonly membros = signal<ComId<Acesso>[]>([]);
@@ -102,7 +103,7 @@ export class MembrosPage {
     uid: '',
     papeis: { ...SEM_PAPEIS },
     atleta: SEM_ATLETA,
-    modalidade: 'mensal',
+    modalidade: 'isento',
   });
   protected readonly formulario = form(this.modelo, (p) => {
     required(p.uid, { message: 'Escolha um usuário.' });
@@ -126,13 +127,13 @@ export class MembrosPage {
     const papeis = { ...SEM_PAPEIS };
     for (const p of membro.papeis) papeis[p] = true;
     this.emEdicao.set(membro);
-    this.modelo.set({ uid: membro.uid, papeis, atleta: membro.atletaId ?? SEM_ATLETA, modalidade: 'mensal' });
+    this.modelo.set({ uid: membro.uid, papeis, atleta: membro.atletaId ?? SEM_ATLETA, modalidade: this.modalidadePadrao() });
     this.abrirDialog();
   }
 
   protected async adicionar(): Promise<void> {
     this.emEdicao.set(null);
-    this.modelo.set({ uid: '', papeis: { ...SEM_PAPEIS, diretoria: true }, atleta: SEM_ATLETA, modalidade: 'mensal' });
+    this.modelo.set({ uid: '', papeis: { ...SEM_PAPEIS, diretoria: true }, atleta: SEM_ATLETA, modalidade: this.modalidadePadrao() });
     this.abrirDialog();
     if (this.usuarios().length > 0) return;
     try {
@@ -194,6 +195,11 @@ export class MembrosPage {
       return;
     }
     await this.executar(() => this.acessosService.remover(time.id, membro), 'Membro removido');
+  }
+
+  /** Primeira modalidade habilitada no time (isento está sempre disponível). */
+  private modalidadePadrao(): Modalidade {
+    return this.timeAtual.modalidadesHabilitadas()[0] ?? 'isento';
   }
 
   private abrirDialog(): void {

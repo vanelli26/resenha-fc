@@ -1,8 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import { Acesso } from '../../models/acesso.model';
+import { MODALIDADES, Modalidade } from '../../models/modalidade.model';
 import { PapelTime } from '../../models/papel.model';
-import { Time } from '../../models/time.model';
+import { ConfigFinanceira, Time } from '../../models/time.model';
 import { AuthService } from '../auth/auth.service';
 import { ComId, conversor } from '../firebase/conversor';
 import { FIRESTORE } from '../firebase/firestore.token';
@@ -25,6 +26,14 @@ export class TimeAtualService {
   readonly papeis = computed<PapelTime[]>(() => this._acesso()?.papeis ?? []);
   readonly ehDiretoria = computed(() => this.sessao.adminGeral() || this.papeis().includes('diretoria'));
   readonly ehTesouraria = computed(() => this.sessao.adminGeral() || this.papeis().includes('tesouraria'));
+  /** Diretoria ou tesouraria: veem caixa e cobranças (DIRETRIZES 2.3). */
+  readonly ehGestao = computed(() => this.ehDiretoria() || this.ehTesouraria());
+
+  /** Modalidades que o time aceita (DIRETRIZES 2.4). `isento` é sempre permitido. */
+  readonly modalidadesHabilitadas = computed<Modalidade[]>(() => {
+    const financeiro = this._time()?.financeiro;
+    return MODALIDADES.filter((m) => m === 'isento' || financeiro?.[m].ativo === true);
+  });
 
   private entrando: { timeId: string; promessa: Promise<boolean> } | null = null;
 
@@ -73,6 +82,11 @@ export class TimeAtualService {
     if (!uid || !timeId) return;
     const snap = await getDoc(doc(this.firestore, 'times', timeId, 'acessos', uid).withConverter(conversor<Acesso>()));
     this._acesso.set(snap.data() ?? null);
+  }
+
+  /** Reflete no contexto a configuração financeira recém-gravada (evita reler o time). */
+  definirFinanceiro(financeiro: ConfigFinanceira): void {
+    this._time.update((time) => (time ? { ...time, financeiro } : time));
   }
 
   sair(): void {

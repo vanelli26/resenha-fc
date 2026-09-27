@@ -57,10 +57,12 @@ Quais modalidades um time aceita e seus valores ficam na configuração financei
 - ID determinístico `{atletaId}_{referencia}`: gerar duas vezes não duplica.
 - Baixa (marcar como paga): na mesma escrita em lote, cobrança → `pago` + criação do lançamento de receita com ID `cob_{cobrancaId}`.
 - Estorno: cobrança volta a `pendente` e o lançamento `cob_{cobrancaId}` é removido, na mesma escrita em lote.
+- Cancelar: `pendente` → `cancelado` (sai do "a receber"); reabrir: `cancelado` → `pendente`. Não mexem no caixa. Cobrança nunca é excluída.
+- Baixa pede a data do pagamento (padrão hoje) e observação opcional (ex.: Pix); a receita entra no caixa nessa data.
 
 ### 2.6 Lançamentos (caixa)
 
-- Movimentos efetivos de caixa: `receita` ou `despesa`, com categoria, descrição, valor e data.
+- Movimentos efetivos de caixa: `receita` ou `despesa`, com categoria (texto livre; a UI sugere as já usadas), descrição, valor e data. Receita de baixa usa a categoria do tipo (Mensalidade, Semestralidade, Avulso).
 - Receitas de cobrança são criadas apenas pela baixa (2.5), nunca manualmente.
 - Despesas recorrentes (ex.: campo do Piratas) ficam na configuração do time; a tesouraria lança a do mês com um clique, ID `rec_{recorrenteId}_{AAAA-MM}` (idempotente).
 - Saldo = soma de receitas − soma de despesas, via agregação no Firestore. Sem documento de saldo desnormalizado.
@@ -188,19 +190,20 @@ times/{timeId}/campeonatos/{campeonatoId}/estatisticas/{atletaId}
 | Coleção | Leitura | Escrita |
 |---|---|---|
 | `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
-| `times/{timeId}` | quem tem acesso ao time | adminGeral; `financeiro` também tesouraria |
+| `times/{timeId}` | quem tem acesso ao time | adminGeral (nome, cor, escudo); tesouraria/adminGeral: só `financeiro`, validado |
 | `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel) |
 | `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só apelido, telefone, posições, camisa e `fotoUrl` (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
-| `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria |
-| `lancamentos` | tesouraria/diretoria | tesouraria |
+| `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
+| `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
 | `eventos`, `recados`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
 | `presencas/{atletaId}` | acesso ao time | jogador: só o próprio `atletaId`, só `resposta`, só evento `agendado`; diretoria: tudo |
 
 - Validar tipos e campos permitidos nas escritas (`keys().hasOnly(...)`), valores em centavos inteiros e ≥ 0, enums válidos.
 - Toda alteração de regra passa pelo skill `firebase-security-rules-auditor` antes de concluir.
-- Em todas as linhas acima, `diretoria` inclui `adminGeral` (`podeGerir()` nas rules).
+- Em todas as linhas acima, `diretoria` e `tesouraria` incluem `adminGeral` (`podeGerir()` e `podeFinanceiro()` nas rules).
+- Atleta só recebe modalidade habilitada no time (rules conferem na criação e quando a modalidade muda).
 
 ---
 
@@ -320,6 +323,10 @@ src/app/
 | 26/09/2026 | Foto do atleta = foto do Google da conta vinculada, copiada pelo próprio jogador para `atletas.fotoUrl` (diretoria não lê `usuarios`). Visível ao time. |
 | 26/09/2026 | Identidade visual: marca oficial do usuário (`public/marca/`) em logo, favicon, ícone do iPhone e fundo do modo escuro; barra inferior de navegação no celular. Manifest/PWA continua na Fase 5. Repositório público no GitHub (`vanelli26/resenha-fc`). |
 | 26/09/2026 | "Remover do time" (Membros) apaga o acesso, desvincula a conta e marca o atleta como `inativo`. Elenco mostra só ativos/afastados; inativos ficam ocultos, e só a diretoria pode exibi-los (reativar pelo Editar). |
+| 26/09/2026 | Fase 2: jogador vê todas as próprias cobranças, inclusive avulso (pendência 11.4). Só tesouraria (e adminGeral) escreve no financeiro; diretoria consulta caixa e cobranças. |
+| 26/09/2026 | Categoria de lançamento em texto livre (com sugestões das já usadas), não lista fixa. |
+| 26/09/2026 | Navegação do time: Elenco · Financeiro · Gestão (mais Agenda e Mural nas próximas fases). Gestão reúne Membros, Convites, Solicitações e Configuração financeira em `/t/:timeId/gestao/*`; endereços antigos redirecionam. |
+| 26/09/2026 | Despesas recorrentes limitadas a 10 por time (Rules validam item a item, sem laço). Cobrança avulsa depende de eventos (Fase 3). |
 
 ---
 
@@ -328,5 +335,5 @@ src/app/
 1. ~~Login: apenas Google ou também e-mail/senha?~~ Resolvido: só Google por enquanto (seção 10).
 2. ~~Diretoria pode conceder `tesouraria`/`diretoria`?~~ Resolvido: sim (seção 10).
 3. ~~Jogador pode ver o saldo do caixa?~~ Resolvido: nunca (seção 10).
-4. Avulso com conta pode ver as próprias cobranças por jogo? (padrão proposto: sim)
+4. ~~Avulso com conta pode ver as próprias cobranças por jogo?~~ Resolvido: sim, jogador vê todas as próprias cobranças (seção 10).
 5. ~~Nome do app~~ ResenhaFC (seção 10). Domínio de hospedagem: a definir.

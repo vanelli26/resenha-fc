@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ===============================================================
-// ResenhaFC — Security Rules (Fases 0 e 1)
+// ResenhaFC — Security Rules (Fases 0, 1 e 2)
 // Fonte: DIRETRIZES.md, seções 3 e 4. Negar tudo por padrão; liberar por coleção.
 // Protótipo: revisar e endurecer a cada fase antes de ampliar o público.
 // ===============================================================
@@ -17,7 +17,9 @@ rules_version = '2';
 //   nome: string (1..60) · slug: string (= timeId, imutável) · cor: nome de paleta (lista fixa)
 //   escudo: data URL base64 de imagem webp/png/jpeg (<= 120000 caracteres) | null · criadoEm: timestamp (imutável)
 //   (campo antigo `tema` só pode ser removido)
-//   financeiro: map (Fase 2; na Fase 1 só o valor padrão na criação, imutável)
+//   financeiro: { mensal: {ativo, valorCentavos, diaVencimento}, semestral: {+ mesVencimentoS1 1..6, mesVencimentoS2 7..12},
+//                 avulso: {ativo, valorCentavos}, despesasRecorrentes: list 0..10 de {id, descricao, categoria, valorCentavos, diaVencimento} }
+//   (nasce com o padrão desligado; depois só tesouraria/adminGeral altera, e só esse campo)
 //
 // times/{timeId}/acessos/{uid}
 //   uid (= path) · timeId (= path) · timeNome (= times.nome) · nome: string (1..100)
@@ -37,7 +39,17 @@ rules_version = '2';
 //   nome (0..100) · email (= token.email) · status: 'pendente' | 'aprovada' | 'recusada'
 //   convite: código de um convite ativo e não expirado · criadoEm (= request.time)
 //
-// Demais coleções (cobranças, lançamentos, eventos...) entram nas próximas fases e ficam negadas.
+// times/{timeId}/cobrancas/{atletaId}_{referencia}
+//   atletaId (1..40) · atletaNome (1..100) · tipo: 'mensal' | 'semestral' | 'avulso'
+//   referencia: AAAA-MM | AAAA-S1/S2 | eventoId (conforme o tipo) · valorCentavos: int > 0 · vencimento: timestamp
+//   status: 'pendente' | 'pago' | 'cancelado' · pagoEm?: timestamp · baixadoPor?: uid · observacao? (0..200)
+//   Imutáveis após criar: tudo menos status/pagoEm/baixadoPor/observacao. Nunca excluída.
+//
+// times/{timeId}/lancamentos/{id}      id: cob_{cobrancaId} (baixa) | rec_{recorrenteId}_{AAAA-MM} | automático (manual)
+//   tipo: 'receita' | 'despesa' · categoria (1..40) · descricao (1..120) · valorCentavos: int > 0 · data: timestamp
+//   cobrancaId? · recorrenteId? · criadoPor (= request.auth.uid) · criadoEm (= request.time, imutável)
+//
+// Demais coleções (eventos, recados, campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
 
 service cloud.firestore {
@@ -81,6 +93,16 @@ service cloud.firestore {
 
     function podeGerir(timeId) {
       return ehDiretoria(timeId) || isAdminGeral();
+    }
+
+    // Opera o financeiro (configuração, cobranças, caixa): tesouraria ou adminGeral.
+    function podeFinanceiro(timeId) {
+      return ehTesouraria(timeId) || isAdminGeral();
+    }
+
+    // Vê caixa e cobranças de todos: diretoria, tesouraria ou adminGeral. Jogador nunca vê o caixa.
+    function podeVerFinanceiro(timeId) {
+      return ehDiretoria(timeId) || ehTesouraria(timeId) || isAdminGeral();
     }
 
     // Jogador editando o próprio atleta: vínculo nos dois lados (acesso.atletaId e atleta.uid)
@@ -130,6 +152,67 @@ service cloud.firestore {
         'avulso': { 'ativo': false, 'valorCentavos': 0 },
         'despesasRecorrentes': []
       };
+    }
+
+    function ehCentavos(v) {
+      return v is int && v >= 0 && v <= 100000000;
+    }
+
+    function ehDia(v) {
+      return v is int && v >= 1 && v <= 31;
+    }
+
+    function isValidDespesaRecorrente(d) {
+      return d is map
+        && d.keys().hasAll(['id', 'descricao', 'categoria', 'valorCentavos', 'diaVencimento'])
+        && d.keys().hasOnly(['id', 'descricao', 'categoria', 'valorCentavos', 'diaVencimento'])
+        && d.id is string && d.id.matches('^[a-z0-9]{6,20}$')
+        && d.descricao is string && d.descricao.size() >= 1 && d.descricao.size() <= 80
+        && d.categoria is string && d.categoria.size() >= 1 && d.categoria.size() <= 40
+        && ehCentavos(d.valorCentavos) && d.valorCentavos > 0
+        && ehDia(d.diaVencimento);
+    }
+
+    // Rules não têm laço: cada posição da lista (máx. 10) é validada explicitamente.
+    function despesasValidas(l) {
+      return l is list && l.size() <= 10
+        && (l.size() < 1 || isValidDespesaRecorrente(l[0]))
+        && (l.size() < 2 || isValidDespesaRecorrente(l[1]))
+        && (l.size() < 3 || isValidDespesaRecorrente(l[2]))
+        && (l.size() < 4 || isValidDespesaRecorrente(l[3]))
+        && (l.size() < 5 || isValidDespesaRecorrente(l[4]))
+        && (l.size() < 6 || isValidDespesaRecorrente(l[5]))
+        && (l.size() < 7 || isValidDespesaRecorrente(l[6]))
+        && (l.size() < 8 || isValidDespesaRecorrente(l[7]))
+        && (l.size() < 9 || isValidDespesaRecorrente(l[8]))
+        && (l.size() < 10 || isValidDespesaRecorrente(l[9]));
+    }
+
+    function isValidFinanceiro(f) {
+      return f is map
+        && f.keys().hasAll(['mensal', 'semestral', 'avulso', 'despesasRecorrentes'])
+        && f.keys().hasOnly(['mensal', 'semestral', 'avulso', 'despesasRecorrentes'])
+        && f.mensal is map
+        && f.mensal.keys().hasAll(['ativo', 'valorCentavos', 'diaVencimento'])
+        && f.mensal.keys().hasOnly(['ativo', 'valorCentavos', 'diaVencimento'])
+        && f.mensal.ativo is bool && ehCentavos(f.mensal.valorCentavos) && ehDia(f.mensal.diaVencimento)
+        && f.semestral is map
+        && f.semestral.keys().hasAll(['ativo', 'valorCentavos', 'diaVencimento', 'mesVencimentoS1', 'mesVencimentoS2'])
+        && f.semestral.keys().hasOnly(['ativo', 'valorCentavos', 'diaVencimento', 'mesVencimentoS1', 'mesVencimentoS2'])
+        && f.semestral.ativo is bool && ehCentavos(f.semestral.valorCentavos) && ehDia(f.semestral.diaVencimento)
+        && f.semestral.mesVencimentoS1 is int && f.semestral.mesVencimentoS1 >= 1 && f.semestral.mesVencimentoS1 <= 6
+        && f.semestral.mesVencimentoS2 is int && f.semestral.mesVencimentoS2 >= 7 && f.semestral.mesVencimentoS2 <= 12
+        && f.avulso is map
+        && f.avulso.keys().hasAll(['ativo', 'valorCentavos'])
+        && f.avulso.keys().hasOnly(['ativo', 'valorCentavos'])
+        && f.avulso.ativo is bool && ehCentavos(f.avulso.valorCentavos)
+        && despesasValidas(f.despesasRecorrentes);
+    }
+
+    // Atleta só recebe modalidade habilitada no time (DIRETRIZES 2.4); isento sempre vale.
+    function modalidadeHabilitada(timeId, modalidade) {
+      return modalidade == 'isento'
+        || get(/databases/$(database)/documents/times/$(timeId)).data.financeiro[modalidade].ativo == true;
     }
 
     function isValidTime(data, timeId) {
@@ -203,6 +286,98 @@ service cloud.firestore {
         || (resource != null && request.resource.data.timeNome == resource.data.timeNome);
     }
 
+    function isValidCobranca(data, cobrancaId) {
+      return data.keys().hasAll(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento', 'status'])
+        && data.keys().hasOnly(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento', 'status',
+          'pagoEm', 'baixadoPor', 'observacao'])
+        && data.atletaId is string && data.atletaId.size() >= 1 && data.atletaId.size() <= 40
+        && data.atletaNome is string && data.atletaNome.size() >= 1 && data.atletaNome.size() <= 100
+        && data.tipo in ['mensal', 'semestral', 'avulso']
+        && data.referencia is string
+        && ((data.tipo == 'mensal' && data.referencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$'))
+          || (data.tipo == 'semestral' && data.referencia.matches('^[0-9]{4}-S[12]$'))
+          || (data.tipo == 'avulso' && data.referencia.matches('^[A-Za-z0-9]{1,40}$')))
+        && cobrancaId == data.atletaId + '_' + data.referencia
+        && ehCentavos(data.valorCentavos) && data.valorCentavos > 0
+        && data.vencimento is timestamp
+        && data.status in ['pendente', 'pago', 'cancelado']
+        && (!('pagoEm' in data) || data.pagoEm is timestamp)
+        && (!('baixadoPor' in data) || (data.baixadoPor is string && data.baixadoPor.size() <= 128))
+        && textoOpcional(data, 'observacao', 0, 200);
+    }
+
+    function cobrancaPath(timeId, cobrancaId) {
+      return /databases/$(database)/documents/times/$(timeId)/cobrancas/$(cobrancaId);
+    }
+
+    function lancamentoDaBaixaPath(timeId, cobrancaId) {
+      return /databases/$(database)/documents/times/$(timeId)/lancamentos/$('cob_' + cobrancaId);
+    }
+
+    // Transições de status da cobrança. Baixa e estorno exigem o lançamento cob_{id} no mesmo lote.
+    function transicaoCobrancaValida(timeId, cobrancaId) {
+      let antes = resource.data;
+      let depois = request.resource.data;
+      let mudou = depois.diff(antes).affectedKeys();
+      let semBaixa = !('pagoEm' in depois) && !('baixadoPor' in depois);
+      return (
+          // baixa: pendente → pago, com a receita criada no mesmo lote
+          antes.status == 'pendente' && depois.status == 'pago'
+          && mudou.hasOnly(['status', 'pagoEm', 'baixadoPor', 'observacao'])
+          && depois.pagoEm is timestamp
+          && depois.baixadoPor == request.auth.uid
+          && existsAfter(lancamentoDaBaixaPath(timeId, cobrancaId))
+          && getAfter(lancamentoDaBaixaPath(timeId, cobrancaId)).data.valorCentavos == antes.valorCentavos
+        ) || (
+          // estorno: pago → pendente, removendo a receita no mesmo lote
+          antes.status == 'pago' && depois.status == 'pendente'
+          && mudou.hasOnly(['status', 'pagoEm', 'baixadoPor', 'observacao'])
+          && semBaixa && !('observacao' in depois)
+          && !existsAfter(lancamentoDaBaixaPath(timeId, cobrancaId))
+        ) || (
+          // cancelar / reabrir: só o status, entre pendente e cancelado
+          ((antes.status == 'pendente' && depois.status == 'cancelado')
+            || (antes.status == 'cancelado' && depois.status == 'pendente'))
+          && mudou.hasOnly(['status'])
+          && semBaixa
+        );
+    }
+
+    function isValidLancamento(data) {
+      return data.keys().hasAll(['tipo', 'categoria', 'descricao', 'valorCentavos', 'data', 'criadoPor', 'criadoEm'])
+        && data.keys().hasOnly(['tipo', 'categoria', 'descricao', 'valorCentavos', 'data', 'criadoPor', 'criadoEm',
+          'cobrancaId', 'recorrenteId'])
+        && data.tipo in ['receita', 'despesa']
+        && data.categoria is string && data.categoria.size() >= 1 && data.categoria.size() <= 40
+        && data.descricao is string && data.descricao.size() >= 1 && data.descricao.size() <= 120
+        && ehCentavos(data.valorCentavos) && data.valorCentavos > 0
+        && data.data is timestamp
+        && data.criadoPor is string && data.criadoPor.size() <= 128
+        && data.criadoEm is timestamp
+        && (!('cobrancaId' in data) || (data.cobrancaId is string && data.cobrancaId.size() <= 100))
+        && (!('recorrenteId' in data) || (data.recorrenteId is string && data.recorrenteId.matches('^[a-z0-9]{6,20}$')));
+    }
+
+    // Origem do lançamento, amarrada ao ID: receita de baixa, despesa recorrente do mês ou manual.
+    function origemLancamentoValida(timeId, lancamentoId, data) {
+      return (
+          lancamentoId.matches('^cob_.+')
+          && 'cobrancaId' in data && !('recorrenteId' in data)
+          && lancamentoId == 'cob_' + data.cobrancaId
+          && data.tipo == 'receita'
+          && getAfter(cobrancaPath(timeId, data.cobrancaId)).data.status == 'pago'
+          && getAfter(cobrancaPath(timeId, data.cobrancaId)).data.valorCentavos == data.valorCentavos
+        ) || (
+          lancamentoId.matches('^rec_.+')
+          && 'recorrenteId' in data && !('cobrancaId' in data)
+          && lancamentoId.matches('^rec_' + data.recorrenteId + '_[0-9]{4}-(0[1-9]|1[0-2])$')
+          && data.tipo == 'despesa'
+        ) || (
+          !lancamentoId.matches('^(cob|rec)_.*')
+          && !('cobrancaId' in data) && !('recorrenteId' in data)
+        );
+    }
+
     function isValidSolicitacao(data) {
       return data.keys().hasAll(['nome', 'email', 'status', 'convite', 'criadoEm'])
         && data.keys().hasOnly(['nome', 'email', 'status', 'convite', 'criadoEm'])
@@ -249,9 +424,15 @@ service cloud.firestore {
         && request.resource.data.criadoEm == request.time
         && request.resource.data.financeiro == financeiroPadrao();
 
-      allow update: if isAdminGeral()
-        && isValidTime(request.resource.data, timeId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema']);
+      // adminGeral: identidade do time. Tesouraria (ou adminGeral): só a configuração financeira.
+      allow update: if isValidTime(request.resource.data, timeId)
+        && (
+          (isAdminGeral()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema']))
+          || (podeFinanceiro(timeId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['financeiro'])
+            && isValidFinanceiro(request.resource.data.financeiro))
+        );
 
       allow delete: if false;
 
@@ -269,11 +450,14 @@ service cloud.firestore {
 
         allow create: if podeGerir(timeId)
           && isValidAtleta(request.resource.data)
-          && request.resource.data.criadoEm == request.time;
+          && request.resource.data.criadoEm == request.time
+          && modalidadeHabilitada(timeId, request.resource.data.modalidade);
 
+        // Modalidade só é conferida quando muda: atletas antigos continuam editáveis.
         allow update: if isValidAtleta(request.resource.data)
           && inalterados(['criadoEm'])
-          && (podeGerir(timeId) || ehProprioAtleta(timeId, atletaId));
+          && (podeGerir(timeId) || ehProprioAtleta(timeId, atletaId))
+          && (inalterados(['modalidade']) || modalidadeHabilitada(timeId, request.resource.data.modalidade));
 
         // Atleta sai do elenco via status 'inativo' (histórico financeiro depende dele).
         allow delete: if false;
@@ -300,6 +484,47 @@ service cloud.firestore {
           && request.resource.data.ativo == false;
 
         allow delete: if false;
+      }
+
+      // Cobranças: gestão lê todas; jogador só as do próprio atleta (a consulta filtra por atletaId).
+      // Tesouraria cria (só pendente) e muda status pelas transições; nunca exclui.
+      match /cobrancas/{cobrancaId} {
+        allow read: if podeVerFinanceiro(timeId)
+          || (temAcesso(timeId) && resource.data.atletaId == get(acessoPath(timeId)).data.atletaId);
+
+        allow create: if podeFinanceiro(timeId)
+          && isValidCobranca(request.resource.data, cobrancaId)
+          && request.resource.data.status == 'pendente'
+          && !('pagoEm' in request.resource.data)
+          && !('baixadoPor' in request.resource.data);
+
+        allow update: if podeFinanceiro(timeId)
+          && isValidCobranca(request.resource.data, cobrancaId)
+          && inalterados(['atletaId', 'atletaNome', 'tipo', 'referencia', 'valorCentavos', 'vencimento'])
+          && transicaoCobrancaValida(timeId, cobrancaId);
+
+        allow delete: if false;
+      }
+
+      // Caixa: só gestão lê (jogador nunca). Tesouraria escreve. Receita de baixa (cob_) só nasce/some
+      // junto com a cobrança; não é editável.
+      match /lancamentos/{lancamentoId} {
+        allow read: if podeVerFinanceiro(timeId);
+
+        allow create: if podeFinanceiro(timeId)
+          && isValidLancamento(request.resource.data)
+          && request.resource.data.criadoPor == request.auth.uid
+          && request.resource.data.criadoEm == request.time
+          && origemLancamentoValida(timeId, lancamentoId, request.resource.data);
+
+        allow update: if podeFinanceiro(timeId)
+          && !lancamentoId.matches('^cob_.*')
+          && isValidLancamento(request.resource.data)
+          && inalterados(['tipo', 'criadoPor', 'criadoEm', 'cobrancaId', 'recorrenteId']);
+
+        allow delete: if podeFinanceiro(timeId)
+          && (!lancamentoId.matches('^cob_.*')
+            || getAfter(cobrancaPath(timeId, resource.data.cobrancaId)).data.status == 'pendente');
       }
 
       // Pedido de entrada: criado pelo próprio com convite vigente; decidido pela gestão.

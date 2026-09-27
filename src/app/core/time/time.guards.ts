@@ -15,16 +15,25 @@ export const timeGuard: CanActivateFn = async (route) => {
 };
 
 /**
- * Telas de gestão do time (membros, convites, solicitações). O router roda os guards em paralelo:
- * espera o timeGuard do mesmo time (entrar() é idempotente) para não usar papéis do time anterior.
+ * Guard de papel no time. O router roda os guards em paralelo: espera o timeGuard do mesmo time
+ * (entrar() é idempotente) para não usar papéis do time anterior. Sem permissão, volta ao elenco.
  */
-export const diretoriaGuard: CanActivateFn = async (route) => {
-  const timeAtual = inject(TimeAtualService);
-  const router = inject(Router);
-  const timeId = route.pathFromRoot.map((r) => r.paramMap.get('timeId')).find((id) => id !== null) ?? null;
-  const ok = timeId !== null && (await timeAtual.entrar(timeId)) && timeAtual.ehDiretoria();
-  return ok || router.createUrlTree(timeId ? ['/t', timeId, 'elenco'] : ['/']);
-};
+function exigePapel(permitido: (timeAtual: TimeAtualService) => boolean): CanActivateFn {
+  return async (route) => {
+    const timeAtual = inject(TimeAtualService);
+    const router = inject(Router);
+    const timeId = route.pathFromRoot.map((r) => r.paramMap.get('timeId')).find((id) => id !== null) ?? null;
+    const ok = timeId !== null && (await timeAtual.entrar(timeId)) && permitido(timeAtual);
+    return ok || router.createUrlTree(timeId ? ['/t', timeId, 'elenco'] : ['/']);
+  };
+}
+
+/** Membros, convites, solicitações. */
+export const diretoriaGuard = exigePapel((t) => t.ehDiretoria());
+/** Configuração financeira, gerar cobranças, baixa. */
+export const tesourariaGuard = exigePapel((t) => t.ehTesouraria());
+/** Hub de gestão, cobranças e caixa (diretoria consulta; tesouraria opera). */
+export const gestaoGuard = exigePapel((t) => t.ehGestao());
 
 export const adminGeralGuard: CanActivateFn = async () => {
   const sessao = inject(SessaoService);

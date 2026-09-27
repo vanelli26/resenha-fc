@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { IdCard } from '@primeicons/angular/id-card';
-import { Link } from '@primeicons/angular/link';
-import { UserPlus } from '@primeicons/angular/user-plus';
+import { Briefcase } from '@primeicons/angular/briefcase';
 import { Users } from '@primeicons/angular/users';
+import { Wallet } from '@primeicons/angular/wallet';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Escudo } from '../../shared/escudo';
 import { SolicitacoesService } from '../solicitacoes/data/solicitacoes.service';
@@ -11,13 +10,13 @@ import { SolicitacoesService } from '../solicitacoes/data/solicitacoes.service';
 interface Aba {
   caminho: string;
   rotulo: string;
-  icone: 'elenco' | 'membros' | 'convites' | 'solicitacoes';
+  icone: 'elenco' | 'financeiro' | 'gestao';
   selo?: number;
 }
 
 @Component({
   selector: 'app-time-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Escudo, Users, IdCard, Link, UserPlus],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Escudo, Users, Wallet, Briefcase],
   templateUrl: './time-layout.html',
   styleUrl: './time-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,15 +28,14 @@ export class TimeLayout {
   protected readonly time = this.timeAtual.time;
   protected readonly abas = computed<Aba[]>(() => {
     const abas: Aba[] = [{ caminho: 'elenco', rotulo: 'Elenco', icone: 'elenco' }];
-    if (this.timeAtual.ehDiretoria()) {
+    if (this.timeAtual.ehGestao()) {
       abas.push(
-        { caminho: 'membros', rotulo: 'Membros', icone: 'membros' },
-        { caminho: 'convites', rotulo: 'Convites', icone: 'convites' },
+        { caminho: 'financeiro', rotulo: 'Financeiro', icone: 'financeiro' },
         {
-          caminho: 'solicitacoes',
-          rotulo: 'Solicitações',
-          icone: 'solicitacoes',
-          selo: this.solicitacoes.qtdPendentes(),
+          caminho: 'gestao',
+          rotulo: 'Gestão',
+          icone: 'gestao',
+          selo: this.timeAtual.ehDiretoria() ? this.solicitacoes.qtdPendentes() : 0,
         },
       );
     }
