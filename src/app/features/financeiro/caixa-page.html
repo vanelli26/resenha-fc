@@ -1,0 +1,156 @@
+<app-financeiro-abas />
+
+<div class="cabecalho-secao">
+  <h2>Caixa</h2>
+  @if (ehTesouraria()) {
+    <p-button label="Novo lançamento" size="small" (onClick)="novo()" />
+  }
+</div>
+
+<div class="cartao saldo">
+  <small class="texto-suave">Saldo em caixa</small>
+  @let valor = saldo();
+  @if (valor !== null) {
+    <strong class="saldo__valor" [class.negativo]="valor < 0">{{ valor | reais }}</strong>
+  } @else {
+    <p-skeleton width="8rem" height="2rem" />
+  }
+  <small class="texto-suave">Todas as receitas menos todas as despesas registradas.</small>
+</div>
+
+<app-navegador-periodo [periodo]="mes()" (mudou)="irParaMes($event)" />
+
+<div class="resumo">
+  <div class="cartao resumo__item">
+    <small class="texto-suave">Receitas</small>
+    <strong class="positivo">{{ resumo().receitas | reais }}</strong>
+  </div>
+  <div class="cartao resumo__item">
+    <small class="texto-suave">Despesas</small>
+    <strong class="negativo">{{ resumo().despesas | reais }}</strong>
+  </div>
+  <div class="cartao resumo__item">
+    <small class="texto-suave">Resultado</small>
+    <strong [class.negativo]="resumo().resultado < 0">{{ resumo().resultado | reais }}</strong>
+  </div>
+</div>
+
+@if (ehTesouraria() && recorrentes().length > 0) {
+  <section class="recorrentes">
+    <h3>Despesas recorrentes do mês</h3>
+    <ul class="lista">
+      @for (r of recorrentes(); track r.despesa.id) {
+        <li class="cartao recorrente">
+          <span class="recorrente__texto">
+            <strong>{{ r.despesa.descricao }}</strong>
+            <small class="texto-suave">{{ r.despesa.valorCentavos | reais }} · vence dia {{ r.despesa.diaVencimento }}</small>
+          </span>
+          @if (r.lancada) {
+            <p-tag value="Lançada" severity="success" />
+          } @else {
+            <p-button label="Lançar" size="small" [outlined]="true" [disabled]="processando() || carregando()" (onClick)="lancarRecorrente(r.despesa)" />
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+<h3 class="titulo-lista">Lançamentos</h3>
+@if (carregando() && lancamentos().length === 0) {
+  <div class="lista">
+    <p-skeleton height="4rem" />
+    <p-skeleton height="4rem" />
+    <p-skeleton height="4rem" />
+  </div>
+} @else {
+  <ul class="lista">
+    @for (l of lancamentos(); track l.id) {
+      <li>
+        <button
+          type="button"
+          class="cartao lancamento"
+          [class.lancamento--fixo]="!ehTesouraria() || ehDeBaixa(l.id)"
+          [disabled]="!ehTesouraria() || ehDeBaixa(l.id)"
+          (click)="editar(l)"
+        >
+          <span class="lancamento__icone" [class.positivo]="l.tipo === 'receita'" [class.negativo]="l.tipo === 'despesa'">
+            @if (l.tipo === 'receita') {
+              <svg data-p-icon="arrow-up" [size]="16" aria-hidden="true"></svg>
+            } @else {
+              <svg data-p-icon="arrow-down" [size]="16" aria-hidden="true"></svg>
+            }
+          </span>
+          <span class="lancamento__texto">
+            <strong>{{ l.descricao }}</strong>
+            <small class="texto-suave">{{ l.categoria }} · {{ l.data.toDate() | date: 'dd/MM' }}</small>
+          </span>
+          <strong class="lancamento__valor" [class.positivo]="l.tipo === 'receita'" [class.negativo]="l.tipo === 'despesa'">
+            {{ l.tipo === 'receita' ? '+' : '−' }} {{ l.valorCentavos | reais }}
+          </strong>
+        </button>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhum lançamento neste mês.</li>
+    }
+  </ul>
+  @if (ehTesouraria()) {
+    <p class="texto-suave dica">Receitas de mensalidade/semestralidade entram pela baixa em Cobranças e só saem pelo estorno.</p>
+  }
+}
+
+<p-dialog
+  [header]="emEdicao() ? 'Editar lançamento' : 'Novo lançamento'"
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [style]="{ width: 'min(26rem, 100vw - 2rem)' }"
+>
+  <form class="formulario" (submit)="$event.preventDefault(); salvar()">
+    @if (!emEdicao()) {
+      <p-selectbutton [formField]="formulario.tipo" [options]="opcoesTipo" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabel="Tipo" />
+    }
+    <label class="campo">
+      <span>Descrição</span>
+      <input pInputText [formField]="formulario.descricao" placeholder="Ex.: Bolas novas" autocomplete="off" />
+      @if (formulario.descricao().touched() && formulario.descricao().invalid()) {
+        <small class="campo__erro">{{ formulario.descricao().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Categoria</span>
+      <input pInputText [formField]="formulario.categoria" list="categorias-caixa" placeholder="Ex.: Material" autocomplete="off" />
+      <datalist id="categorias-caixa">
+        @for (c of categorias(); track c) {
+          <option [value]="c"></option>
+        }
+      </datalist>
+      @if (formulario.categoria().touched() && formulario.categoria().invalid()) {
+        <small class="campo__erro">{{ formulario.categoria().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Valor</span>
+      <p-inputnumber [formField]="formulario.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
+      @if (formulario.valor().touched() && formulario.valor().invalid()) {
+        <small class="campo__erro">{{ formulario.valor().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Data</span>
+      <input pInputText type="date" [formField]="formulario.data" />
+      @if (formulario.data().touched() && formulario.data().invalid()) {
+        <small class="campo__erro">{{ formulario.data().errors()[0].message }}</small>
+      }
+    </label>
+
+    <div class="acoes">
+      @if (emEdicao()) {
+        <p-button label="Excluir" severity="danger" [text]="true" type="button" class="acoes__remover" [disabled]="processando()" (onClick)="excluir()" />
+      }
+      <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
+      <p-button label="Salvar" type="submit" [loading]="processando()" />
+    </div>
+  </form>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

@@ -1,0 +1,84 @@
+<section class="despesas">
+  <div class="cabecalho-secao">
+    <h3>Despesas recorrentes</h3>
+    @if (podeAdicionar()) {
+      <p-button label="Adicionar" size="small" [outlined]="true" (onClick)="adicionar()" />
+    }
+  </div>
+  <p class="texto-suave dica">
+    Gastos fixos do time (ex.: aluguel do campo). No Caixa, cada uma é lançada uma vez por mês com um toque.
+    Até {{ maximo }}.
+  </p>
+
+  <ul class="lista">
+    @for (despesa of despesas(); track despesa.id) {
+      <li>
+        <button type="button" class="cartao despesa" (click)="editar(despesa)">
+          <span class="despesa__texto">
+            <strong>{{ despesa.descricao }}</strong>
+            <small class="texto-suave">{{ despesa.categoria }} · vence dia {{ despesa.diaVencimento }}</small>
+          </span>
+          <strong>{{ despesa.valorCentavos | reais }}</strong>
+        </button>
+      </li>
+    } @empty {
+      <li class="texto-suave">Nenhuma despesa recorrente.</li>
+    }
+  </ul>
+</section>
+
+<p-dialog
+  [header]="emEdicao() ? 'Editar despesa' : 'Nova despesa recorrente'"
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [style]="{ width: 'min(26rem, 100vw - 2rem)' }"
+>
+  <form class="formulario" (submit)="$event.preventDefault(); salvar()">
+    <label class="campo">
+      <span>Descrição</span>
+      <input pInputText [formField]="formulario.descricao" placeholder="Ex.: Aluguel do campo" autocomplete="off" />
+      @if (formulario.descricao().touched() && formulario.descricao().invalid()) {
+        <small class="campo__erro">{{ formulario.descricao().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Categoria</span>
+      <input pInputText [formField]="formulario.categoria" placeholder="Ex.: Campo" autocomplete="off" />
+      @if (formulario.categoria().touched() && formulario.categoria().invalid()) {
+        <small class="campo__erro">{{ formulario.categoria().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Valor</span>
+      <p-inputnumber [formField]="formulario.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
+      @if (formulario.valor().touched() && formulario.valor().invalid()) {
+        <small class="campo__erro">{{ formulario.valor().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Dia do vencimento</span>
+      <p-inputnumber [formField]="formulario.dia" [useGrouping]="false" [fluid]="true" />
+      @if (formulario.dia().touched() && formulario.dia().invalid()) {
+        <small class="campo__erro">{{ formulario.dia().errors()[0].message }}</small>
+      }
+    </label>
+
+    <div class="acoes">
+      @if (emEdicao()) {
+        <p-button
+          label="Remover"
+          severity="danger"
+          [text]="true"
+          type="button"
+          class="acoes__remover"
+          [disabled]="salvando()"
+          (onClick)="remover()"
+        />
+      }
+      <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
+      <p-button label="Salvar" type="submit" [loading]="salvando()" />
+    </div>
+  </form>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />

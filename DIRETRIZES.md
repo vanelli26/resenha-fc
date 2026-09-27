@@ -328,6 +328,7 @@ src/app/
 | 26/09/2026 | Navegação do time: Elenco · Financeiro · Gestão (mais Agenda e Mural nas próximas fases). Gestão reúne Membros, Convites, Solicitações e Configuração financeira em `/t/:timeId/gestao/*`; endereços antigos redirecionam. |
 | 26/09/2026 | Despesas recorrentes limitadas a 10 por time (Rules validam item a item, sem laço). Cobrança avulsa depende de eventos (Fase 3). |
 | 26/09/2026 | Financeiro navega por período (barra ‹ período ›, `?periodo=AAAA-MM` ou `AAAA-S1/S2` na URL): por mês se o time tem mensal (ou nenhuma), por semestre se tem semestral; com as duas, o usuário escolhe. Cobranças do período = vencimento dentro dele; visão "Em aberto" lista todas as pendentes. O caixa (2b) usa a mesma barra, por mês. |
+| 26/09/2026 | Caixa: saldo geral via `sum` no servidor (receitas − despesas); totais do mês somados na tela a partir da lista do mês (já carregada e limitada a 500), sem consultas de agregação extras. Lançamento de baixa (`cob_`) não é editável nem excluível no caixa. Despesas recorrentes cadastradas na Configuração financeira e lançadas no Caixa, mês a mês. |
 
 ---
 

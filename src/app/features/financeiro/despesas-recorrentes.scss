@@ -1,0 +1,44 @@
+.despesas {
+  margin-top: 2rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.125rem;
+  }
+}
+
+.dica {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.despesa {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--p-primary-color);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.despesa__texto {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.acoes__remover {
+  margin-right: auto;
+}

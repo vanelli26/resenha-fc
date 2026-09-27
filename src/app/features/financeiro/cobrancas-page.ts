@@ -27,6 +27,7 @@ import { ReaisPipe } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
 import { ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
 import { CobrancasService } from './data/cobrancas.service';
+import { FinanceiroAbas } from './financeiro-abas';
 import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
@@ -57,6 +58,7 @@ interface CobrancaVisao {
     ReaisPipe,
     SituacaoCobrancaTag,
     NavegadorPeriodo,
+    FinanceiroAbas,
   ],
   providers: [ConfirmationService],
   templateUrl: './cobrancas-page.html',

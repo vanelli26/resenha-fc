@@ -24,6 +24,12 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../financeiro/cobrancas-page').then((m) => m.CobrancasPage),
       },
       {
+        path: 'financeiro/caixa',
+        canActivate: [gestaoGuard],
+        title: 'Caixa · ResenhaFC',
+        loadComponent: () => import('../financeiro/caixa-page').then((m) => m.CaixaPage),
+      },
+      {
         path: 'financeiro/gerar',
         canActivate: [tesourariaGuard],
         title: 'Gerar cobranças · ResenhaFC',

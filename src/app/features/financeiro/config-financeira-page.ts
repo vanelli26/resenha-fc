@@ -12,6 +12,7 @@ import { centavosParaReais, reaisParaCentavos } from '../../shared/dinheiro';
 import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
 import { ConfigFinanceiraService, ModalidadesFinanceiras } from './data/config-financeira.service';
+import { DespesasRecorrentes } from './despesas-recorrentes';
 
 // Valores em reais no formulário; centavos só ao gravar.
 interface FormModalidades {
@@ -60,7 +61,7 @@ const mesesDe = (inicio: number) =>
 
 @Component({
   selector: 'app-config-financeira-page',
-  imports: [FormField, ButtonModule, InputNumberModule, SelectModule, ToggleSwitchModule, Voltar],
+  imports: [FormField, ButtonModule, InputNumberModule, SelectModule, ToggleSwitchModule, Voltar, DespesasRecorrentes],
   templateUrl: './config-financeira-page.html',
   styleUrl: './config-financeira-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
