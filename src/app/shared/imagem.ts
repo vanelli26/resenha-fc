@@ -44,16 +44,21 @@ function desenhar(bitmap: ImageBitmap, tamanho: number): string {
 /** Foto de postagem: lado maior até 1600px, JPEG/WebP comprimido para o Storage. */
 export interface FotoProcessada {
   blob: Blob;
-  tipo: 'image/webp' | 'image/jpeg';
+  tipo: 'image/webp' | 'image/jpeg' | 'image/png';
   largura: number;
   altura: number;
 }
 
 /**
  * Reduz a foto no navegador antes do envio (economiza dados do celular e armazenamento).
- * WebP quando o navegador codifica; senão JPEG (Safari antigo).
+ * WebP quando o navegador codifica; senão o formato alternativo: JPEG para fotos, PNG para imagens com
+ * transparência (escudo).
  */
-export async function fotoParaEnvio(arquivo: File, ladoMaximo = 1600): Promise<FotoProcessada> {
+export async function fotoParaEnvio(
+  arquivo: File,
+  ladoMaximo = 1600,
+  alternativo: 'image/jpeg' | 'image/png' = 'image/jpeg',
+): Promise<FotoProcessada> {
   if (!arquivo.type.startsWith('image/')) {
     throw new Error('Escolha um arquivo de imagem.');
   }
@@ -68,11 +73,11 @@ export async function fotoParaEnvio(arquivo: File, ladoMaximo = 1600): Promise<F
     contexto.imageSmoothingQuality = 'high';
     contexto.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     const webp = await paraBlob(canvas, 'image/webp', 0.82);
-    const blob = webp?.type === 'image/webp' ? webp : await paraBlob(canvas, 'image/jpeg', 0.85);
+    const blob = webp?.type === 'image/webp' ? webp : await paraBlob(canvas, alternativo, 0.85);
     if (!blob) throw new Error('Não foi possível processar esta imagem.');
     return {
       blob,
-      tipo: blob.type === 'image/webp' ? 'image/webp' : 'image/jpeg',
+      tipo: blob.type === 'image/webp' ? 'image/webp' : alternativo,
       largura: canvas.width,
       altura: canvas.height,
     };

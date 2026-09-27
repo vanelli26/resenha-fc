@@ -7,6 +7,9 @@ rules_version = '2';
 //   Envio: membro do time, só imagem webp/jpeg até 5 MB, metadado autorUid = quem envia; não sobrescreve.
 //   Leitura (SDK): membro do time ou adminGeral. As URLs de download (com token) são as gravadas no post.
 //   Exclusão: quem enviou (autorUid) ou a diretoria/adminGeral.
+// times/{timeId}/escudo/{data-hora}.{webp|png|jpeg}
+//   Envio e exclusão: só adminGeral (quem edita o time). Imagem até 1 MB. Leitura: qualquer logado
+//   (aparece em "Meus times" e no seletor de times).
 // Consulta o Firestore (firestore.get/exists): exige o papel de IAM concedido pela CLI no deploy.
 // Todo o resto: negado.
 // ===============================================================
@@ -34,6 +37,19 @@ service firebase.storage {
     function diretoria(timeId) {
       return isAdminGeral()
         || (membro(timeId) && 'diretoria' in firestore.get(acesso(timeId)).data.papeis);
+    }
+
+    match /times/{timeId}/escudo/{arquivo} {
+      allow read: if logado();
+
+      allow create: if isAdminGeral()
+        && arquivo.matches('^[0-9]{13}[.](webp|png|jpeg)$')
+        && request.resource.size < 1024 * 1024
+        && request.resource.contentType.matches('image/(webp|png|jpeg)');
+
+      allow update: if false;
+
+      allow delete: if isAdminGeral();
     }
 
     match /times/{timeId}/recados/{recadoId}/{arquivo} {

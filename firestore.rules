@@ -15,7 +15,8 @@ rules_version = '2';
 //
 // times/{timeId}                       timeId = slug
 //   nome: string (1..60) · slug: string (= timeId, imutável) · cor: nome de paleta (lista fixa)
-//   escudo: data URL base64 de imagem webp/png/jpeg (<= 120000 caracteres) | null · criadoEm: timestamp (imutável)
+//   escudo: URL do Storage do projeto (times/{timeId}/escudo/…) | data URL base64 antigo (<= 120000) | null
+//   criadoEm: timestamp (imutável)
 //   (campo antigo `tema` só pode ser removido)
 //   financeiro: { planos: list 0..10 de {id [a-z0-9]{3,20} (≠ isento), nome 1..40, periodicidade: 'mensal'|'semestral'|'avulso', valorCentavos > 0},
 //                 vencimentos: {diaMensal, diaSemestral 1..31, mesS1 1..6, mesS2 7..12},
@@ -291,7 +292,10 @@ service cloud.firestore {
           'cyan', 'teal', 'emerald', 'green', 'lime', 'yellow', 'amber', 'orange']
         && (data.escudo == null
           || (data.escudo is string && data.escudo.size() <= 120000
-            && data.escudo.matches('^data:image/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$')))
+            && data.escudo.matches('^data:image/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$'))
+          || (data.escudo is string && data.escudo.size() <= 2048
+            && data.escudo.matches('^https://firebasestorage[.]googleapis[.]com/v0/b/resenhafc-2f357[.]firebasestorage[.]app/o/times%2F'
+              + timeId + '%2Fescudo%2F.*')))
         && data.criadoEm is timestamp
         && data.financeiro is map;
     }

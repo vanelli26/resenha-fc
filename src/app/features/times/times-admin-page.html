@@ -23,18 +23,18 @@
   <div class="campo">
     <span>Escudo</span>
     <div class="escudo">
-      <app-escudo class="escudo__previa" [src]="escudo() ?? ''" [nome]="modelo().nome || '?'" />
+      <app-escudo class="escudo__previa" [src]="previaEscudo() ?? ''" [nome]="modelo().nome || '?'" />
       <label class="escudo__enviar">
         <input type="file" accept="image/*" (change)="escolherEscudo($event)" />
         <span class="p-button p-button-outlined p-button-sm">
-          {{ processandoImagem() ? 'Processando…' : escudo() ? 'Trocar imagem' : 'Enviar imagem' }}
+          {{ processandoImagem() ? 'Processando…' : previaEscudo() ? 'Trocar imagem' : 'Enviar imagem' }}
         </span>
       </label>
-      @if (escudo()) {
-        <p-button label="Remover" size="small" [text]="true" severity="danger" type="button" (onClick)="escudo.set(null)" />
+      @if (previaEscudo()) {
+        <p-button label="Remover" size="small" [text]="true" severity="danger" type="button" (onClick)="removerEscudo()" />
       }
     </div>
-    <small class="campo__dica">PNG, JPG, WebP ou SVG. A imagem é reduzida para 256px.</small>
+    <small class="campo__dica">PNG, JPG, WebP ou SVG. A imagem é reduzida para 512px (fundo transparente é mantido).</small>
   </div>
 
   <fieldset class="campo cores">

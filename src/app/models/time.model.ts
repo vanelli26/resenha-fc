@@ -26,9 +26,6 @@ export const CORES_TIME = [
 ] as const;
 export type CorTime = (typeof CORES_TIME)[number];
 
-/** Escudo enviado pelo usuário: data URL de imagem já redimensionada (sem Storage no plano Spark). */
-export const TAMANHO_MAX_ESCUDO = 120_000;
-
 export interface PlanoCobranca {
   /** `mensal`/`semestral`/`avulso` nos planos migrados; aleatório [a-z0-9] nos novos. */
   id: string;
@@ -123,7 +120,7 @@ export interface Time {
   nome: string;
   slug: string;
   cor: CorTime;
-  /** data URL (image/webp ou png, até TAMANHO_MAX_ESCUDO caracteres) ou null. */
+  /** URL do Storage (times/{timeId}/escudo/…) ou null. Times antigos: data URL (até 120 000 caracteres). */
   escudo: string | null;
   criadoEm: Timestamp;
   /** Sempre no formato de planos (normalizado ao carregar; ver `TimeGravado`). */

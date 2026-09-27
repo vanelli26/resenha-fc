@@ -134,7 +134,7 @@ usuarios/{uid}
   adminGeral: bool                       // só alterável pelo console/Admin SDK
 
 times/{timeId}                           // timeId = slug (imutável; usado na URL /t/:timeId)
-  nome, slug, cor, escudo, criadoEm      // cor = paleta da lista; escudo = data URL (upload) | null (ver 6.1)
+  nome, slug, cor, escudo, criadoEm      // cor = paleta da lista; escudo = URL do Storage | data URL antigo | null (ver 6.1)
   esportes?: ("campo" | "society" | "futsal")[]   // ausente = ["society"]
   financeiro: {
     planos: [{ id, nome, periodicidade: "mensal" | "semestral" | "avulso", valorCentavos }]   // até 10
@@ -308,7 +308,7 @@ src/app/
 - Cada time escolhe a **cor predominante** em uma lista fechada (`CORES_TIME`): paletas do PrimeUIX mais `preto` (preto e branco: primária preta no claro, branca no escuro). Paletas claras (`yellow`, `amber`, `lime`, `cyan`, `sky`) usam texto preto sobre a primária. O time guarda só o nome da cor; a paleta é montada em `app-theme.ts`.
 - Troca de time chama `aplicarTemaDoTime(cor)`.
 - Status financeiros fixos em qualquer cor, sempre com ícone além da cor (a cor "pendente" pode coincidir com a do time): pago `success` + check; pendente `warn` + relógio; atrasado `danger` + exclamação; isento/cancelado `secondary`.
-- Escudo enviado pela diretoria/adminGeral: redimensionado no navegador (lado maior 256px, WebP; PNG onde não houver encoder WebP) e gravado como data URL no documento do time (até 120 000 caracteres). Sem Storage enquanto o plano for Spark.
+- Escudo enviado pelo adminGeral: redimensionado no navegador (lado maior 512px, WebP; PNG onde não houver encoder WebP, mantendo transparência) e enviado ao Storage em `times/{timeId}/escudo/{data-hora}.ext`; o time guarda a URL de download. Trocar ou remover apaga o arquivo anterior. Escudos antigos em data URL continuam válidos até serem trocados.
 - Não usar cores hexadecimais soltas em componentes; usar tokens do tema (`var(--p-primary-color)` etc.).
 - Marca oficial em `public/marca/` (balão de conversa com campo, fundo verde listrado): `icone.svg`/`icone-32.png` (favicon), `apple-touch-icon.png` (180px, da versão maskable), `logo-fundo-claro.svg`/`logo-fundo-escuro.svg` (usados por `shared/logo.ts` conforme o modo; no celular estreito, só o ícone) e `fundo.svg`. Cores fixas da marca, não seguem a cor do time. Pacote completo (192/512/maskable) guardado para o manifest da Fase 5.
 - Fundo do app (`styles.scss`): modo escuro usa `marca/fundo.svg`; modo claro, brilho da primária + faixas sutis de gramado.
@@ -400,6 +400,7 @@ src/app/
 | 27/09/2026 | M1 do mural: Storage em uso (`storage.rules`, token lazy `STORAGE`). Postagens com 1 a 4 fotos reduzidas no aparelho; qualquer membro publica; Firestore Rules validam cada foto (caminho do próprio post) e as permissões de autor/diretoria; Storage Rules validam membro, tipo, tamanho e autor. |
 | 27/09/2026 | Regras do Storage consultam o Firestore (membro/diretoria): exige o papel **Firebase Rules Firestore Service Agent** para a conta de serviço do Storage (`service-…@gcp-sa-firebasestorage.iam.gserviceaccount.com`), concedido pelo usuário no IAM. Sem ele, todo envio falha com `storage/unauthorized`. |
 | 27/09/2026 | M2 do mural: curtidas com contador no post validado nas Rules (±1 com `exists`/`existsAfter` da curtida da própria pessoa); comentários sem contador (contagem `count` no servidor por post ao carregar o feed). Moderação de comentários: autor, autor do post e diretoria. |
+| 27/09/2026 | Escudo do time passa para o Storage (substitui a decisão de data URL no documento): 512px, nome com data/hora (URL nova a cada troca, sem cache velho), anterior apagado. Storage: só adminGeral envia/apaga, qualquer logado lê. Firestore Rules aceitam só URL do bucket do projeto na pasta do próprio time (ou data URL antigo). Logos de apoiadores continuam em data URL. |
 
 ---
 
