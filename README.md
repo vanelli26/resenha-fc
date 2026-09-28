@@ -8,7 +8,7 @@ Gestão de times de futebol (society, campo e futsal): elenco, cobranças e caix
 
 ## Stack
 
-Angular 22 (standalone, zoneless, signals, Signal Forms) · PrimeNG 22 · Firebase (SDK modular): Authentication (Google), Firestore, Storage e Hosting, plano Blaze. Sem Cloud Functions.
+Angular 22 (standalone, zoneless, signals, Signal Forms) · PrimeNG 22 · Firebase (SDK modular): Authentication (Google), Firestore, Storage e Hosting, plano Blaze. Sem Cloud Functions. Instalável como app (PWA, service worker do Angular só no build de produção; DIRETRIZES 6.3).
 
 ## Rodar local
 

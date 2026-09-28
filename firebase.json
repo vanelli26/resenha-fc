@@ -22,7 +22,7 @@
     ],
     "headers": [
       {
-        "source": "**/*.@(js|css)",
+        "source": "**/!(ngsw-worker|safety-worker|worker-basic.min).@(js|css)",
         "headers": [
           {
             "key": "Cache-Control",
@@ -32,6 +32,15 @@
       },
       {
         "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ngsw-worker.js|safety-worker.js|worker-basic.min.js|ngsw.json|manifest.webmanifest)",
         "headers": [
           {
             "key": "Cache-Control",

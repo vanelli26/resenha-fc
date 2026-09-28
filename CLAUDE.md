@@ -30,7 +30,7 @@ Não inventar collections, campos, regras de negócio, papéis, permissões, cla
 
 ## Firebase
 
-- Produtos em uso (plano Blaze): Authentication (Google), Firestore (regras em `firestore.rules`, índices em `firestore.indexes.json`), Storage (regras em `storage.rules`; fotos do mural) e Hosting (`firebase.json`, `.firebaserc`). Cloud Functions **não** é usado até decisão registrada em DIRETRIZES, seção 10. Manter esta lista atualizada quando isso mudar.
+- Produtos em uso (plano Blaze): Authentication (Google), Firestore (regras em `firestore.rules`, índices em `firestore.indexes.json`), Storage (regras em `storage.rules`; fotos do mural) e Hosting (`firebase.json`, `.firebaserc`; app servido como PWA com service worker do Angular, ver DIRETRIZES 6.3). Cloud Functions **não** é usado até decisão registrada em DIRETRIZES, seção 10. Manter esta lista atualizada quando isso mudar.
 - Publicar (`firebase deploy`) só quando o usuário pedir — ver DIRETRIZES 8.1. Commit e push também só quando pedido (repositório público: nada de segredo).
 - Toda mudança em collection/dado sensível avalia `firestore.rules` no mesmo trabalho. Autorização no Angular é UX, não segurança.
 - Rules não são filtros: toda consulta do frontend deve conter os mesmos filtros que a regra exige (ex.: jogador consultando cobranças filtra por `atletaId`).

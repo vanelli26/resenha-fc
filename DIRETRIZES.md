@@ -331,7 +331,7 @@ src/app/
 - Status financeiros fixos em qualquer cor, sempre com ícone além da cor (a cor "pendente" pode coincidir com a do time): pago `success` + check; pendente `warn` + relógio; atrasado `danger` + exclamação; isento/cancelado `secondary`.
 - Escudo enviado pelo adminGeral: redimensionado no navegador (lado maior 512px, WebP; PNG onde não houver encoder WebP, mantendo transparência) e enviado ao Storage em `times/{timeId}/escudo/{data-hora}.ext`; o time guarda a URL de download. Trocar ou remover apaga o arquivo anterior. Escudos antigos em data URL continuam válidos até serem trocados.
 - Não usar cores hexadecimais soltas em componentes; usar tokens do tema (`var(--p-primary-color)` etc.).
-- Marca oficial em `public/marca/` (balão de conversa com campo, fundo verde listrado): `icone.svg`/`icone-32.png` (favicon), `apple-touch-icon.png` (180px, da versão maskable), `logo-fundo-claro.svg`/`logo-fundo-escuro.svg` (usados por `shared/logo.ts` conforme o modo; no celular estreito, só o ícone) e `fundo.svg`. Cores fixas da marca, não seguem a cor do time. Pacote completo (192/512/maskable) guardado para o manifest da Fase 5.
+- Marca oficial em `public/marca/` (balão de conversa com campo, fundo verde listrado): `icone.svg`/`icone-32.png` (favicon), `apple-touch-icon.png` (180px, da versão maskable), `logo-fundo-claro.svg`/`logo-fundo-escuro.svg` (usados por `shared/logo.ts` conforme o modo; no celular estreito, só o ícone) e `fundo.svg`. Cores fixas da marca, não seguem a cor do time. Ícones do app instalado (`icone-192.png`, `icone-512.png`, `icone-maskable-512.png`) gerados do `icone.svg` (maskable: fundo sem cantos e desenho a 80%, na área segura).
 - Fundo do app (`styles.scss`): modo escuro usa `marca/fundo.svg`; modo claro, brilho da primária + faixas sutis de gramado.
 - Celular (< 768px): navegação do time em barra fixa no rodapé com ícone e texto; navegador: abas no topo. Áreas de toque ≥ 44px e respeito às safe areas (notch/barra do iOS).
 
@@ -372,6 +372,14 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 
 **Nomes** — domínio e código em pt-BR (classes, métodos, signals); sufixos só para tipo de arquivo (`-page`, `.service`, `.model`, `.routes`). Signals booleanos como estado (`carregando`, `salvando`, `processando`), ações como verbos (`salvar`, `excluir`).
 
+### 6.3 PWA (app instalável)
+
+- `public/manifest.webmanifest`: nome ResenhaFC, `display: standalone`, `start_url` e `scope` `/`, fundo e tema `#09090b`, pt-BR, ícones da marca (6.1). `index.html` liga o manifest e as metas do iPhone (tela cheia, barra de status translúcida; o layout respeita as safe areas).
+- Service worker oficial do Angular (`@angular/service-worker`, `ngsw-config.json`), só no build de produção, registrado quando o app estabiliza. Guarda os arquivos do app no aparelho (grupo `app` em prefetch: index, JS, CSS, manifest; grupo `marca` sob demanda). **Sem cache de dados**: Firestore e Storage continuam online pelo SDK. Rotas com `__` (ex.: `/__/auth/…` do login Google) ficam fora da navegação do service worker.
+- Versão nova: baixada em segundo plano; o shell mostra "Nova versão do ResenhaFC disponível · Atualizar" (`core/pwa/atualizacao-app.service.ts`). Confere de novo ao voltar para o app (no máximo a cada 5 min). Cache quebrado no aparelho → recarrega.
+- "Instalar app" no menu do usuário (`core/pwa/instalacao-app.service.ts`): no Chrome/Android usa o pedido nativo (`beforeinstallprompt`); no iPhone mostra as instruções (Compartilhar › Adicionar à Tela de Início). Some quando o app já está aberto instalado.
+- Hosting: JS/CSS com hash ficam em cache por 1 ano; `ngsw-worker.js`, `safety-worker.js`, `worker-basic.min.js`, `ngsw.json`, `manifest.webmanifest` e `index.html` sempre revalidam (`no-cache`), senão a atualização não chega. Para desligar o service worker em produção, publicar com o `safety-worker.js` no lugar do `ngsw-worker.js` (procedimento oficial do Angular).
+
 ## 7. Firestore — consultas e índices
 
 - Toda listagem com limite/paginação quando puder crescer (lançamentos, cobranças, recados).
@@ -399,7 +407,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 - **Fase 2 — Financeiro**: configuração financeira do time, geração de cobranças (mensal, semestral), baixa/estorno, lançamentos, despesas recorrentes, painel do caixa, visão "Minhas cobranças".
 - **Fase 3 — Agenda e mural**: eventos, presença, encerramento de evento, cobrança de avulsos, mural.
 - **Fase 4 — Estatísticas, campeonatos e escalação**: 4a artilharia e assistências (automático + ajuste); 4b campeonatos; 4c campinho com escalação por evento (formação por esporte + vagas).
-- **Fase 5 — Evoluções** (cada item exige decisão): PWA, notificações push, comprovante de pagamento (Storage já disponível), automação agendada (Functions), sorteio equilibrado de times.
+- **Fase 5 — Evoluções** (cada item exige decisão): PWA (feito, 6.3), notificações push, comprovante de pagamento (Storage já disponível), automação agendada (Functions), sorteio equilibrado de times.
 
 ---
 
@@ -462,6 +470,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Fase 4 em três entregas: 4a estatísticas → 4b campeonatos → 4c escalação (formação por esporte + vagas tocáveis com quem disse Vou). Artilharia e assistências **automáticas** a partir dos gols dos eventos, com **ajuste manual** da diretoria (coleção `ajustesEstatistica`, guarda a diferença). Cartões fora por enquanto. Artilharia como aba interna do Elenco (sem 6ª aba no rodapé); Campeonatos irão para a Agenda. Substitui `campeonatos/{id}/estatisticas` lançadas à mão. |
 | 27/09/2026 | Fase 4b (Campeonatos): cadastro pela diretoria (nome, temporada livre, situação andamento/encerrado; sem exclusão), como aba interna da Agenda. Evento do tipo campeonato aponta opcionalmente para um campeonato (`campeonatoId`, Rules conferem tipo e existência). Tela do campeonato com campanha derivada dos placares, artilharia própria (ajuste com escopo `c-{id}`) e jogos. Índice `campeonatoId + data`. |
 | 27/09/2026 | Fase 4c (Escalação): tela própria por evento esportivo, formação da lista fechada por esporte e vagas no campinho (diretoria toca e escolhe; troca de lugar ao escolher quem já está em campo). Titulares gravados como `{atletaId, vaga}` (posição derivada da formação), substituindo `{posicao, x, y}`; reservas calculadas (quem vai e não está em campo), não gravadas. Envio da escalação em texto pelo WhatsApp. Fase 4 concluída. |
+| 27/09/2026 | Fase 5 começa pelo PWA (6.3): manifest, ícones gerados da marca, `@angular/service-worker` 22.2 (dependência oficial do Angular, aprovada) com cache só dos arquivos do app, aviso de versão nova e "Instalar app" (pedido nativo no Android; instruções no iPhone). Cabeçalhos do Hosting ajustados para o service worker revalidar sempre. |
 
 ---
 

@@ -45,6 +45,9 @@
             @case ('escuro') {
               <svg data-p-icon="moon" [size]="16"></svg>
             }
+            @case ('instalar') {
+              <svg data-p-icon="mobile" [size]="16"></svg>
+            }
             @case ('sair') {
               <svg data-p-icon="sign-out" [size]="16"></svg>
             }
@@ -57,7 +60,21 @@
 </header>
 
 <main class="conteudo">
+  @if (atualizacao.disponivel()) {
+    <div class="cartao atualizacao" role="status">
+      <span>Nova versão do ResenhaFC disponível.</span>
+      <p-button label="Atualizar" size="small" (onClick)="atualizacao.atualizar()" />
+    </div>
+  }
   <router-outlet />
 </main>
+
+<p-dialog header="Instalar o ResenhaFC" [(visible)]="instrucoesIos" [modal]="true" [style]="{ width: 'min(24rem, 100vw - 2rem)' }">
+  <ol class="instrucoes">
+    <li>No Safari, toque em <strong>Compartilhar</strong> (quadrado com seta para cima).</li>
+    <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+    <li>Toque em <strong>Adicionar</strong>. O app abre pelo ícone, em tela cheia.</li>
+  </ol>
+</p-dialog>
 
 <p-toast position="top-center" />
