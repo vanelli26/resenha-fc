@@ -20,7 +20,7 @@ Usuários acessam majoritariamente pelo celular. Idioma pt-BR, moeda BRL, fuso `
 - **Futebol Profissa**: campo próprio (sem despesa de campo); cobrança semestral dos jogadores; os benefícios de quem paga a semestralidade existem mas **não são gerenciados pelo sistema**.
 - Em ambos: avulsos pagam por jogo; goleiros não pagam (modalidade `isento`).
 - Cada time é independente: elenco, caixa, agenda, mural e campeonatos próprios. Não existe caixa consolidado entre times.
-- Esportes: cada time pratica um ou mais entre `campo`, `society` e `futsal` (o Profissa tem os três). Um time continua sendo um elenco e um caixa só; o esporte define as posições disponíveis (3.1). Definidos pelo adminGeral ou pela diretoria (Gestão › Esportes). Time sem o campo = só society.
+- Esportes: cada time pratica um ou mais entre `campo`, `society` e `futsal` (o Profissa tem os três). Um time continua sendo um elenco e um caixa só; o esporte define as posições disponíveis (3.1). Definidos pela diretoria (Gestão › Esportes). Time sem o campo = só society.
 
 ### 2.2 Atleta
 
@@ -34,7 +34,7 @@ Uma pessoa que joga nos dois times tem **um atleta em cada time**, ambos ligados
 
 | Papel | Escopo | Pode |
 |---|---|---|
-| `adminGeral` | global | criar/editar times, definir diretoria e tesouraria de qualquer time, tudo que diretoria e tesouraria podem |
+| `adminGeral` | global | aprovar ou reprovar pedidos de time novo e ver a lista de times (nome, escudo, endereço). **Não** entra nos times nem vê elenco, agenda, mural, caixa ou cobranças; para isso precisa ser membro, como qualquer pessoa (2.12) |
 | `diretoria` | por time | elenco, convites, aprovar entradas, agenda, presença, escalação, mural, campeonatos |
 | `tesouraria` | por time | configuração financeira, cobranças, baixas, lançamentos, relatórios do caixa |
 | `jogador` | por time | ver mural, agenda, elenco e campeonatos do time; confirmar a própria presença; ver as próprias cobranças |
@@ -133,7 +133,7 @@ Por evento esportivo (não em confraternização/outro; não em cancelado), tela
 1. Diretoria gera um convite do time (código aleatório, validade).
 2. Pessoa abre o link, faz login e cria uma **solicitação** para aquele time.
 3. Diretoria aprova: vincula a um atleta existente ou cria um novo, define modalidade, e cria o acesso com papel `jogador`.
-4. Diretoria (ou adminGeral) pode acrescentar ou remover papéis depois, incluindo `diretoria` e `tesouraria`.
+4. Diretoria pode acrescentar ou remover papéis depois, incluindo `diretoria` e `tesouraria`. Novos membros entram só por convite (não há mais inclusão direta pela lista de usuários).
 
 ### 2.12 Times novos (pedido e aprovação)
 
@@ -144,7 +144,7 @@ A plataforma aceita outros times além dos dois iniciais. Qualquer pessoa logada
 3. adminGeral, em Gerenciar times: pedidos pendentes (nome, endereço, quem pediu, e-mail, data) com **Aprovar** ou **Reprovar** (motivo opcional, até 200) e a lista dos já decididos. Não há limite de times por pessoa: cada pedido passa pela aprovação.
 4. **Criar time** (pedido aprovado): num lote, `times/{slug}` com o nome e a cor do pedido (Rules conferem), sem escudo, configuração financeira padrão, e o acesso de quem pediu com `diretoria` e `tesouraria` (sem atleta; entra no elenco depois por Membros, se jogar). Abre **Gestão › Dados do time** para escolher o escudo. O pedido aprovado fica como histórico.
 5. **Dados do time** (diretoria, `/t/:timeId/gestao/time`): nome, cor e escudo do próprio time; o endereço não muda. O nome novo aparece em "Meus times" e no seletor do topo (lidos do time); `acessos.timeNome` e `convites.timeNome` antigos não são reescritos (3.2).
-6. Próxima entrega: o adminGeral perde o passe livre no conteúdo dos times, incluindo caixa e cobranças, e passa a ver só a lista de times e os pedidos (C).
+6. **adminGeral sem passe livre**: "Meus times" e o seletor do topo mostram só os times de que ele é membro; os demais aparecem só em Gerenciar times (lista somente leitura + pedidos). Rules: o adminGeral lê apenas o documento `times/{timeId}` (lista) e `pedidosTime`; nenhuma subcoleção (acessos, atletas, cobranças, lançamentos, eventos, mural…), nem `usuarios` de outras pessoas, nem o Storage dos times. Não cria nem edita times: time novo só por pedido aprovado.
 
 ---
 
@@ -273,10 +273,10 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 
 | Coleção | Leitura | Escrita |
 |---|---|---|
-| `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
+| `usuarios/{uid}` | o próprio | o próprio (exceto `adminGeral`) |
 | `pedidosTime/{slug}` | quem pediu / adminGeral | cria: qualquer logado, para si, `pendente`, endereço livre (sem time nem pedido); decide (`pendente` → `aprovado`/`reprovado`): adminGeral; apaga: quem pediu (pendente ou reprovado) ou adminGeral |
-| `times/{timeId}` | quem tem acesso ao time | cria: adminGeral ou quem tem pedido aprovado (nome e cor do pedido, junto com o próprio acesso); diretoria/adminGeral: nome, cor, escudo, esportes; tesouraria/adminGeral: só `financeiro`, validado |
-| `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel); o fundador cria o próprio (`diretoria` + `tesouraria`) no lote que cria o time do pedido aprovado |
+| `times/{timeId}` | quem tem acesso ao time; adminGeral (só este documento, para a lista) | cria: quem tem pedido aprovado (nome e cor do pedido, junto com o próprio acesso); diretoria: nome, cor, escudo, esportes; tesouraria: só `financeiro`, validado |
+| `acessos/{uid}` | o próprio; diretoria; tesouraria | diretoria do time (qualquer papel); o fundador cria o próprio (`diretoria` + `tesouraria`) no lote que cria o time do pedido aprovado |
 | `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (modalidade, status e `vinculo` só a diretoria) (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
@@ -295,7 +295,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 
 - Validar tipos e campos permitidos nas escritas (`keys().hasOnly(...)`), valores em centavos inteiros e ≥ 0, enums válidos.
 - Toda alteração de regra passa pelo skill `firebase-security-rules-auditor` antes de concluir.
-- Em todas as linhas acima, `diretoria` e `tesouraria` incluem `adminGeral` (`podeGerir()` e `podeFinanceiro()` nas rules).
+- `podeGerir()` = diretoria e `podeFinanceiro()` = tesouraria do próprio time; o `adminGeral` não entra nessas funções (2.12).
 - Atleta só recebe modalidade habilitada no time (rules conferem na criação e quando a modalidade muda).
 
 ---
@@ -501,6 +501,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Carregando em toda interação: barra de atividade global (troca de tela e escritas) + `[loading]` no botão tocado, inclusive ações por item, remover em diálogos, presença e campos que dependem de leitura. Padrão em 6.2. Botão "Atualizar" (versão nova) com carregando e limite de 3 s. |
 | 27/09/2026 | Plataforma aberta a outros times (2.12), em três entregas. A: pedido de time (`pedidosTime`), aprovação/reprovação pelo adminGeral (com motivo), criação do time pelo próprio solicitante como diretoria e tesouraria. B: diretoria edita a identidade do próprio time. C: adminGeral sem acesso ao conteúdo dos times (nem caixa/cobranças); vê só a lista de times e os pedidos. O desenvolvedor segue nos times atuais como atleta; as diretorias gerem. |
 | 27/09/2026 | Entrega B adiantada a pedido: quem cria o time escolhe o escudo. Diretoria edita nome, cor e escudo em Gestão › Dados do time (Rules do time e do Storage liberadas para a diretoria); "Criar time" abre essa tela. Seletor de escudo e gravação com escudo (envio antes, desfaz se falhar, apaga o anterior) reutilizados pelo admin. |
+| 27/09/2026 | Entrega C: adminGeral sem passe livre. Rules e Storage: `podeGerir`/`podeFinanceiro` sem admin, leituras das subcoleções só para membros, `usuarios` só o próprio; admin lê só `times/{id}` (lista) e `pedidosTime`. Time novo só por pedido aprovado (admin não cria nem edita). App: sem entrar em times de que não é membro, "Meus times" só com os próprios, Gerenciar times = pedidos + lista somente leitura, "Adicionar membro" pela lista de usuários removido (entrada só por convite). Substitui as decisões anteriores que davam ao admin os poderes de diretoria e tesouraria. |
 
 ---
 

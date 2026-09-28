@@ -82,8 +82,6 @@
             <span class="item__papeis">
               @for (papel of time.papeis; track papel) {
                 <span>{{ rotuloPapel[papel] }}</span>
-              } @empty {
-                <span>Administrador</span>
               }
             </span>
             @if (proximos().get(time.timeId); as evento) {

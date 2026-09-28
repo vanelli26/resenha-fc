@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { collection, deleteField, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteField, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
@@ -9,12 +9,11 @@ import { EscolhaEscudo } from '../../../shared/seletor-escudo';
 import { Esporte } from '../../../models/posicao.model';
 import { ConfigFinanceira, CorTime, TimeGravado, VENCIMENTOS_PADRAO } from '../../../models/time.model';
 
-export interface DadosTime {
+export interface IdentidadeTime {
   nome: string;
   cor: CorTime;
   /** URL do Storage (ou data URL antigo) ou null. */
   escudo: string | null;
-  esportes: Esporte[];
 }
 
 // Configuração financeira nasce sem planos; a tesouraria define depois (Rules exigem este padrão).
@@ -24,14 +23,14 @@ export const FINANCEIRO_PADRAO: ConfigFinanceira = {
   despesasRecorrentes: [],
 };
 
-/** Cadastro de times (adminGeral). Identidade (nome, cor, escudo) e esportes: também a diretoria do time. */
+/** Times: lista (adminGeral, só leitura); identidade, escudo e esportes pela diretoria do time. */
 @Injectable({ providedIn: 'root' })
 export class TimesService {
   private readonly firestore = inject(FIRESTORE);
   private readonly storage = inject(STORAGE);
 
   /**
-   * Envia o escudo ao Storage (diretoria ou adminGeral) e devolve a URL de download. Nome com data/hora: cada troca
+   * Envia o escudo ao Storage (diretoria) e devolve a URL de download. Nome com data/hora: cada troca
    * gera uma URL nova (o navegador não mostra a imagem antiga do cache).
    */
   async enviarEscudo(timeId: string, foto: FotoProcessada): Promise<string> {
@@ -69,8 +68,8 @@ export class TimesService {
     return escudo;
   }
 
-  /** Diretoria (ou adminGeral): nome, cor e escudo do próprio time. */
-  async salvarIdentidade(timeId: string, dados: Pick<DadosTime, 'nome' | 'cor' | 'escudo'>): Promise<void> {
+  /** Diretoria: nome, cor e escudo do próprio time. */
+  async salvarIdentidade(timeId: string, dados: IdentidadeTime): Promise<void> {
     await updateDoc(doc(this.firestore, 'times', timeId), { ...dados, tema: deleteField() });
   }
 
@@ -81,22 +80,8 @@ export class TimesService {
     return snap.docs.map(comId);
   }
 
-  /** timeId = slug. Falha se o slug já existir. */
-  async criar(slug: string, dados: DadosTime): Promise<void> {
-    const ref = doc(this.firestore, 'times', slug);
-    if ((await getDoc(ref)).exists()) {
-      throw new Error(`Já existe um time com o identificador "${slug}".`);
-    }
-    await setDoc(ref, { ...dados, slug, financeiro: FINANCEIRO_PADRAO, criadoEm: serverTimestamp() });
-  }
-
-  /** Diretoria (ou adminGeral): só os esportes do time. */
+  /** Diretoria: só os esportes do time. */
   async salvarEsportes(timeId: string, esportes: Esporte[]): Promise<void> {
     await updateDoc(doc(this.firestore, 'times', timeId), { esportes });
-  }
-
-  async atualizar(timeId: string, dados: DadosTime): Promise<void> {
-    // `tema` é o campo antigo (paletas fixas); removido ao salvar com a cor nova.
-    await updateDoc(doc(this.firestore, 'times', timeId), { ...dados, tema: deleteField() });
   }
 }

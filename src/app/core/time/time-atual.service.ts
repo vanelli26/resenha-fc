@@ -9,7 +9,6 @@ import { Opcao, ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
 import { AuthService } from '../auth/auth.service';
 import { ComId, conversor } from '../firebase/conversor';
 import { FIRESTORE } from '../firebase/firestore.token';
-import { SessaoService } from '../sessao/sessao.service';
 import { aplicarTemaDoTime } from '../theme/app-theme';
 
 /** Contexto do time selecionado (URL /t/:timeId). Autorização aqui é UX; a segurança está nas Rules. */
@@ -17,7 +16,6 @@ import { aplicarTemaDoTime } from '../theme/app-theme';
 export class TimeAtualService {
   private readonly firestore = inject(FIRESTORE);
   private readonly auth = inject(AuthService);
-  private readonly sessao = inject(SessaoService);
 
   private readonly _time = signal<ComId<Time> | null>(null);
   private readonly _acesso = signal<Acesso | null>(null);
@@ -26,8 +24,8 @@ export class TimeAtualService {
   readonly acesso = this._acesso.asReadonly();
   readonly timeId = computed(() => this._time()?.id ?? null);
   readonly papeis = computed<PapelTime[]>(() => this._acesso()?.papeis ?? []);
-  readonly ehDiretoria = computed(() => this.sessao.adminGeral() || this.papeis().includes('diretoria'));
-  readonly ehTesouraria = computed(() => this.sessao.adminGeral() || this.papeis().includes('tesouraria'));
+  readonly ehDiretoria = computed(() => this.papeis().includes('diretoria'));
+  readonly ehTesouraria = computed(() => this.papeis().includes('tesouraria'));
   /** Diretoria ou tesouraria: veem caixa e cobranças (DIRETRIZES 2.3). */
   readonly ehGestao = computed(() => this.ehDiretoria() || this.ehTesouraria());
 
@@ -75,11 +73,9 @@ export class TimeAtualService {
     if (!uid) return false;
 
     try {
-      const [admin, acessoSnap] = await Promise.all([
-        this.sessao.ehAdminGeral(),
-        getDoc(doc(this.firestore, 'times', timeId, 'acessos', uid).withConverter(conversor<Acesso>())),
-      ]);
-      if (!acessoSnap.exists() && !admin) return false;
+      // Só membros entram (o adminGeral não tem passe livre no conteúdo dos times; DIRETRIZES 2.12).
+      const acessoSnap = await getDoc(doc(this.firestore, 'times', timeId, 'acessos', uid).withConverter(conversor<Acesso>()));
+      if (!acessoSnap.exists()) return false;
 
       const timeSnap = await getDoc(doc(this.firestore, 'times', timeId).withConverter(conversor<TimeGravado>()));
       const gravado = timeSnap.data();

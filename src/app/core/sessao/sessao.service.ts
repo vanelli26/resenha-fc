@@ -1,5 +1,5 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { collection, collectionGroup, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { collection, collectionGroup, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { Acesso } from '../../models/acesso.model';
 import { PapelTime } from '../../models/papel.model';
 import { TimeGravado } from '../../models/time.model';
@@ -64,18 +64,16 @@ export class SessaoService {
     if (!uid) return;
     this._carregandoTimes.set(true);
     try {
-      const admin = await this.ehAdminGeral();
       // Mesmo filtro que a regra de collection group exige (uid == request.auth.uid).
       const acessos = await getDocs(
         query(collectionGroup(this.firestore, 'acessos').withConverter(conversor<Acesso>()), where('uid', '==', uid)),
       );
       const acessoPorTime = new Map(acessos.docs.map((d) => [d.data().timeId, d.data()]));
 
-      // Documentos dos times (nome atual e escudo): adminGeral lista todos; os demais leem só os seus.
+      // Documentos dos times (nome atual e escudo). Só os times de que a pessoa participa, inclusive para o
+      // adminGeral, que vê os demais apenas em Gerenciar times (DIRETRIZES 2.12).
       const colecaoTimes = collection(this.firestore, 'times').withConverter(conversor<TimeGravado>());
-      const times = admin
-        ? (await getDocs(query(colecaoTimes, orderBy('nome')))).docs
-        : await Promise.all([...acessoPorTime.keys()].map((id) => getDoc(doc(colecaoTimes, id))));
+      const times = await Promise.all([...acessoPorTime.keys()].map((id) => getDoc(doc(colecaoTimes, id))));
 
       const meus: MeuTime[] = [];
       for (const t of times) {

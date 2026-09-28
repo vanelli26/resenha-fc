@@ -1,67 +1,37 @@
-<h2>Times</h2>
+<div class="cabecalho-secao">
+  <h2>Gerenciar times</h2>
+</div>
 
 <app-pedidos-time-admin [pedidos]="pedidos()" [ocupado]="decidindo()" (decidir)="decidir($event)" />
 
-<form class="cartao formulario form-time" (submit)="$event.preventDefault(); salvar()">
-  <h3>{{ editandoId() ? 'Editar time' : 'Novo time' }}</h3>
-
-  <label class="campo">
-    <span>Nome</span>
-    <input pInputText [formField]="formulario.nome" />
-    @if (formulario.nome().touched() && formulario.nome().invalid()) {
-      <small class="campo__erro">{{ formulario.nome().errors()[0].message }}</small>
-    }
-  </label>
-
-  <label class="campo">
-    <span>Identificador (URL)</span>
-    <input pInputText [formField]="formulario.slug" autocapitalize="off" />
-    <small class="campo__dica">Ex.: piratas. Não pode ser alterado depois.</small>
-    @if (formulario.slug().touched() && formulario.slug().invalid()) {
-      <small class="campo__erro">{{ formulario.slug().errors()[0].message }}</small>
-    }
-  </label>
-
-  <app-seletor-escudo [atual]="escudoOriginal()" [nome]="modelo().nome" [(escolha)]="escolhaEscudo" />
-
-  <app-seletor-cor [formField]="formulario.cor" />
-
-  <div class="campo">
-    <span id="esportes-time">Esportes</span>
-    <p-selectbutton
-      [formField]="formulario.esportes"
-      [options]="opcoesEsporte"
-      optionLabel="label"
-      optionValue="value"
-      [multiple]="true"
-      ariaLabelledBy="esportes-time"
-    />
-    <small class="campo__dica">Define as posições disponíveis no cadastro dos atletas.</small>
-    @if (formulario.esportes().touched() && formulario.esportes().invalid()) {
-      <small class="campo__erro">{{ formulario.esportes().errors()[0].message }}</small>
-    }
-  </div>
-
-  <div class="acoes">
-    @if (editandoId()) {
-      <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar()" />
-    }
-    <p-button label="Salvar" type="submit" [loading]="formulario().submitting()" [disabled]="processandoImagem()" />
-  </div>
-</form>
-
-<ul class="lista">
-  @for (time of times(); track time.id) {
-    <li class="cartao item">
-      <app-escudo [src]="time.escudo ?? ''" [nome]="time.nome" />
-      <div class="item__texto">
-        <strong>{{ time.nome }}</strong>
-        <small>/t/{{ time.id }}</small>
-      </div>
-      <p-button label="Membros" size="small" [text]="true" [routerLink]="['/t', time.id, 'gestao', 'membros']" />
-      <p-button label="Editar" size="small" [outlined]="true" (onClick)="editar(time)" />
-    </li>
-  } @empty {
-    <li class="texto-suave">Nenhum time cadastrado.</li>
+<section>
+  <h3>Times na plataforma</h3>
+  @if (carregando() && times().length === 0) {
+    <div class="lista">
+      <p-skeleton height="4rem" />
+      <p-skeleton height="4rem" />
+    </div>
+  } @else {
+    <ul class="lista">
+      @for (time of times(); track time.id) {
+        <li class="cartao item">
+          <app-escudo [src]="time.escudo ?? ''" [nome]="time.nome" />
+          <div class="item__texto">
+            <strong>{{ time.nome }}</strong>
+            <small>
+              /t/{{ time.id }}
+              @if (solicitantes().get(time.id); as quem) {
+                · pedido por {{ quem }}
+              }
+            </small>
+            @if (time.criadoEm) {
+              <small>Criado em {{ time.criadoEm.toDate() | date: 'dd/MM/yyyy' }}</small>
+            }
+          </div>
+        </li>
+      } @empty {
+        <li class="texto-suave">Nenhum time cadastrado.</li>
+      }
+    </ul>
   }
-</ul>
+</section>

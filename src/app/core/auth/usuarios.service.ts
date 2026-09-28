@@ -1,8 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { Usuario } from '../../models/usuario.model';
-import { ComId, comId, conversor } from '../firebase/conversor';
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { FIRESTORE } from '../firebase/firestore.token';
 
 @Injectable({ providedIn: 'root' })
@@ -33,13 +31,5 @@ export class UsuariosService {
     if (mudou) {
       await updateDoc(ref, perfil);
     }
-  }
-
-  /** Só adminGeral pode listar (Rules). Usado para definir a primeira diretoria de um time. */
-  async listar(): Promise<ComId<Usuario>[]> {
-    const snap = await getDocs(
-      query(collection(this.firestore, 'usuarios').withConverter(conversor<Usuario>()), orderBy('nome'), limit(500)),
-    );
-    return snap.docs.map(comId);
   }
 }

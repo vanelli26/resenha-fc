@@ -9,7 +9,7 @@ import { ROTULO_ESPORTE, ROTULO_POSICAO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
 import { TimesService } from '../times/data/times.service';
 
-/** Esportes praticados pelo time (diretoria ou adminGeral). Definem as posições no cadastro do atleta. */
+/** Esportes praticados pelo time (diretoria). Definem as posições no cadastro do atleta. */
 @Component({
   selector: 'app-esportes-page',
   imports: [FormsModule, ButtonModule, ToggleSwitchModule, Voltar],

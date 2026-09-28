@@ -16,7 +16,7 @@ export interface DadosMembro {
   atletaIdAnterior: string | null;
 }
 
-/** times/{timeId}/acessos — membros e papéis. Escrita: diretoria do time ou adminGeral. */
+/** times/{timeId}/acessos — membros e papéis. Escrita: diretoria do time. */
 @Injectable({ providedIn: 'root' })
 export class AcessosService {
   private readonly firestore = inject(FIRESTORE);

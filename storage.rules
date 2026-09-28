@@ -5,10 +5,10 @@ rules_version = '2';
 //
 // times/{timeId}/recados/{recadoId}/{N}.{webp|jpeg}   N = 0..3 (até 4 fotos por postagem)
 //   Envio: membro do time, só imagem webp/jpeg até 5 MB, metadado autorUid = quem envia; não sobrescreve.
-//   Leitura (SDK): membro do time ou adminGeral. As URLs de download (com token) são as gravadas no post.
-//   Exclusão: quem enviou (autorUid) ou a diretoria/adminGeral.
+//   Leitura (SDK): membro do time. As URLs de download (com token) são as gravadas no post.
+//   Exclusão: quem enviou (autorUid) ou a diretoria.
 // times/{timeId}/escudo/{data-hora}.{webp|png|jpeg}
-//   Envio e exclusão: diretoria do time (ou adminGeral). Imagem até 1 MB. Leitura: qualquer logado
+//   Envio e exclusão: diretoria do time. Imagem até 1 MB. Leitura: qualquer logado
 //   (aparece em "Meus times" e no seletor de times).
 // Consulta o Firestore (firestore.get/exists): exige o papel de IAM concedido pela CLI no deploy.
 // Todo o resto: negado.
@@ -25,18 +25,12 @@ service firebase.storage {
       return /databases/(default)/documents/times/$(timeId)/acessos/$(request.auth.uid);
     }
 
-    function isAdminGeral() {
-      return logado()
-        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.get('adminGeral', false) == true;
-    }
-
     function membro(timeId) {
       return logado() && firestore.exists(acesso(timeId));
     }
 
     function diretoria(timeId) {
-      return isAdminGeral()
-        || (membro(timeId) && 'diretoria' in firestore.get(acesso(timeId)).data.papeis);
+      return membro(timeId) && 'diretoria' in firestore.get(acesso(timeId)).data.papeis;
     }
 
     match /times/{timeId}/escudo/{arquivo} {
@@ -53,7 +47,7 @@ service firebase.storage {
     }
 
     match /times/{timeId}/recados/{recadoId}/{arquivo} {
-      allow read: if membro(timeId) || isAdminGeral();
+      allow read: if membro(timeId);
 
       allow create: if membro(timeId)
         && arquivo.matches('^[0-3][.](webp|jpeg)$')

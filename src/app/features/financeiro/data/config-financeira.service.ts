@@ -15,7 +15,7 @@ export function novoIdConfiguracao(): string {
   return Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join('');
 }
 
-/** times/{timeId}.financeiro. Escrita: tesouraria ou adminGeral (Rules validam cada campo). */
+/** times/{timeId}.financeiro. Escrita: tesouraria (Rules validam cada campo). */
 @Injectable({ providedIn: 'root' })
 export class ConfigFinanceiraService {
   private readonly firestore = inject(FIRESTORE);

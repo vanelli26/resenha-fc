@@ -5,7 +5,7 @@ import { TimeAtualService } from './time-atual.service';
 
 // inject() sempre antes do primeiro await (fora do contexto de injeção depois dele).
 
-/** /t/:timeId: exige acesso ao time (ou adminGeral). */
+/** /t/:timeId: exige acesso ao time (o adminGeral não entra em times de que não participa). */
 export const timeGuard: CanActivateFn = async (route) => {
   const timeAtual = inject(TimeAtualService);
   const router = inject(Router);

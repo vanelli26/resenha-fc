@@ -2,9 +2,6 @@
 
 <div class="cabecalho-secao">
   <h2>Membros</h2>
-  @if (adminGeral()) {
-    <p-button label="Adicionar membro" size="small" (onClick)="adicionar()" />
-  }
 </div>
 
 <p class="texto-suave dica">Novos jogadores entram por convite. Aqui você ajusta papéis ou remove alguém do time.</p>
@@ -44,24 +41,6 @@
   [style]="{ width: 'min(28rem, 100vw - 2rem)' }"
 >
   <form class="formulario" (submit)="$event.preventDefault(); salvar()">
-    @if (!emEdicao()) {
-      <label class="campo">
-        <span>Usuário</span>
-        <p-select
-          [formField]="formulario.uid"
-          [options]="usuarios()"
-          optionLabel="label"
-          optionValue="value"
-          [filter]="true"
-          placeholder="Escolha quem já entrou no app"
-          appendTo="body"
-        />
-        @if (formulario.uid().touched() && formulario.uid().invalid()) {
-          <small class="campo__erro">{{ formulario.uid().errors()[0].message }}</small>
-        }
-      </label>
-    }
-
     <fieldset class="papeis">
       <legend>Papéis</legend>
       @for (papel of papeisTime; track papel) {

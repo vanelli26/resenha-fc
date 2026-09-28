@@ -21,9 +21,9 @@ rules_version = '2';
 //   financeiro: { planos: list 0..10 de {id [a-z0-9]{3,20} (≠ isento), nome 1..40, periodicidade: 'mensal'|'semestral'|'avulso', valorCentavos > 0},
 //                 vencimentos: {diaMensal, diaSemestral 1..31, mesS1 1..6, mesS2 7..12},
 //                 despesasRecorrentes: list 0..10 de {id, descricao, categoria, valorCentavos, diaVencimento} }
-//   (nasce sem planos; depois só tesouraria/adminGeral altera, e só esse campo. Times antigos ainda podem ter o
+//   (nasce sem planos; depois só a tesouraria altera, e só esse campo. Times antigos ainda podem ter o
 //    formato anterior {mensal, semestral, avulso, despesasRecorrentes}: é lido, e a próxima gravação converte.)
-//   esportes?: list 1..3 de 'campo' | 'society' | 'futsal' (ausente = só society; adminGeral ou diretoria altera)
+//   esportes?: list 1..3 de 'campo' | 'society' | 'futsal' (ausente = só society; diretoria altera)
 //
 // times/{timeId}/acessos/{uid}
 //   uid (= path) · timeId (= path) · timeNome (= times.nome) · nome: string (1..100)
@@ -146,18 +146,19 @@ service cloud.firestore {
       return temPapel(timeId, 'tesouraria');
     }
 
+    // O adminGeral não tem passe livre no conteúdo dos times (DIRETRIZES 2.12): só quem é do time.
     function podeGerir(timeId) {
-      return ehDiretoria(timeId) || isAdminGeral();
+      return ehDiretoria(timeId);
     }
 
-    // Opera o financeiro (configuração, cobranças, caixa): tesouraria ou adminGeral.
+    // Opera o financeiro (configuração, cobranças, caixa): tesouraria.
     function podeFinanceiro(timeId) {
-      return ehTesouraria(timeId) || isAdminGeral();
+      return ehTesouraria(timeId);
     }
 
-    // Vê caixa e cobranças de todos: diretoria, tesouraria ou adminGeral. Jogador nunca vê o caixa.
+    // Vê caixa e cobranças de todos: diretoria ou tesouraria. Jogador nunca vê o caixa.
     function podeVerFinanceiro(timeId) {
-      return ehDiretoria(timeId) || ehTesouraria(timeId) || isAdminGeral();
+      return ehDiretoria(timeId) || ehTesouraria(timeId);
     }
 
     // Jogador editando o próprio atleta: vínculo nos dois lados (acesso.atletaId e atleta.uid)
@@ -754,10 +755,10 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------
     // usuarios/{uid}
-    // Leitura: o próprio ou adminGeral. Escrita: só o próprio, sem tocar em adminGeral.
+    // Leitura: só o próprio. Escrita: só o próprio, sem tocar em adminGeral.
     // ---------------------------------------------------------------
     match /usuarios/{uid} {
-      allow read: if isOwner(uid) || isAdminGeral();
+      allow read: if isOwner(uid);
 
       allow create: if isOwner(uid)
         && isValidUsuario(request.resource.data)
@@ -778,7 +779,7 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------
     // times/{timeId}
-    // Leitura: quem tem acesso ao time ou adminGeral. Escrita: adminGeral (financeiro: Fase 2).
+    // Leitura: quem tem acesso ao time; adminGeral só o documento do time (lista). Criação por pedido aprovado.
     // ---------------------------------------------------------------
     // Pedidos de time novo: quem pede cria e acompanha o seu; o adminGeral aprova ou reprova.
     match /pedidosTime/{slug} {
@@ -810,26 +811,24 @@ service cloud.firestore {
     }
 
     match /times/{timeId} {
+      // adminGeral lê o documento do time (lista em Gerenciar times: nome, escudo, cor); nada abaixo dele.
       allow read: if temAcesso(timeId) || isAdminGeral();
 
-      // adminGeral, ou quem teve o pedido aprovado (nome e cor do pedido, sem escudo, junto com o próprio acesso).
+      // Só quem teve o pedido aprovado (nome e cor do pedido, sem escudo, junto com o próprio acesso).
       allow create: if isValidTime(request.resource.data, timeId)
         && request.resource.data.criadoEm == request.time
         && request.resource.data.financeiro == financeiroPadrao()
-        && (isAdminGeral()
-          || (pedidoAprovadoDe(timeId)
-            && request.resource.data.nome == get(pedidoTimePath(timeId)).data.nome
-            && request.resource.data.cor == get(pedidoTimePath(timeId)).data.cor
-            && request.resource.data.escudo == null
-            && existsAfter(/databases/$(database)/documents/times/$(timeId)/acessos/$(request.auth.uid))));
+        && pedidoAprovadoDe(timeId)
+        && request.resource.data.nome == get(pedidoTimePath(timeId)).data.nome
+        && request.resource.data.cor == get(pedidoTimePath(timeId)).data.cor
+        && request.resource.data.escudo == null
+        && existsAfter(/databases/$(database)/documents/times/$(timeId)/acessos/$(request.auth.uid));
 
-      // Diretoria (ou adminGeral): identidade (nome, cor, escudo) e esportes; slug e criadoEm nunca mudam.
-      // Tesouraria (ou adminGeral): só a configuração financeira.
+      // Diretoria: identidade (nome, cor, escudo) e esportes; slug e criadoEm nunca mudam.
+      // Tesouraria: só a configuração financeira.
       allow update: if isValidTime(request.resource.data, timeId)
         && (
-          (isAdminGeral()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema', 'esportes']))
-          || (podeGerir(timeId)
+          (podeGerir(timeId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema', 'esportes']))
           || (podeFinanceiro(timeId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['financeiro'])
@@ -840,7 +839,7 @@ service cloud.firestore {
 
       // Permissões do usuário no time. Diretoria concede e remove qualquer papel (DIRETRIZES, seção 10).
       match /acessos/{uid} {
-        allow read: if isOwner(uid) || ehDiretoria(timeId) || ehTesouraria(timeId) || isAdminGeral();
+        allow read: if isOwner(uid) || ehDiretoria(timeId) || ehTesouraria(timeId);
         allow create, update: if podeGerir(timeId)
           && isValidAcesso(request.resource.data, timeId, uid)
           && timeNomeCoerente(timeId);
@@ -849,7 +848,7 @@ service cloud.firestore {
       }
 
       match /atletas/{atletaId} {
-        allow read: if temAcesso(timeId) || isAdminGeral();
+        allow read: if temAcesso(timeId);
 
         allow create: if podeGerir(timeId)
           && isValidAtleta(request.resource.data)
@@ -935,7 +934,7 @@ service cloud.firestore {
 
       // Agenda: todos do time leem; só a diretoria cria e edita. Sem exclusão (cancelar).
       match /eventos/{eventoId} {
-        allow read: if temAcesso(timeId) || isAdminGeral();
+        allow read: if temAcesso(timeId);
 
         allow create: if podeGerir(timeId)
           && isValidEvento(request.resource.data, timeId)
@@ -953,7 +952,7 @@ service cloud.firestore {
         // Presença: cada um responde pelo próprio cadastro (só `resposta`); a diretoria por qualquer um,
         // incluindo `compareceu` no encerramento.
         match /presencas/{atletaId} {
-          allow read: if temAcesso(timeId) || isAdminGeral();
+          allow read: if temAcesso(timeId);
 
           allow create: if isValidPresenca(request.resource.data)
             && ((respondeProprio(timeId, eventoId, atletaId)
@@ -972,7 +971,7 @@ service cloud.firestore {
 
         // Escalação: um documento só ("principal"); todos do time leem; a diretoria monta e limpa.
         match /escalacao/{escalacaoId} {
-          allow read: if temAcesso(timeId) || isAdminGeral();
+          allow read: if temAcesso(timeId);
 
           allow create, update: if podeGerir(timeId)
             && escalacaoId == 'principal'
@@ -984,7 +983,7 @@ service cloud.firestore {
 
         // Gols do time: só a diretoria, com o evento realizado (no mesmo lote do encerramento ou depois).
         match /gols/{golId} {
-          allow read: if temAcesso(timeId) || isAdminGeral();
+          allow read: if temAcesso(timeId);
 
           allow create, update: if podeGerir(timeId)
             && isValidGol(request.resource.data, golId)
@@ -996,7 +995,7 @@ service cloud.firestore {
 
       // Campeonatos (DIRETRIZES 2.10): todos do time leem; só a diretoria mantém; sem exclusão (eventos apontam para eles).
       match /campeonatos/{campeonatoId} {
-        allow read: if temAcesso(timeId) || isAdminGeral();
+        allow read: if temAcesso(timeId);
 
         allow create: if podeGerir(timeId)
           && isValidCampeonato(request.resource.data)
@@ -1011,7 +1010,7 @@ service cloud.firestore {
 
       // Ajuste manual da artilharia (DIRETRIZES 2.10): todos do time leem; só a diretoria grava; sem exclusão.
       match /ajustesEstatistica/{ajusteId} {
-        allow read: if temAcesso(timeId) || isAdminGeral();
+        allow read: if temAcesso(timeId);
 
         allow create, update: if podeGerir(timeId)
           && isValidAjusteEstatistica(request.resource.data, timeId, ajusteId);
@@ -1021,7 +1020,7 @@ service cloud.firestore {
 
       // Apoiadores (faixa do mural): todos do time leem; só a diretoria mantém.
       match /patrocinadores/{patrocinadorId} {
-        allow read: if temAcesso(timeId) || isAdminGeral();
+        allow read: if temAcesso(timeId);
 
         allow create: if podeGerir(timeId)
           && isValidPatrocinador(request.resource.data)
@@ -1036,7 +1035,7 @@ service cloud.firestore {
 
       // Mural: todos do time leem e publicam; autor edita a legenda; diretoria fixa; exclui o autor ou a diretoria.
       match /recados/{recadoId} {
-        allow read: if temAcesso(timeId) || isAdminGeral();
+        allow read: if temAcesso(timeId);
 
         allow create: if temAcesso(timeId)
           && isValidRecado(request.resource.data, timeId, recadoId)
@@ -1060,7 +1059,7 @@ service cloud.firestore {
 
         // Curtida: só a própria, junto com o contador do post (+1 ao criar, −1 ao apagar).
         match /curtidas/{uid} {
-          allow read: if temAcesso(timeId) || isAdminGeral();
+          allow read: if temAcesso(timeId);
 
           allow create: if temAcesso(timeId)
             && uid == request.auth.uid
@@ -1080,7 +1079,7 @@ service cloud.firestore {
 
         // Comentário: qualquer membro, em post existente; sem edição.
         match /comentarios/{comentarioId} {
-          allow read: if temAcesso(timeId) || isAdminGeral();
+          allow read: if temAcesso(timeId);
 
           allow create: if temAcesso(timeId)
             && exists(recadoPath(timeId, recadoId))

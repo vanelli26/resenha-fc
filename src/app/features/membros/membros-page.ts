@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { FormField, form, hidden, required, submit } from '@angular/forms/signals';
+import { FormField, form, hidden, submit } from '@angular/forms/signals';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -7,7 +7,6 @@ import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 import { AuthService } from '../../core/auth/auth.service';
-import { UsuariosService } from '../../core/auth/usuarios.service';
 import { ComId } from '../../core/firebase/conversor';
 import { SessaoService } from '../../core/sessao/sessao.service';
 import { TimeAtualService } from '../../core/time/time-atual.service';
@@ -35,12 +34,6 @@ interface FormMembro {
   vinculo: TipoVinculo;
 }
 
-interface OpcaoUsuario {
-  label: string;
-  value: string;
-  nome: string;
-}
-
 const SEM_PAPEIS: MarcacaoPapeis = { diretoria: false, tesouraria: false, jogador: false };
 
 function marcados(papeis: MarcacaoPapeis): PapelTime[] {
@@ -64,14 +57,12 @@ export class MembrosPage {
   private readonly auth = inject(AuthService);
   private readonly acessosService = inject(AcessosService);
   private readonly atletasService = inject(AtletasService);
-  private readonly usuariosService = inject(UsuariosService);
   private readonly avisos = inject(Avisos);
 
   protected readonly papeisTime = PAPEIS_TIME;
   protected readonly rotuloPapel = ROTULO_PAPEL;
   protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
   protected readonly opcoesVinculo = opcoes(VINCULOS, ROTULO_VINCULO);
-  protected readonly adminGeral = this.sessao.adminGeral;
 
   protected readonly membros = signal<ComId<Acesso>[]>([]);
   protected readonly carregando = signal(true);
@@ -82,11 +73,10 @@ export class MembrosPage {
     () => this.membros().filter((m) => m.papeis.includes('diretoria')).length,
   );
 
-  // Diálogo de edição (membro existente) ou inclusão (adminGeral, uid escolhido na lista de usuários).
+  // Diálogo de edição de um membro (novos membros entram por convite).
   protected readonly dialogAberto = signal(false);
   protected readonly emEdicao = signal<ComId<Acesso> | null>(null);
-  protected readonly tituloDialog = computed(() => this.emEdicao()?.nome ?? 'Adicionar membro');
-  protected readonly usuarios = signal<OpcaoUsuario[]>([]);
+  protected readonly tituloDialog = computed(() => this.emEdicao()?.nome ?? '');
   private readonly atletas = signal<ComId<Atleta>[]>([]);
 
   /** Atletas sem conta + o atleta já vinculado a este membro. */
@@ -110,7 +100,6 @@ export class MembrosPage {
     vinculo: 'atleta',
   });
   protected readonly formulario = form(this.modelo, (p) => {
-    required(p.uid, { message: 'Escolha um usuário.' });
     hidden(p.modalidade, { when: ({ valueOf }) => valueOf(p.atleta) !== NOVO_ATLETA });
     hidden(p.vinculo, { when: ({ valueOf }) => valueOf(p.atleta) !== NOVO_ATLETA });
   });
@@ -121,7 +110,6 @@ export class MembrosPage {
       const timeId = this.timeAtual.timeId();
       untracked(() => {
         this.membros.set([]);
-        this.usuarios.set([]);
         this.dialogAberto.set(false);
         if (timeId) void this.carregar();
       });
@@ -142,30 +130,6 @@ export class MembrosPage {
     this.abrirDialog();
   }
 
-  protected async adicionar(): Promise<void> {
-    this.emEdicao.set(null);
-    this.modelo.set({
-      uid: '',
-      papeis: { ...SEM_PAPEIS, diretoria: true },
-      atleta: SEM_ATLETA,
-      modalidade: this.timeAtual.modalidadePadrao(),
-      vinculo: 'atleta',
-    });
-    this.abrirDialog();
-    if (this.usuarios().length > 0) return;
-    try {
-      const doTime = new Set(this.membros().map((m) => m.uid));
-      const lista = await this.usuariosService.listar();
-      this.usuarios.set(
-        lista
-          .filter((u) => !doTime.has(u.id))
-          .map((u) => ({ label: `${u.nome} (${u.email})`, value: u.id, nome: u.nome || u.email })),
-      );
-    } catch (e) {
-      this.avisos.erro('Erro ao carregar usuários', e);
-    }
-  }
-
   protected salvar(): void {
     void submit(this.formulario, async () => {
       const time = this.timeAtual.time();
@@ -179,12 +143,13 @@ export class MembrosPage {
         return;
       }
       const membro = this.emEdicao();
-      if (membro && this.tiraUltimaDiretoria(membro) && !papeis.includes('diretoria')) {
+      if (!membro) return;
+      if (this.tiraUltimaDiretoria(membro) && !papeis.includes('diretoria')) {
         this.avisos.atencao('O time precisa de ao menos uma pessoa na diretoria.');
         return;
       }
 
-      const nome = membro?.nome ?? this.usuarios().find((u) => u.value === uid)?.nome ?? '';
+      const nome = membro.nome;
       const vinculo: VinculoAtleta | null =
         atleta === SEM_ATLETA
           ? null
@@ -192,14 +157,11 @@ export class MembrosPage {
             ? { tipo: 'novo', modalidade, vinculo: tipoVinculo }
             : { tipo: 'existente', atletaId: atleta };
 
-      await this.executar(async () => {
-        await this.acessosService.salvar(
-          time,
-          { uid, nome, papeis, vinculo, atletaIdAnterior: membro?.atletaId ?? null },
-          uidLogado,
-        );
-        if (!membro) this.usuarios.update((lista) => lista.filter((u) => u.value !== uid));
-      }, membro ? 'Membro atualizado' : 'Membro adicionado');
+      await this.executar(
+        () =>
+          this.acessosService.salvar(time, { uid, nome, papeis, vinculo, atletaIdAnterior: membro.atletaId }, uidLogado),
+        'Membro atualizado',
+      );
     });
   }
 
@@ -230,7 +192,7 @@ export class MembrosPage {
     }
   }
 
-  // Regra de UX (DIRETRIZES, seção 10): Rules não contam documentos; adminGeral corrige se preciso.
+  // Regra de UX (DIRETRIZES, seção 10): Rules não contam documentos.
   private tiraUltimaDiretoria(membro: Acesso): boolean {
     return membro.papeis.includes('diretoria') && this.qtdDiretoria() <= 1;
   }
