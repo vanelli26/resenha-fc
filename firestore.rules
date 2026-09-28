@@ -99,6 +99,11 @@ rules_version = '2';
 //   formacao (da lista do esporte do evento) · titulares: list 0..11 de {atletaId, vaga: int 0..10}
 //   atualizadoPor (= request.auth.uid) · atualizadoEm (= request.time). Só diretoria; fora de confraternização/outro.
 //
+// pedidosTime/{slug}   (pedido de time novo, DIRETRIZES 2.12)
+//   nome (1..60) · cor (lista) · solicitanteUid (= auth) · solicitanteNome · solicitanteEmail (= token.email)
+//   status: 'pendente' → 'aprovado'|'reprovado' (só adminGeral) · motivo? (só reprovado) · criadoEm · decididoEm? · decididoPor?
+//   Aprovado: quem pediu cria times/{slug} (nome e cor do pedido) + o próprio acesso (diretoria, tesouraria) num lote.
+//
 // Demais coleções: negadas.
 // ===============================================================
 
@@ -294,6 +299,50 @@ service cloud.firestore {
         || (!('planos' in f) && modalidade in ['mensal', 'semestral', 'avulso'] && f[modalidade].ativo == true);
     }
 
+    function coresTime() {
+      return ['preto', 'red', 'rose', 'pink', 'fuchsia', 'purple', 'violet', 'indigo', 'blue', 'sky',
+        'cyan', 'teal', 'emerald', 'green', 'lime', 'yellow', 'amber', 'orange'];
+    }
+
+    // Pedido de time (DIRETRIZES 2.12): id = endereço pedido.
+    function isValidPedidoTime(data, slug) {
+      return data.keys().hasAll(['nome', 'cor', 'solicitanteUid', 'solicitanteNome', 'solicitanteEmail', 'status', 'criadoEm'])
+        && data.keys().hasOnly(['nome', 'cor', 'solicitanteUid', 'solicitanteNome', 'solicitanteEmail', 'status', 'criadoEm',
+          'motivo', 'decididoEm', 'decididoPor'])
+        && slug.matches('^[a-z0-9-]{2,40}$')
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 60
+        && data.cor in coresTime()
+        && data.solicitanteUid is string
+        && data.solicitanteNome is string && data.solicitanteNome.size() <= 100
+        && data.solicitanteEmail is string && data.solicitanteEmail.size() <= 254
+        && data.status in ['pendente', 'aprovado', 'reprovado']
+        && textoOpcional(data, 'motivo', 1, 200)
+        && data.criadoEm is timestamp;
+    }
+
+    function pedidoTimePath(slug) {
+      return /databases/$(database)/documents/pedidosTime/$(slug);
+    }
+
+    // Quem está logado tem pedido aprovado para este endereço.
+    function pedidoAprovadoDe(slug) {
+      return exists(pedidoTimePath(slug))
+        && get(pedidoTimePath(slug)).data.status == 'aprovado'
+        && get(pedidoTimePath(slug)).data.solicitanteUid == request.auth.uid;
+    }
+
+    // Time nascendo no mesmo lote a partir do pedido aprovado: quem pediu vira diretoria e tesouraria.
+    function fundadorDoTime(timeId, uid) {
+      let timePath = /databases/$(database)/documents/times/$(timeId);
+      return uid == request.auth.uid
+        && !exists(timePath) && existsAfter(timePath)
+        && pedidoAprovadoDe(timeId)
+        && isValidAcesso(request.resource.data, timeId, uid)
+        && request.resource.data.papeis == ['diretoria', 'tesouraria']
+        && request.resource.data.atletaId == null
+        && request.resource.data.timeNome == getAfter(timePath).data.nome;
+    }
+
     function isValidTime(data, timeId) {
       return data.keys().hasAll(['nome', 'slug', 'cor', 'escudo', 'criadoEm', 'financeiro'])
         && data.keys().hasOnly(['nome', 'slug', 'cor', 'escudo', 'criadoEm', 'financeiro', 'esportes'])
@@ -301,8 +350,7 @@ service cloud.firestore {
           && data.esportes.hasOnly(['campo', 'society', 'futsal'])))
         && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 60
         && data.slug == timeId && timeId.matches('^[a-z0-9-]{2,40}$')
-        && data.cor in ['preto', 'red', 'rose', 'pink', 'fuchsia', 'purple', 'violet', 'indigo', 'blue', 'sky',
-          'cyan', 'teal', 'emerald', 'green', 'lime', 'yellow', 'amber', 'orange']
+        && data.cor in coresTime()
         && (data.escudo == null
           || (data.escudo is string && data.escudo.size() <= 120000
             && data.escudo.matches('^data:image/(webp|png|jpeg);base64,[A-Za-z0-9+/=]+$'))
@@ -732,13 +780,48 @@ service cloud.firestore {
     // times/{timeId}
     // Leitura: quem tem acesso ao time ou adminGeral. Escrita: adminGeral (financeiro: Fase 2).
     // ---------------------------------------------------------------
+    // Pedidos de time novo: quem pede cria e acompanha o seu; o adminGeral aprova ou reprova.
+    match /pedidosTime/{slug} {
+      allow read: if isAuthenticated() && (resource.data.solicitanteUid == request.auth.uid || isAdminGeral());
+
+      allow create: if isAuthenticated()
+        && isValidPedidoTime(request.resource.data, slug)
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.solicitanteUid == request.auth.uid
+        && request.resource.data.solicitanteEmail == request.auth.token.email
+        && request.resource.data.criadoEm == request.time
+        && !('motivo' in request.resource.data) && !('decididoEm' in request.resource.data)
+        && !('decididoPor' in request.resource.data)
+        && !exists(/databases/$(database)/documents/times/$(slug));
+
+      allow update: if isAdminGeral()
+        && isValidPedidoTime(request.resource.data, slug)
+        && resource.data.status == 'pendente'
+        && request.resource.data.status in ['aprovado', 'reprovado']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'motivo', 'decididoEm', 'decididoPor'])
+        && (!('motivo' in request.resource.data) || request.resource.data.status == 'reprovado')
+        && request.resource.data.decididoEm == request.time
+        && request.resource.data.decididoPor == request.auth.uid;
+
+      // Quem pediu cancela (pendente) ou dispensa o aviso (reprovado); aprovado fica como histórico.
+      allow delete: if isAuthenticated()
+        && ((resource.data.solicitanteUid == request.auth.uid && resource.data.status in ['pendente', 'reprovado'])
+          || isAdminGeral());
+    }
+
     match /times/{timeId} {
       allow read: if temAcesso(timeId) || isAdminGeral();
 
-      allow create: if isAdminGeral()
-        && isValidTime(request.resource.data, timeId)
+      // adminGeral, ou quem teve o pedido aprovado (nome e cor do pedido, sem escudo, junto com o próprio acesso).
+      allow create: if isValidTime(request.resource.data, timeId)
         && request.resource.data.criadoEm == request.time
-        && request.resource.data.financeiro == financeiroPadrao();
+        && request.resource.data.financeiro == financeiroPadrao()
+        && (isAdminGeral()
+          || (pedidoAprovadoDe(timeId)
+            && request.resource.data.nome == get(pedidoTimePath(timeId)).data.nome
+            && request.resource.data.cor == get(pedidoTimePath(timeId)).data.cor
+            && request.resource.data.escudo == null
+            && existsAfter(/databases/$(database)/documents/times/$(timeId)/acessos/$(request.auth.uid))));
 
       // adminGeral: identidade do time. Diretoria (ou adminGeral): só os esportes.
       // Tesouraria (ou adminGeral): só a configuração financeira.
@@ -761,6 +844,7 @@ service cloud.firestore {
         allow create, update: if podeGerir(timeId)
           && isValidAcesso(request.resource.data, timeId, uid)
           && timeNomeCoerente(timeId);
+        allow create: if fundadorDoTime(timeId, uid);
         allow delete: if podeGerir(timeId);
       }
 

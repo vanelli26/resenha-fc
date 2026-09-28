@@ -135,6 +135,16 @@ Por evento esportivo (não em confraternização/outro; não em cancelado), tela
 3. Diretoria aprova: vincula a um atleta existente ou cria um novo, define modalidade, e cria o acesso com papel `jogador`.
 4. Diretoria (ou adminGeral) pode acrescentar ou remover papéis depois, incluindo `diretoria` e `tesouraria`.
 
+### 2.12 Times novos (pedido e aprovação)
+
+A plataforma aceita outros times além dos dois iniciais. Qualquer pessoa logada pede; o **adminGeral aprova ou reprova**; quem pediu cria e gere o próprio time.
+
+1. Em "Meus times", **Criar meu time**: nome (até 60), endereço (`/t/{slug}`, gerado do nome e editável; 2–40 de `a-z0-9-`; não muda depois) e cor. Vira um documento `pedidosTime/{slug}` com status `pendente`. Endereço já usado por um time ou por outro pedido é recusado ("Endereço indisponível").
+2. A pessoa acompanha em "Meus times": aguardando (pode cancelar), aprovado (botão **Criar time**) ou reprovado, com o motivo (pode dispensar o aviso e pedir de novo).
+3. adminGeral, em Gerenciar times: pedidos pendentes (nome, endereço, quem pediu, e-mail, data) com **Aprovar** ou **Reprovar** (motivo opcional, até 200) e a lista dos já decididos. Não há limite de times por pessoa: cada pedido passa pela aprovação.
+4. **Criar time** (pedido aprovado): num lote, `times/{slug}` com o nome e a cor do pedido (Rules conferem), sem escudo, configuração financeira padrão, e o acesso de quem pediu com `diretoria` e `tesouraria` (sem atleta; entra no elenco depois por Membros, se jogar). Abre a Gestão do time novo. O pedido aprovado fica como histórico.
+5. Próximas entregas desta mudança: a diretoria edita nome, cor e escudo do próprio time (B); o adminGeral perde o passe livre no conteúdo dos times, incluindo caixa e cobranças, e passa a ver só a lista de times e os pedidos (C).
+
 ---
 
 ## 3. Modelo de dados (Firestore)
@@ -145,6 +155,11 @@ Tudo de um time fica sob `times/{timeId}`, porque cada time é independente e is
 usuarios/{uid}
   nome, email, fotoUrl, criadoEm
   adminGeral: bool                       // só alterável pelo console/Admin SDK
+
+pedidosTime/{slug}                       // pedido de time novo (2.12); id = endereço pedido
+  nome, cor, solicitanteUid, solicitanteNome, solicitanteEmail
+  status: "pendente" | "aprovado" | "reprovado", motivo? (só reprovado)
+  criadoEm, decididoEm?, decididoPor?
 
 times/{timeId}                           // timeId = slug (imutável; usado na URL /t/:timeId)
   nome, slug, cor, escudo, criadoEm      // cor = paleta da lista; escudo = URL do Storage | data URL antigo | null (ver 6.1)
@@ -258,8 +273,9 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | Coleção | Leitura | Escrita |
 |---|---|---|
 | `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
-| `times/{timeId}` | quem tem acesso ao time | adminGeral (nome, cor, escudo, esportes); diretoria: só `esportes`; tesouraria/adminGeral: só `financeiro`, validado |
-| `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel) |
+| `pedidosTime/{slug}` | quem pediu / adminGeral | cria: qualquer logado, para si, `pendente`, endereço livre (sem time nem pedido); decide (`pendente` → `aprovado`/`reprovado`): adminGeral; apaga: quem pediu (pendente ou reprovado) ou adminGeral |
+| `times/{timeId}` | quem tem acesso ao time | cria: adminGeral ou quem tem pedido aprovado (nome e cor do pedido, junto com o próprio acesso); adminGeral (nome, cor, escudo, esportes); diretoria: só `esportes`; tesouraria/adminGeral: só `financeiro`, validado |
+| `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel); o fundador cria o próprio (`diretoria` + `tesouraria`) no lote que cria o time do pedido aprovado |
 | `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (modalidade, status e `vinculo` só a diretoria) (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
@@ -376,7 +392,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 
 **Estilos** — CSS próprio, mobile-first, só tokens do tema. Classes globais em `styles.scss`: `.cartao`, `.cartao-link` (+ `__seta`), `.selo-alerta`, `.formulario`, `.campo` (+ `__dica`, `__erro`), `.acoes`, `.lista`, `.texto-suave`, `.dica`, `.cabecalho-secao`, `.visualmente-oculto`. Classes locais em BEM (`bloco__elemento--modificador`). Sem `::ng-deep`; para estilizar componente PrimeNG, usar inputs dele (`inputStyle`, `styleClass`).
 
-**Utilitários de `shared/`** — `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos: mês, semestre, ano), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`, `abas-secao` (abas internas por rota: Financeiro, Elenco, Agenda). Ranking de artilharia reutilizável em `estatisticas/ranking-artilharia` (ano e campeonato). Navegação ‹ período › em `financeiro/navegador-periodo` (mês, semestre ou ano).
+**Utilitários de `shared/`** — `slug` (endereço do time a partir do nome), `seletor-cor` (cor do time, controle de Signal Forms), `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos: mês, semestre, ano), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`, `abas-secao` (abas internas por rota: Financeiro, Elenco, Agenda). Ranking de artilharia reutilizável em `estatisticas/ranking-artilharia` (ano e campeonato). Navegação ‹ período › em `financeiro/navegador-periodo` (mês, semestre ou ano).
 
 **Nomes** — domínio e código em pt-BR (classes, métodos, signals); sufixos só para tipo de arquivo (`-page`, `.service`, `.model`, `.routes`). Signals booleanos como estado (`carregando`, `salvando`, `processando`), ações como verbos (`salvar`, `excluir`).
 
@@ -482,6 +498,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Fase 5 começa pelo PWA (6.3): manifest, ícones gerados da marca, `@angular/service-worker` 22.2 (dependência oficial do Angular, aprovada) com cache só dos arquivos do app, aviso de versão nova e "Instalar app" (pedido nativo no Android; instruções no iPhone). Cabeçalhos do Hosting ajustados para o service worker revalidar sempre. |
 | 27/09/2026 | Lentidão após o PWA: o worker do Angular respondia a todas as requisições, inclusive Firestore/Storage de outra origem, e baixava ~2,4 MB de telas logo ao abrir. Entrada própria `sw-principal.js` deixa outras origens fora do worker; telas passam a ser guardadas sob demanda. |
 | 27/09/2026 | Carregando em toda interação: barra de atividade global (troca de tela e escritas) + `[loading]` no botão tocado, inclusive ações por item, remover em diálogos, presença e campos que dependem de leitura. Padrão em 6.2. Botão "Atualizar" (versão nova) com carregando e limite de 3 s. |
+| 27/09/2026 | Plataforma aberta a outros times (2.12), em três entregas. A: pedido de time (`pedidosTime`), aprovação/reprovação pelo adminGeral (com motivo), criação do time pelo próprio solicitante como diretoria e tesouraria. B: diretoria edita a identidade do próprio time. C: adminGeral sem acesso ao conteúdo dos times (nem caixa/cobranças); vê só a lista de times e os pedidos. O desenvolvedor segue nos times atuais como atleta; as diretorias gerem. |
 
 ---
 

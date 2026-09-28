@@ -24,3 +24,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.cabecalho__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+// Pedidos de time da própria pessoa (aguardando, aprovado, reprovado).
+.pedidos {
+  margin-bottom: 1rem;
+}
+
+.pedido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.pedido__texto {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}

@@ -17,7 +17,7 @@ export interface DadosTime {
 }
 
 // Configuração financeira nasce sem planos; a tesouraria define depois (Rules exigem este padrão).
-const FINANCEIRO_PADRAO: ConfigFinanceira = {
+export const FINANCEIRO_PADRAO: ConfigFinanceira = {
   planos: [],
   vencimentos: VENCIMENTOS_PADRAO,
   despesasRecorrentes: [],

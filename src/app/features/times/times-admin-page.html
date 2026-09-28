@@ -1,5 +1,7 @@
 <h2>Times</h2>
 
+<app-pedidos-time-admin [pedidos]="pedidos()" [ocupado]="decidindo()" (decidir)="decidir($event)" />
+
 <form class="cartao formulario form-time" (submit)="$event.preventDefault(); salvar()">
   <h3>{{ editandoId() ? 'Editar time' : 'Novo time' }}</h3>
 
@@ -37,19 +39,7 @@
     <small class="campo__dica">PNG, JPG, WebP ou SVG. A imagem é reduzida para 512px (fundo transparente é mantido).</small>
   </div>
 
-  <fieldset class="campo cores">
-    <legend>Cor predominante</legend>
-    <div class="cores__grade">
-      @for (c of cores; track c.cor) {
-        <label class="cores__opcao" [title]="c.rotulo">
-          <input type="radio" [value]="c.cor" [formField]="formulario.cor" />
-          <span class="cores__amostra" [style.background]="c.amostra"></span>
-          <span class="visualmente-oculto">{{ c.rotulo }}</span>
-        </label>
-      }
-    </div>
-    <small class="campo__dica">{{ rotuloCor[modelo().cor] }}</small>
-  </fieldset>
+  <app-seletor-cor [formField]="formulario.cor" />
 
   <div class="campo">
     <span id="esportes-time">Esportes</span>

@@ -1,9 +1,70 @@
 <div class="cabecalho-secao">
   <h2>Meus times</h2>
-  @if (adminGeral()) {
-    <p-button label="Gerenciar times" size="small" [outlined]="true" routerLink="/admin/times" />
-  }
+  <div class="cabecalho__acoes">
+    @if (adminGeral()) {
+      <p-button label="Gerenciar times" size="small" [outlined]="true" routerLink="/admin/times" />
+    }
+    <p-button label="Criar meu time" size="small" (onClick)="dialogPedido.set(true)" />
+  </div>
 </div>
+
+@if (pedidosVisiveis().length > 0) {
+  <ul class="lista pedidos">
+    @for (p of pedidosVisiveis(); track p.id) {
+      <li class="cartao pedido">
+        <span class="pedido__texto">
+          <strong>{{ p.nome }}</strong>
+          @switch (p.status) {
+            @case ('pendente') {
+              <small class="texto-suave">Pedido enviado. Aguardando aprovação.</small>
+            }
+            @case ('aprovado') {
+              <small class="texto-suave">Aprovado! Crie o time para começar.</small>
+            }
+            @case ('reprovado') {
+              <small class="texto-suave">Reprovado{{ p.motivo ? ': ' + p.motivo : '.' }}</small>
+            }
+          }
+        </span>
+        @switch (p.status) {
+          @case ('pendente') {
+            <p-tag value="Aguardando" severity="warn" />
+            <p-button
+              label="Cancelar"
+              size="small"
+              [text]="true"
+              severity="secondary"
+              [loading]="pedidoOcupado() === p.id"
+              [disabled]="pedidoOcupado() !== null"
+              (onClick)="dispensar(p)"
+            />
+          }
+          @case ('aprovado') {
+            <p-button
+              label="Criar time"
+              size="small"
+              [loading]="pedidoOcupado() === p.id"
+              [disabled]="pedidoOcupado() !== null"
+              (onClick)="criarTime(p)"
+            />
+          }
+          @case ('reprovado') {
+            <p-tag value="Reprovado" severity="danger" />
+            <p-button
+              label="Dispensar"
+              size="small"
+              [text]="true"
+              severity="secondary"
+              [loading]="pedidoOcupado() === p.id"
+              [disabled]="pedidoOcupado() !== null"
+              (onClick)="dispensar(p)"
+            />
+          }
+        }
+      </li>
+    }
+  </ul>
+}
 
 @if (carregando() && meusTimes().length === 0) {
   <div class="lista">
@@ -38,7 +99,15 @@
         </a>
       </li>
     } @empty {
-      <li class="texto-suave">Você ainda não faz parte de nenhum time. Peça um link de convite à diretoria.</li>
+      <li class="texto-suave">
+        Você ainda não faz parte de nenhum time. Peça um link de convite à diretoria ou crie o seu.
+      </li>
     }
   </ul>
 }
+
+<p-dialog header="Criar meu time" [(visible)]="dialogPedido" [modal]="true" [style]="{ width: 'min(28rem, 100vw - 2rem)' }">
+  @if (dialogPedido()) {
+    <app-pedido-time-form [enviando]="enviandoPedido()" (pedir)="pedir($event)" (cancelar)="dialogPedido.set(false)" />
+  }
+</p-dialog>

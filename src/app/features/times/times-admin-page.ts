@@ -1,19 +1,24 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormField, form, maxLength, pattern, readonly, required, submit, validate } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectButtonModule } from 'primeng/selectbutton';
+import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { SessaoService } from '../../core/sessao/sessao.service';
-import { amostraDaCor } from '../../core/theme/app-theme';
 import { ESPORTES, ESPORTES_PADRAO, Esporte } from '../../models/posicao.model';
-import { CORES_TIME, CorTime, TimeGravado } from '../../models/time.model';
+import { PedidoTime } from '../../models/pedido-time.model';
+import { CorTime, TimeGravado } from '../../models/time.model';
 import { Avisos } from '../../shared/avisos';
 import { Escudo } from '../../shared/escudo';
 import { FotoProcessada, fotoParaEnvio } from '../../shared/imagem';
-import { ROTULO_COR, ROTULO_ESPORTE, opcoes } from '../../shared/rotulos';
+import { ROTULO_ESPORTE, opcoes } from '../../shared/rotulos';
+import { SeletorCor } from '../../shared/seletor-cor';
+import { PADRAO_SLUG } from '../../shared/slug';
+import { PedidosTimeService } from './data/pedidos-time.service';
 import { TimesService } from './data/times.service';
+import { DecisaoPedido, PedidosTimeAdmin } from './pedidos-time-admin';
 
 interface FormTime {
   slug: string;
@@ -27,7 +32,7 @@ const FORM_VAZIO: FormTime = { slug: '', nome: '', cor: 'emerald', esportes: [..
 /** Cadastro de times — só adminGeral (rota e Rules). */
 @Component({
   selector: 'app-times-admin-page',
-  imports: [FormField, RouterLink, ButtonModule, InputTextModule, SelectButtonModule, Escudo],
+  imports: [FormField, RouterLink, ButtonModule, InputTextModule, SelectButtonModule, Escudo, PedidosTimeAdmin, SeletorCor],
   templateUrl: './times-admin-page.html',
   styleUrl: './times-admin-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,11 +41,17 @@ export class TimesAdminPage {
   private readonly timesService = inject(TimesService);
   private readonly sessao = inject(SessaoService);
   private readonly avisos = inject(Avisos);
+  private readonly auth = inject(AuthService);
+  private readonly pedidosService = inject(PedidosTimeService);
+  private readonly listaPedidos = viewChild(PedidosTimeAdmin);
+
+  protected readonly pedidos = signal<ComId<PedidoTime>[]>([]);
+  /** Pedido sendo decidido (carregando no botão dele). */
+  protected readonly decidindo = signal<string | null>(null);
+  private readonly processandoPedido = signal(false);
 
   protected readonly times = signal<ComId<TimeGravado>[]>([]);
   protected readonly editandoId = signal<string | null>(null);
-  protected readonly cores = CORES_TIME.map((cor) => ({ cor, rotulo: ROTULO_COR[cor], amostra: amostraDaCor(cor) }));
-  protected readonly rotuloCor = ROTULO_COR;
   protected readonly opcoesEsporte = opcoes(ESPORTES, ROTULO_ESPORTE);
 
   // Escudo fica fora do formulário: vem de upload, não de digitação.
@@ -58,7 +69,7 @@ export class TimesAdminPage {
     required(p.nome, { message: 'Informe o nome.' });
     maxLength(p.nome, 60, { message: 'Máximo de 60 caracteres.' });
     required(p.slug, { message: 'Informe o identificador.' });
-    pattern(p.slug, /^[a-z0-9-]{2,40}$/, { message: 'Use 2 a 40 letras minúsculas, números ou hífen.' });
+    pattern(p.slug, PADRAO_SLUG, { message: 'Use 2 a 40 letras minúsculas, números ou hífen.' });
     // Slug é o ID do documento: imutável depois de criado.
     readonly(p.slug, { when: () => this.editandoId() !== null });
     validate(p.esportes, ({ value }) =>
@@ -154,11 +165,35 @@ export class TimesAdminPage {
     });
   }
 
+  protected async decidir({ pedido, aprovado, motivo }: DecisaoPedido): Promise<void> {
+    const uid = this.auth.usuario()?.uid;
+    if (!uid) return;
+    this.decidindo.set(pedido.id);
+    const ok = await this.avisos.executar(
+      this.processandoPedido,
+      () => this.pedidosService.decidir(pedido.id, aprovado, motivo, uid),
+      aprovado ? `${pedido.nome} aprovado` : `${pedido.nome} reprovado`,
+    );
+    this.decidindo.set(null);
+    if (!ok) return;
+    this.listaPedidos()?.fecharReprovacao();
+    await this.carregarPedidos();
+  }
+
   private async carregar(): Promise<void> {
     try {
       this.times.set(await this.timesService.listar());
     } catch (e) {
       this.avisos.erro('Erro ao carregar times', e);
+    }
+    await this.carregarPedidos();
+  }
+
+  private async carregarPedidos(): Promise<void> {
+    try {
+      this.pedidos.set(await this.pedidosService.listar());
+    } catch (e) {
+      this.avisos.erro('Erro ao carregar pedidos', e);
     }
   }
 }
