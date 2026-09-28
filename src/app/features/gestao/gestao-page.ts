@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RouterLink } from '@angular/router';
 import { ChevronRight } from '@primeicons/angular/chevron-right';
 import { Flag } from '@primeicons/angular/flag';
+import { Palette } from '@primeicons/angular/palette';
 import { Star } from '@primeicons/angular/star';
 import { IdCard } from '@primeicons/angular/id-card';
 import { Link } from '@primeicons/angular/link';
@@ -15,14 +16,14 @@ interface Item {
   caminho: string;
   titulo: string;
   descricao: string;
-  icone: 'membros' | 'convites' | 'solicitacoes' | 'socios' | 'apoiadores' | 'esportes' | 'financeiro';
+  icone: 'time' | 'membros' | 'convites' | 'solicitacoes' | 'socios' | 'apoiadores' | 'esportes' | 'financeiro';
   selo?: number;
 }
 
 /** Entrada das telas de administração do time; cada item aparece conforme o papel. */
 @Component({
   selector: 'app-gestao-page',
-  imports: [RouterLink, ChevronRight, Flag, Star, IdCard, Link, SlidersH, UserPlus, Users],
+  imports: [RouterLink, ChevronRight, Flag, Palette, Star, IdCard, Link, SlidersH, UserPlus, Users],
   templateUrl: './gestao-page.html',
   styleUrl: './gestao-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +36,7 @@ export class GestaoPage {
     const itens: Item[] = [];
     if (this.timeAtual.ehDiretoria()) {
       itens.push(
+        { caminho: 'time', titulo: 'Dados do time', descricao: 'Nome, escudo e cor', icone: 'time' },
         { caminho: 'membros', titulo: 'Membros', descricao: 'Papéis e vínculo com o elenco', icone: 'membros' },
         { caminho: 'convites', titulo: 'Convites', descricao: 'Links para entrar no time', icone: 'convites' },
         {

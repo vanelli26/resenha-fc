@@ -108,6 +108,12 @@ export class TimeAtualService {
     this._time.update((time) => (time ? { ...time, financeiro } : time));
   }
 
+  /** Reflete no contexto nome, cor (tema) e escudo recém-gravados. */
+  definirIdentidade(identidade: Pick<Time, 'nome' | 'cor' | 'escudo'>): void {
+    this._time.update((time) => (time ? { ...time, ...identidade } : time));
+    aplicarTemaDoTime(identidade.cor);
+  }
+
   /** Reflete no contexto os esportes recém-gravados. */
   definirEsportes(esportes: Esporte[]): void {
     this._time.update((time) => (time ? { ...time, esportes } : time));

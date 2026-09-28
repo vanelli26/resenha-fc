@@ -823,14 +823,14 @@ service cloud.firestore {
             && request.resource.data.escudo == null
             && existsAfter(/databases/$(database)/documents/times/$(timeId)/acessos/$(request.auth.uid))));
 
-      // adminGeral: identidade do time. Diretoria (ou adminGeral): só os esportes.
+      // Diretoria (ou adminGeral): identidade (nome, cor, escudo) e esportes; slug e criadoEm nunca mudam.
       // Tesouraria (ou adminGeral): só a configuração financeira.
       allow update: if isValidTime(request.resource.data, timeId)
         && (
           (isAdminGeral()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema', 'esportes']))
           || (podeGerir(timeId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['esportes']))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema', 'esportes']))
           || (podeFinanceiro(timeId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['financeiro'])
             && isValidFinanceiro(request.resource.data.financeiro))

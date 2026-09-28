@@ -116,6 +116,12 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../patrocinadores/patrocinadores-page').then((m) => m.PatrocinadoresPage),
       },
       {
+        path: 'gestao/time',
+        canActivate: [diretoriaGuard],
+        title: 'Dados do time · ResenhaFC',
+        loadComponent: () => import('../gestao/dados-time-page').then((m) => m.DadosTimePage),
+      },
+      {
         path: 'gestao/esportes',
         canActivate: [diretoriaGuard],
         title: 'Esportes · ResenhaFC',

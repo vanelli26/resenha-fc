@@ -8,6 +8,9 @@
       <a class="cartao-link item" [routerLink]="item.caminho">
         <span class="item__icone">
           @switch (item.icone) {
+            @case ('time') {
+              <svg data-p-icon="palette" [size]="20" aria-hidden="true"></svg>
+            }
             @case ('membros') {
               <svg data-p-icon="id-card" [size]="20" aria-hidden="true"></svg>
             }

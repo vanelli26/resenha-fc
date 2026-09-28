@@ -96,7 +96,7 @@ export class InicioPage {
     }
   }
 
-  /** Pedido aprovado: cria o time e abre a Gestão dele. */
+  /** Pedido aprovado: cria o time e abre Dados do time (para escolher o escudo). */
   protected async criarTime(pedido: ComId<PedidoTime>): Promise<void> {
     const usuario = this.auth.usuario();
     if (!usuario) return;
@@ -104,13 +104,13 @@ export class InicioPage {
     const ok = await this.avisos.executar(
       this.processandoPedido,
       () => this.pedidosService.criarTime(pedido, usuario),
-      `${pedido.nome} criado`,
+      `${pedido.nome} criado! Escolha o escudo do time.`,
       'Não foi possível criar o time',
     );
     this.pedidoOcupado.set(null);
     if (!ok) return;
     await this.sessao.carregarMeusTimes();
-    await this.router.navigate(['/t', pedido.id, 'gestao']);
+    await this.router.navigate(['/t', pedido.id, 'gestao', 'time']);
   }
 
   protected async dispensar(pedido: ComId<PedidoTime>): Promise<void> {

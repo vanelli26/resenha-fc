@@ -142,8 +142,9 @@ A plataforma aceita outros times além dos dois iniciais. Qualquer pessoa logada
 1. Em "Meus times", **Criar meu time**: nome (até 60), endereço (`/t/{slug}`, gerado do nome e editável; 2–40 de `a-z0-9-`; não muda depois) e cor. Vira um documento `pedidosTime/{slug}` com status `pendente`. Endereço já usado por um time ou por outro pedido é recusado ("Endereço indisponível").
 2. A pessoa acompanha em "Meus times": aguardando (pode cancelar), aprovado (botão **Criar time**) ou reprovado, com o motivo (pode dispensar o aviso e pedir de novo).
 3. adminGeral, em Gerenciar times: pedidos pendentes (nome, endereço, quem pediu, e-mail, data) com **Aprovar** ou **Reprovar** (motivo opcional, até 200) e a lista dos já decididos. Não há limite de times por pessoa: cada pedido passa pela aprovação.
-4. **Criar time** (pedido aprovado): num lote, `times/{slug}` com o nome e a cor do pedido (Rules conferem), sem escudo, configuração financeira padrão, e o acesso de quem pediu com `diretoria` e `tesouraria` (sem atleta; entra no elenco depois por Membros, se jogar). Abre a Gestão do time novo. O pedido aprovado fica como histórico.
-5. Próximas entregas desta mudança: a diretoria edita nome, cor e escudo do próprio time (B); o adminGeral perde o passe livre no conteúdo dos times, incluindo caixa e cobranças, e passa a ver só a lista de times e os pedidos (C).
+4. **Criar time** (pedido aprovado): num lote, `times/{slug}` com o nome e a cor do pedido (Rules conferem), sem escudo, configuração financeira padrão, e o acesso de quem pediu com `diretoria` e `tesouraria` (sem atleta; entra no elenco depois por Membros, se jogar). Abre **Gestão › Dados do time** para escolher o escudo. O pedido aprovado fica como histórico.
+5. **Dados do time** (diretoria, `/t/:timeId/gestao/time`): nome, cor e escudo do próprio time; o endereço não muda. O nome novo aparece em "Meus times" e no seletor do topo (lidos do time); `acessos.timeNome` e `convites.timeNome` antigos não são reescritos (3.2).
+6. Próxima entrega: o adminGeral perde o passe livre no conteúdo dos times, incluindo caixa e cobranças, e passa a ver só a lista de times e os pedidos (C).
 
 ---
 
@@ -274,7 +275,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 |---|---|---|
 | `usuarios/{uid}` | o próprio / adminGeral | o próprio (exceto `adminGeral`) |
 | `pedidosTime/{slug}` | quem pediu / adminGeral | cria: qualquer logado, para si, `pendente`, endereço livre (sem time nem pedido); decide (`pendente` → `aprovado`/`reprovado`): adminGeral; apaga: quem pediu (pendente ou reprovado) ou adminGeral |
-| `times/{timeId}` | quem tem acesso ao time | cria: adminGeral ou quem tem pedido aprovado (nome e cor do pedido, junto com o próprio acesso); adminGeral (nome, cor, escudo, esportes); diretoria: só `esportes`; tesouraria/adminGeral: só `financeiro`, validado |
+| `times/{timeId}` | quem tem acesso ao time | cria: adminGeral ou quem tem pedido aprovado (nome e cor do pedido, junto com o próprio acesso); diretoria/adminGeral: nome, cor, escudo, esportes; tesouraria/adminGeral: só `financeiro`, validado |
 | `acessos/{uid}` | o próprio; diretoria; tesouraria | adminGeral; diretoria do time (qualquer papel); o fundador cria o próprio (`diretoria` + `tesouraria`) no lote que cria o time do pedido aprovado |
 | `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (modalidade, status e `vinculo` só a diretoria) (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
@@ -345,7 +346,7 @@ src/app/
 - Cada time escolhe a **cor predominante** em uma lista fechada (`CORES_TIME`): paletas do PrimeUIX mais `preto` (preto e branco: primária preta no claro, branca no escuro). Paletas claras (`yellow`, `amber`, `lime`, `cyan`, `sky`) usam texto preto sobre a primária. O time guarda só o nome da cor; a paleta é montada em `app-theme.ts`.
 - Troca de time chama `aplicarTemaDoTime(cor)`.
 - Status financeiros fixos em qualquer cor, sempre com ícone além da cor (a cor "pendente" pode coincidir com a do time): pago `success` + check; pendente `warn` + relógio; atrasado `danger` + exclamação; isento/cancelado `secondary`.
-- Escudo enviado pelo adminGeral: redimensionado no navegador (lado maior 512px, WebP; PNG onde não houver encoder WebP, mantendo transparência) e enviado ao Storage em `times/{timeId}/escudo/{data-hora}.ext`; o time guarda a URL de download. Trocar ou remover apaga o arquivo anterior. Escudos antigos em data URL continuam válidos até serem trocados.
+- Escudo enviado pela diretoria do time (Gestão › Dados do time; componente `shared/seletor-escudo`): redimensionado no navegador (lado maior 512px, WebP; PNG onde não houver encoder WebP, mantendo transparência) e enviado ao Storage em `times/{timeId}/escudo/{data-hora}.ext`; o time guarda a URL de download. Trocar ou remover apaga o arquivo anterior. Escudos antigos em data URL continuam válidos até serem trocados.
 - Não usar cores hexadecimais soltas em componentes; usar tokens do tema (`var(--p-primary-color)` etc.).
 - Marca oficial em `public/marca/` (balão de conversa com campo, fundo verde listrado): `icone.svg`/`icone-32.png` (favicon), `apple-touch-icon.png` (180px, da versão maskable), `logo-fundo-claro.svg`/`logo-fundo-escuro.svg` (usados por `shared/logo.ts` conforme o modo; no celular estreito, só o ícone) e `fundo.svg`. Cores fixas da marca, não seguem a cor do time. Ícones do app instalado (`icone-192.png`, `icone-512.png`, `icone-maskable-512.png`) gerados do `icone.svg` (maskable: fundo sem cantos e desenho a 80%, na área segura).
 - Fundo do app (`styles.scss`): modo escuro usa `marca/fundo.svg`; modo claro, brilho da primária + faixas sutis de gramado.
@@ -499,6 +500,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Lentidão após o PWA: o worker do Angular respondia a todas as requisições, inclusive Firestore/Storage de outra origem, e baixava ~2,4 MB de telas logo ao abrir. Entrada própria `sw-principal.js` deixa outras origens fora do worker; telas passam a ser guardadas sob demanda. |
 | 27/09/2026 | Carregando em toda interação: barra de atividade global (troca de tela e escritas) + `[loading]` no botão tocado, inclusive ações por item, remover em diálogos, presença e campos que dependem de leitura. Padrão em 6.2. Botão "Atualizar" (versão nova) com carregando e limite de 3 s. |
 | 27/09/2026 | Plataforma aberta a outros times (2.12), em três entregas. A: pedido de time (`pedidosTime`), aprovação/reprovação pelo adminGeral (com motivo), criação do time pelo próprio solicitante como diretoria e tesouraria. B: diretoria edita a identidade do próprio time. C: adminGeral sem acesso ao conteúdo dos times (nem caixa/cobranças); vê só a lista de times e os pedidos. O desenvolvedor segue nos times atuais como atleta; as diretorias gerem. |
+| 27/09/2026 | Entrega B adiantada a pedido: quem cria o time escolhe o escudo. Diretoria edita nome, cor e escudo em Gestão › Dados do time (Rules do time e do Storage liberadas para a diretoria); "Criar time" abre essa tela. Seletor de escudo e gravação com escudo (envio antes, desfaz se falhar, apaga o anterior) reutilizados pelo admin. |
 
 ---
 

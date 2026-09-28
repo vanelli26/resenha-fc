@@ -22,22 +22,7 @@
     }
   </label>
 
-  <div class="campo">
-    <span>Escudo</span>
-    <div class="escudo">
-      <app-escudo class="escudo__previa" [src]="previaEscudo() ?? ''" [nome]="modelo().nome || '?'" />
-      <label class="escudo__enviar">
-        <input type="file" accept="image/*" (change)="escolherEscudo($event)" />
-        <span class="p-button p-button-outlined p-button-sm">
-          {{ processandoImagem() ? 'Processando…' : previaEscudo() ? 'Trocar imagem' : 'Enviar imagem' }}
-        </span>
-      </label>
-      @if (previaEscudo()) {
-        <p-button label="Remover" size="small" [text]="true" severity="danger" type="button" (onClick)="removerEscudo()" />
-      }
-    </div>
-    <small class="campo__dica">PNG, JPG, WebP ou SVG. A imagem é reduzida para 512px (fundo transparente é mantido).</small>
-  </div>
+  <app-seletor-escudo [atual]="escudoOriginal()" [nome]="modelo().nome" [(escolha)]="escolhaEscudo" />
 
   <app-seletor-cor [formField]="formulario.cor" />
 

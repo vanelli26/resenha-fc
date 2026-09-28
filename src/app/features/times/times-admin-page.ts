@@ -12,7 +12,7 @@ import { PedidoTime } from '../../models/pedido-time.model';
 import { CorTime, TimeGravado } from '../../models/time.model';
 import { Avisos } from '../../shared/avisos';
 import { Escudo } from '../../shared/escudo';
-import { FotoProcessada, fotoParaEnvio } from '../../shared/imagem';
+import { EscolhaEscudo, SeletorEscudo } from '../../shared/seletor-escudo';
 import { ROTULO_ESPORTE, opcoes } from '../../shared/rotulos';
 import { SeletorCor } from '../../shared/seletor-cor';
 import { PADRAO_SLUG } from '../../shared/slug';
@@ -32,7 +32,17 @@ const FORM_VAZIO: FormTime = { slug: '', nome: '', cor: 'emerald', esportes: [..
 /** Cadastro de times — só adminGeral (rota e Rules). */
 @Component({
   selector: 'app-times-admin-page',
-  imports: [FormField, RouterLink, ButtonModule, InputTextModule, SelectButtonModule, Escudo, PedidosTimeAdmin, SeletorCor],
+  imports: [
+    FormField,
+    RouterLink,
+    ButtonModule,
+    InputTextModule,
+    SelectButtonModule,
+    Escudo,
+    PedidosTimeAdmin,
+    SeletorCor,
+    SeletorEscudo,
+  ],
   templateUrl: './times-admin-page.html',
   styleUrl: './times-admin-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,14 +65,11 @@ export class TimesAdminPage {
   protected readonly opcoesEsporte = opcoes(ESPORTES, ROTULO_ESPORTE);
 
   // Escudo fica fora do formulário: vem de upload, não de digitação.
-  /** Escudo gravado (URL do Storage ou data URL antigo) mantido na edição; null = sem escudo. */
-  protected readonly escudo = signal<string | null>(null);
-  /** Escudo novo escolhido, ainda não enviado (prévia local). */
-  private readonly novoEscudo = signal<{ foto: FotoProcessada; previa: string } | null>(null);
-  protected readonly previaEscudo = computed(() => this.novoEscudo()?.previa ?? this.escudo());
-  /** Escudo do time antes da edição: apagado do Storage se for trocado ou removido. */
-  private escudoOriginal: string | null = null;
-  protected readonly processandoImagem = signal(false);
+  /** Escudo gravado do time em edição (null = sem escudo ou time novo). */
+  protected readonly escudoOriginal = signal<string | null>(null);
+  protected readonly escolhaEscudo = signal<EscolhaEscudo>({ tipo: 'manter' });
+  private readonly seletorEscudo = viewChild(SeletorEscudo);
+  protected readonly processandoImagem = computed(() => this.seletorEscudo()?.processando() ?? false);
 
   protected readonly modelo = signal<FormTime>({ ...FORM_VAZIO });
   protected readonly formulario = form(this.modelo, (p) => {
@@ -90,72 +97,28 @@ export class TimesAdminPage {
       cor: time.cor ?? FORM_VAZIO.cor,
       esportes: [...(time.esportes ?? ESPORTES_PADRAO)],
     });
-    this.escudo.set(time.escudo);
-    this.escudoOriginal = time.escudo;
-    this.limparNovoEscudo();
+    this.escudoOriginal.set(time.escudo);
+    this.escolhaEscudo.set({ tipo: 'manter' });
   }
 
   protected cancelar(): void {
     this.editandoId.set(null);
     this.modelo.set({ ...FORM_VAZIO, esportes: [...FORM_VAZIO.esportes] });
-    this.escudo.set(null);
-    this.escudoOriginal = null;
-    this.limparNovoEscudo();
+    this.escudoOriginal.set(null);
+    this.escolhaEscudo.set({ tipo: 'manter' });
     this.formulario().reset();
-  }
-
-  protected removerEscudo(): void {
-    this.escudo.set(null);
-    this.limparNovoEscudo();
-  }
-
-  private limparNovoEscudo(): void {
-    const atual = this.novoEscudo();
-    if (atual) URL.revokeObjectURL(atual.previa);
-    this.novoEscudo.set(null);
-  }
-
-  protected async escolherEscudo(evento: Event): Promise<void> {
-    const campo = evento.target;
-    if (!(campo instanceof HTMLInputElement)) return;
-    const arquivo = campo.files?.[0];
-    campo.value = '';
-    if (!arquivo) return;
-    this.processandoImagem.set(true);
-    try {
-      // PNG como alternativa ao WebP: mantém a transparência do escudo.
-      const foto = await fotoParaEnvio(arquivo, 512, 'image/png');
-      this.limparNovoEscudo();
-      this.novoEscudo.set({ foto, previa: URL.createObjectURL(foto.blob) });
-    } catch (e) {
-      this.avisos.erro('Imagem não aceita', e);
-    } finally {
-      this.processandoImagem.set(false);
-    }
   }
 
   protected salvar(): void {
     void submit(this.formulario, async () => {
       const { slug, nome, cor, esportes } = this.modelo();
       const id = this.editandoId();
-      const novo = this.novoEscudo();
-      const original = this.escudoOriginal;
-      let enviado: string | null = null;
       try {
-        // Escudo novo vai antes para o Storage; se gravar o time falhar, o arquivo enviado é apagado.
-        if (novo) enviado = await this.timesService.enviarEscudo(id ?? slug, novo.foto);
-        const dados = { nome, cor, esportes, escudo: enviado ?? this.escudo() };
-        try {
-          if (id) {
-            await this.timesService.atualizar(id, dados);
-          } else {
-            await this.timesService.criar(slug, dados);
-          }
-        } catch (e) {
-          await this.timesService.apagarEscudo(enviado);
-          throw e;
-        }
-        if (original !== dados.escudo) await this.timesService.apagarEscudo(original);
+        await this.timesService.gravarComEscudo(id ?? slug, this.escudoOriginal(), this.escolhaEscudo(), (escudo) =>
+          id
+            ? this.timesService.atualizar(id, { nome, cor, esportes, escudo })
+            : this.timesService.criar(slug, { nome, cor, esportes, escudo }),
+        );
         this.avisos.sucesso(id ? 'Time atualizado' : 'Time criado');
         this.cancelar();
         await Promise.all([this.carregar(), this.sessao.carregarMeusTimes()]);
