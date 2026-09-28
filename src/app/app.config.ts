@@ -37,7 +37,8 @@ export const appConfig: ApplicationConfig = {
     provideFirebase(environment.firebase),
     MessageService,
     // PWA (DIRETRIZES 6.3): service worker só no build de produção; registra quando o app estabiliza.
-    provideServiceWorker('ngsw-worker.js', {
+    // sw-principal.js deixa as requisições de outras origens (Firebase) fora do worker do Angular.
+    provideServiceWorker('sw-principal.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),

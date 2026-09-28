@@ -3,10 +3,18 @@
   "index": "/index.html",
   "assetGroups": [
     {
-      "name": "app",
+      "name": "inicial",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/index.html", "/manifest.webmanifest", "/*.css", "/*.js"]
+        "files": ["/index.html", "/manifest.webmanifest", "/main-*.js", "/styles-*.css"]
+      }
+    },
+    {
+      "name": "telas",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/*.js", "!/sw-principal.js"]
       }
     },
     {
