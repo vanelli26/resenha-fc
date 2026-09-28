@@ -14,6 +14,17 @@ export const TIME_ROUTES: Routes = [
         title: 'Agenda · ResenhaFC',
         loadComponent: () => import('../agenda/agenda-page').then((m) => m.AgendaPage),
       },
+      // Antes de agenda/:eventoId (senão "campeonatos" seria lido como id de evento).
+      {
+        path: 'agenda/campeonatos',
+        title: 'Campeonatos · ResenhaFC',
+        loadComponent: () => import('../campeonatos/campeonatos-page').then((m) => m.CampeonatosPage),
+      },
+      {
+        path: 'agenda/campeonatos/:campeonatoId',
+        title: 'Campeonato · ResenhaFC',
+        loadComponent: () => import('../campeonatos/campeonato-page').then((m) => m.CampeonatoPage),
+      },
       {
         path: 'agenda/:eventoId',
         title: 'Evento · ResenhaFC',

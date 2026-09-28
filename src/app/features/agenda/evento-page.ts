@@ -10,6 +10,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { EllipsisV } from '@primeicons/angular/ellipsis-v';
 import { ConfirmationService, MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -21,17 +22,19 @@ import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
+import { Campeonato } from '../../models/campeonato.model';
 import { Evento, Gol, Presenca, RespostaPresenca } from '../../models/evento.model';
 import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { ROTULO_ESPORTE, ROTULO_STATUS_EVENTO, ROTULO_TIPO_EVENTO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
+import { CampeonatosService } from '../campeonatos/data/campeonatos.service';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { DadosEvento, EventosService, participa, podeResponder } from './data/eventos.service';
 import { CobrancaAvulsos } from '../financeiro/cobranca-avulsos';
 import { AjustePresenca } from './ajuste-presenca';
 import { ChamarTime } from './chamar-time';
 import { EncerrarEvento, Encerramento, Participante } from './encerrar-evento';
-import { EventoForm } from './evento-form';
+import { EventoForm, OpcaoCampeonato, opcoesDeCampeonato } from './evento-form';
 import { ListaPresenca, gruposDePresenca, ordenarPorNome } from './lista-presenca';
 import { SeletorPresenca } from './seletor-presenca';
 
@@ -39,6 +42,7 @@ import { SeletorPresenca } from './seletor-presenca';
   selector: 'app-evento-page',
   imports: [
     DatePipe,
+    RouterLink,
     ButtonModule,
     ConfirmDialogModule,
     DialogModule,
@@ -64,6 +68,7 @@ export class EventoPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly eventosService = inject(EventosService);
   private readonly atletasService = inject(AtletasService);
+  private readonly campeonatosService = inject(CampeonatosService);
   private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
 
@@ -83,6 +88,16 @@ export class EventoPage {
   protected readonly respondendo = signal(false);
   protected readonly processando = signal(false);
   protected readonly dialogAberto = signal(false);
+  /** Campeonato do evento (nome e link) e opções do formulário de edição (diretoria). */
+  protected readonly campeonato = signal<ComId<Campeonato> | null>(null);
+  protected readonly opcoesCampeonato = signal<OpcaoCampeonato[]>([]);
+  protected readonly linkCampeonato = computed(() => [
+    '/t',
+    this.timeAtual.timeId(),
+    'agenda',
+    'campeonatos',
+    this.campeonato()?.id,
+  ]);
   protected readonly encerrandoAberto = signal(false);
   protected readonly gols = signal<ComId<Gol>[]>([]);
 
@@ -160,7 +175,7 @@ export class EventoPage {
       return [{ label: 'Editar encerramento', command: () => this.encerrandoAberto.set(true) }];
     }
     return [
-      { label: 'Editar evento', command: () => this.dialogAberto.set(true) },
+      { label: 'Editar evento', command: () => void this.abrirEdicao() },
       {
         label: e.status === 'agendado' ? 'Cancelar evento' : 'Reativar evento',
         command: () => this.alternarCancelamento(),
@@ -179,6 +194,7 @@ export class EventoPage {
         this.evento.set(null);
         this.presencas.set([]);
         this.gols.set([]);
+        this.campeonato.set(null);
         this.ajustando.set(false);
         this.naoEncontrado.set(false);
         if (timeId) void this.carregar(timeId, eventoId);
@@ -277,8 +293,39 @@ export class EventoPage {
     const e = this.evento();
     if (!timeId || !e) return false;
     const ok = await this.avisos.executar(this.processando, acao, sucesso);
-    if (ok) this.evento.set(await this.eventosService.obter(timeId, e.id));
-    return ok;
+    if (!ok) return false;
+    const atualizado = await this.eventosService.obter(timeId, e.id);
+    this.evento.set(atualizado);
+    if (atualizado) void this.carregarCampeonato(timeId, atualizado);
+    return true;
+  }
+
+  private async abrirEdicao(): Promise<void> {
+    this.dialogAberto.set(true);
+    const timeId = this.timeAtual.timeId();
+    if (!timeId) return;
+    try {
+      const lista = await this.campeonatosService.listar(timeId);
+      if (this.timeAtual.timeId() === timeId) {
+        this.opcoesCampeonato.set(opcoesDeCampeonato(lista, this.evento()?.campeonatoId));
+      }
+    } catch (err) {
+      this.avisos.erro('Erro ao carregar campeonatos', err);
+    }
+  }
+
+  private async carregarCampeonato(timeId: string, evento: ComId<Evento>): Promise<void> {
+    const id = evento.campeonatoId;
+    if (!id) {
+      this.campeonato.set(null);
+      return;
+    }
+    try {
+      const c = await this.campeonatosService.obter(timeId, id);
+      if (this.timeAtual.timeId() === timeId && this.evento()?.campeonatoId === id) this.campeonato.set(c);
+    } catch {
+      // Só o nome no cabeçalho: sem ele, o evento aparece normalmente.
+    }
   }
 
   private async carregarGols(timeId: string, eventoId: string): Promise<void> {
@@ -304,6 +351,7 @@ export class EventoPage {
       this.evento.set(evento);
       this.cadastros.set(cadastros);
       if (evento.status === 'realizado') void this.carregarGols(timeId, eventoId);
+      void this.carregarCampeonato(timeId, evento);
       this.pararDeOuvir = this.eventosService.ouvirPresencas(
         timeId,
         eventoId,

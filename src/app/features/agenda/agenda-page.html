@@ -1,7 +1,9 @@
+<app-agenda-abas />
+
 <div class="cabecalho-secao">
   <h2>Agenda</h2>
   @if (ehDiretoria()) {
-    <p-button label="Novo evento" size="small" (onClick)="dialogAberto.set(true)" />
+    <p-button label="Novo evento" size="small" (onClick)="abrirNovo()" />
   }
 </div>
 
@@ -67,6 +69,7 @@
   @if (dialogAberto()) {
     <app-evento-form
       [esportes]="esportes()"
+      [campeonatos]="opcoesCampeonato()"
       [salvando]="salvando()"
       (salvar)="criar($event)"
       (cancelar)="dialogAberto.set(false)"

@@ -1,0 +1,83 @@
+<app-voltar para="agenda/campeonatos" rotulo="Campeonatos" />
+
+@if (campeonato(); as c) {
+  <section class="cartao cabecalho">
+    <div class="cabecalho__texto">
+      <h2>{{ c.nome }}</h2>
+      <small class="texto-suave">Temporada {{ c.temporada }}</small>
+    </div>
+    <p-tag [value]="rotuloStatus[c.status]" [severity]="c.status === 'andamento' ? 'success' : 'secondary'" />
+    @if (ehDiretoria()) {
+      <p-button label="Editar" size="small" [text]="true" (onClick)="editando.set(true)" />
+    }
+  </section>
+
+  @let cp = campanha();
+  <section class="cartao campanha" aria-label="Campanha">
+    <div class="campanha__item">
+      <strong>{{ cp.jogos }}</strong>
+      <small class="texto-suave">Jogos</small>
+    </div>
+    <div class="campanha__item campanha__item--v">
+      <strong>{{ cp.vitorias }}</strong>
+      <small class="texto-suave">Vitórias</small>
+    </div>
+    <div class="campanha__item">
+      <strong>{{ cp.empates }}</strong>
+      <small class="texto-suave">Empates</small>
+    </div>
+    <div class="campanha__item campanha__item--d">
+      <strong>{{ cp.derrotas }}</strong>
+      <small class="texto-suave">Derrotas</small>
+    </div>
+    <div class="campanha__item">
+      <strong>{{ cp.golsPro }}:{{ cp.golsContra }}</strong>
+      <small class="texto-suave">Gols (saldo {{ cp.golsPro - cp.golsContra }})</small>
+    </div>
+  </section>
+  @if (cp.semPlacar > 0) {
+    <small class="texto-suave aviso">{{ cp.semPlacar }} jogo(s) encerrado(s) sem placar não entram na campanha.</small>
+  }
+
+  <section class="secao">
+    <h3>Artilharia</h3>
+    <app-ranking-artilharia
+      [cadastros]="cadastros()"
+      [automatico]="automatico()"
+      [ajustes]="ajustes()"
+      [podeEditar]="ehDiretoria()"
+      [salvando]="salvando()"
+      escopo="no campeonato"
+      [(editando)]="editandoArtilharia"
+      (ajustar)="salvarAjuste($event)"
+    />
+  </section>
+
+  <section class="secao">
+    <h3>Jogos</h3>
+    <ul class="lista">
+      @for (e of jogosOrdenados(); track e.id) {
+        <li><app-cartao-evento [evento]="e" /></li>
+      } @empty {
+        <li class="texto-suave">
+          Nenhum jogo. {{ ehDiretoria() ? 'Na Agenda, crie um evento do tipo Campeonato e escolha este campeonato.' : '' }}
+        </li>
+      }
+    </ul>
+  </section>
+
+  <p-dialog header="Editar campeonato" [(visible)]="editando" [modal]="true" [style]="{ width: 'min(28rem, 100vw - 2rem)' }">
+    @if (editando()) {
+      <app-campeonato-form
+        [campeonato]="c"
+        [salvando]="salvando()"
+        (salvar)="salvar($event)"
+        (cancelar)="editando.set(false)"
+      />
+    }
+  </p-dialog>
+} @else if (naoEncontrado()) {
+  <p class="cartao texto-suave">Campeonato não encontrado.</p>
+} @else {
+  <p-skeleton height="8rem" />
+}

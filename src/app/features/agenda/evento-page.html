@@ -29,6 +29,9 @@
             </span>
           }
         </h2>
+        @if (campeonato(); as c) {
+          <a class="detalhe__campeonato" [routerLink]="linkCampeonato()">🏆 {{ c.nome }}</a>
+        }
         @if (textoGols().length > 0) {
           <small class="detalhe__gols">⚽ {{ textoGols().join(' · ') }}</small>
         }
@@ -104,6 +107,7 @@
       <app-evento-form
         [evento]="e"
         [esportes]="esportes()"
+        [campeonatos]="opcoesCampeonato()"
         [salvando]="processando()"
         (salvar)="salvarEdicao($event)"
         (cancelar)="dialogAberto.set(false)"

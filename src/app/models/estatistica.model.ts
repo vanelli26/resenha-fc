@@ -22,6 +22,11 @@ export interface NumerosAtleta {
   assistencias: number;
 }
 
+/** Escopo das estatísticas de um campeonato. */
+export function escopoCampeonato(campeonatoId: string): string {
+  return `c-${campeonatoId}`;
+}
+
 export function idAjusteEstatistica(escopo: string, atletaId: string): string {
   return `${escopo}_${atletaId}`;
 }

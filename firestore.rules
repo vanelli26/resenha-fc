@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ===============================================================
-// ResenhaFC — Security Rules (Fases 0 a 3)
+// ResenhaFC — Security Rules (Fases 0 a 4)
 // Fonte: DIRETRIZES.md, seções 3 e 4. Negar tudo por padrão; liberar por coleção.
 // Protótipo: revisar e endurecer a cada fase antes de ampliar o público.
 // ===============================================================
@@ -60,7 +60,8 @@ rules_version = '2';
 // times/{timeId}/eventos/{eventoId}   (não é excluído: cancelado fica na agenda)
 //   tipo: 'jogo'|'treino'|'amistoso'|'campeonato'|'confraternizacao'|'outro' · titulo (1..80) · data: timestamp
 //   local (0..120) · esporte: 'campo'|'society'|'futsal' · adversario? (1..60) · status: 'agendado'|'cancelado'|'realizado'
-//   placarPro?/placarContra? (int 0..99, juntos, só em realizado) · criadoPor (= request.auth.uid) · criadoEm (= request.time); imutáveis
+//   placarPro?/placarContra? (int 0..99, juntos, só em realizado) · campeonatoId? (só tipo campeonato, campeonato existente)
+//   criadoPor (= request.auth.uid) · criadoEm (= request.time); imutáveis
 //   Transições: agendado ↔ cancelado; agendado → realizado (encerrar); realizado não volta.
 //
 // times/{timeId}/eventos/{eventoId}/presencas/{atletaId}
@@ -87,10 +88,14 @@ rules_version = '2';
 //   Curtidas e comentários de um post que está sendo excluído (no mesmo lote) podem ser apagados.
 //
 // times/{timeId}/ajustesEstatistica/{escopo}_{atletaId}   (correção manual da artilharia)
-//   atletaId (atleta existente) · escopo: ano 'AAAA' · gols, assistencias: int −999..999 (diferença sobre o automático)
+//   atletaId (atleta existente) · escopo: ano 'AAAA' ou 'c-{campeonatoId}' (existente) · gols, assistencias: int −999..999
 //   atualizadoPor (= request.auth.uid) · atualizadoEm (= request.time). Só a diretoria; sem exclusão (zero = automático).
 //
-// Demais coleções (campeonatos...) entram nas próximas fases e ficam negadas.
+// times/{timeId}/campeonatos/{id}
+//   nome (1..60) · temporada (1..20, texto livre: "2026", "2026/2") · status: 'andamento'|'encerrado' · criadoEm (imutável)
+//   Só a diretoria; sem exclusão.
+//
+// Demais coleções (escalação...) entram nas próximas fases e ficam negadas.
 // ===============================================================
 
 service cloud.firestore {
@@ -359,10 +364,13 @@ service cloud.firestore {
         && data.atualizadoEm == request.time;
     }
 
-    function isValidEvento(data) {
+    function isValidEvento(data, timeId) {
       return data.keys().hasAll(['tipo', 'titulo', 'data', 'local', 'esporte', 'status', 'criadoPor', 'criadoEm'])
         && data.keys().hasOnly(['tipo', 'titulo', 'data', 'local', 'esporte', 'adversario', 'placarPro', 'placarContra',
-          'status', 'criadoPor', 'criadoEm'])
+          'status', 'campeonatoId', 'criadoPor', 'criadoEm'])
+        && (!('campeonatoId' in data) || (data.tipo == 'campeonato'
+          && data.campeonatoId is string && data.campeonatoId.size() >= 1 && data.campeonatoId.size() <= 40
+          && exists(/databases/$(database)/documents/times/$(timeId)/campeonatos/$(data.campeonatoId))))
         && data.tipo in ['jogo', 'treino', 'amistoso', 'campeonato', 'confraternizacao', 'outro']
         && data.titulo is string && data.titulo.size() >= 1 && data.titulo.size() <= 80
         && data.data is timestamp
@@ -502,7 +510,10 @@ service cloud.firestore {
     function isValidAjusteEstatistica(data, timeId, ajusteId) {
       return data.keys().hasOnly(['atletaId', 'escopo', 'gols', 'assistencias', 'atualizadoPor', 'atualizadoEm'])
         && data.keys().hasAll(['atletaId', 'escopo', 'gols', 'assistencias', 'atualizadoPor', 'atualizadoEm'])
-        && data.escopo is string && data.escopo.matches('^[0-9]{4}$')
+        && data.escopo is string
+        && (data.escopo.matches('^[0-9]{4}$')
+          || (data.escopo.matches('^c-[A-Za-z0-9]{1,40}$')
+            && exists(/databases/$(database)/documents/times/$(timeId)/campeonatos/$(data.escopo.split('-')[1]))))
         && data.atletaId is string && data.atletaId.size() >= 1 && data.atletaId.size() <= 40
         && ajusteId == data.escopo + '_' + data.atletaId
         && exists(/databases/$(database)/documents/times/$(timeId)/atletas/$(data.atletaId))
@@ -510,6 +521,15 @@ service cloud.firestore {
         && data.assistencias is int && data.assistencias >= -999 && data.assistencias <= 999
         && data.atualizadoPor == request.auth.uid
         && data.atualizadoEm == request.time;
+    }
+
+    function isValidCampeonato(data) {
+      return data.keys().hasOnly(['nome', 'temporada', 'status', 'criadoEm'])
+        && data.keys().hasAll(['nome', 'temporada', 'status', 'criadoEm'])
+        && data.nome is string && data.nome.size() >= 1 && data.nome.size() <= 60
+        && data.temporada is string && data.temporada.size() >= 1 && data.temporada.size() <= 20
+        && data.status in ['andamento', 'encerrado']
+        && data.criadoEm is timestamp;
     }
 
     function diretoriaNoEvento(timeId, eventoId) {
@@ -793,13 +813,13 @@ service cloud.firestore {
         allow read: if temAcesso(timeId) || isAdminGeral();
 
         allow create: if podeGerir(timeId)
-          && isValidEvento(request.resource.data)
+          && isValidEvento(request.resource.data, timeId)
           && request.resource.data.status == 'agendado'
           && request.resource.data.criadoPor == request.auth.uid
           && request.resource.data.criadoEm == request.time;
 
         allow update: if podeGerir(timeId)
-          && isValidEvento(request.resource.data)
+          && isValidEvento(request.resource.data, timeId)
           && inalterados(['criadoPor', 'criadoEm'])
           && transicaoEventoValida(resource.data.status, request.resource.data.status);
 
@@ -835,6 +855,21 @@ service cloud.firestore {
 
           allow delete: if podeGerir(timeId);
         }
+      }
+
+      // Campeonatos (DIRETRIZES 2.10): todos do time leem; só a diretoria mantém; sem exclusão (eventos apontam para eles).
+      match /campeonatos/{campeonatoId} {
+        allow read: if temAcesso(timeId) || isAdminGeral();
+
+        allow create: if podeGerir(timeId)
+          && isValidCampeonato(request.resource.data)
+          && request.resource.data.criadoEm == request.time;
+
+        allow update: if podeGerir(timeId)
+          && isValidCampeonato(request.resource.data)
+          && inalterados(['criadoEm']);
+
+        allow delete: if false;
       }
 
       // Ajuste manual da artilharia (DIRETRIZES 2.10): todos do time leem; só a diretoria grava; sem exclusão.

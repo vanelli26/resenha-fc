@@ -58,6 +58,20 @@
       }
     </label>
 
+    @if (!formulario.campeonatoId().hidden()) {
+      <label class="campo grade__inteira">
+        <span>Campeonato</span>
+        <p-select
+          [formField]="formulario.campeonatoId"
+          [options]="opcoesCampeonato()"
+          optionLabel="label"
+          optionValue="value"
+          [fluid]="true"
+          appendTo="body"
+        />
+      </label>
+    }
+
     @if (!formulario.adversario().hidden()) {
       <label class="campo grade__inteira">
         <span>Adversário</span>

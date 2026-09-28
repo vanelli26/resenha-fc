@@ -9,9 +9,11 @@ import { Atleta } from '../../models/atleta.model';
 import { Evento, RespostaPresenca } from '../../models/evento.model';
 import { Avisos } from '../../shared/avisos';
 import { ROTULO_ESPORTE } from '../../shared/rotulos';
+import { CampeonatosService } from '../campeonatos/data/campeonatos.service';
 import { AtletasService } from '../elenco/data/atletas.service';
+import { AgendaAbas } from './agenda-abas';
 import { DadosEvento, EventosService, TAMANHO_PAGINA_ANTERIORES, podeResponder } from './data/eventos.service';
-import { EventoForm } from './evento-form';
+import { EventoForm, OpcaoCampeonato, opcoesDeCampeonato } from './evento-form';
 import { CartaoEvento } from './cartao-evento';
 
 /** Eventos de hoje seguem em "Próximos" o dia inteiro (quem chega atrasado ainda vê e responde). */
@@ -31,7 +33,7 @@ interface ItemAgenda {
 
 @Component({
   selector: 'app-agenda-page',
-  imports: [ButtonModule, DialogModule, SkeletonModule, CartaoEvento, EventoForm],
+  imports: [ButtonModule, DialogModule, SkeletonModule, AgendaAbas, CartaoEvento, EventoForm],
   templateUrl: './agenda-page.html',
   styleUrl: './agenda-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,6 +43,7 @@ export class AgendaPage {
   private readonly auth = inject(AuthService);
   private readonly eventosService = inject(EventosService);
   private readonly atletasService = inject(AtletasService);
+  private readonly campeonatosService = inject(CampeonatosService);
   private readonly avisos = inject(Avisos);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
@@ -62,6 +65,8 @@ export class AgendaPage {
 
   protected readonly dialogAberto = signal(false);
   protected readonly salvando = signal(false);
+  /** Carregado ao abrir "Novo evento" (só a diretoria cria). */
+  protected readonly opcoesCampeonato = signal<OpcaoCampeonato[]>([]);
 
   constructor() {
     effect(() => {
@@ -76,6 +81,18 @@ export class AgendaPage {
         if (timeId) void this.carregar(timeId, atletaId);
       });
     });
+  }
+
+  protected async abrirNovo(): Promise<void> {
+    this.dialogAberto.set(true);
+    const timeId = this.timeAtual.timeId();
+    if (!timeId) return;
+    try {
+      const lista = await this.campeonatosService.listar(timeId);
+      if (this.timeAtual.timeId() === timeId) this.opcoesCampeonato.set(opcoesDeCampeonato(lista));
+    } catch (e) {
+      this.avisos.erro('Erro ao carregar campeonatos', e);
+    }
   }
 
   protected async responder(item: ItemAgenda, resposta: RespostaPresenca): Promise<void> {

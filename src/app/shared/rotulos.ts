@@ -1,4 +1,5 @@
 import { StatusAtleta, TipoVinculo } from '../models/atleta.model';
+import { StatusCampeonato } from '../models/campeonato.model';
 import { RespostaPresenca, StatusEvento, TipoEvento } from '../models/evento.model';
 import { TipoCobranca } from '../models/financeiro.model';
 import { Periodicidade } from '../models/modalidade.model';
@@ -89,6 +90,11 @@ export const ROTULO_TIPO_EVENTO: Record<TipoEvento, string> = {
   campeonato: 'Campeonato',
   confraternizacao: 'Confraternização',
   outro: 'Outro',
+};
+
+export const ROTULO_STATUS_CAMPEONATO: Record<StatusCampeonato, string> = {
+  andamento: 'Em andamento',
+  encerrado: 'Encerrado',
 };
 
 export const ROTULO_STATUS_EVENTO: Record<StatusEvento, string> = {

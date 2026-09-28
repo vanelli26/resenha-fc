@@ -3,6 +3,7 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 
 import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
 import { AjusteEstatistica, NumerosAtleta, idAjusteEstatistica } from '../../../models/estatistica.model';
+import { Evento } from '../../../models/evento.model';
 import { EventosService } from '../../agenda/data/eventos.service';
 
 export interface Automatico {
@@ -21,9 +22,14 @@ export class EstatisticasService {
   private readonly firestore = inject(FIRESTORE);
   private readonly eventos = inject(EventosService);
 
-  /** Uma consulta dos eventos realizados no intervalo + uma leitura dos gols de cada um. */
-  async automatico(timeId: string, inicio: Date, fim: Date): Promise<Automatico> {
-    const realizados = await this.eventos.listarRealizadosEntre(timeId, inicio, fim);
+  /** Ano (ou outro intervalo): uma consulta dos eventos realizados + uma leitura dos gols de cada um. */
+  async automaticoDoPeriodo(timeId: string, inicio: Date, fim: Date): Promise<Automatico> {
+    return this.automaticoDosEventos(timeId, await this.eventos.listarRealizadosEntre(timeId, inicio, fim));
+  }
+
+  /** Soma os gols dos eventos informados (só os realizados contam). Uma leitura de gols por evento. */
+  async automaticoDosEventos(timeId: string, eventos: ComId<Evento>[]): Promise<Automatico> {
+    const realizados = eventos.filter((e) => e.status === 'realizado');
     const golsPorEvento = await Promise.all(realizados.map((e) => this.eventos.listarGols(timeId, e.id)));
     const porAtleta = new Map<string, NumerosAtleta>();
     const somar = (atletaId: string, campo: keyof NumerosAtleta) => {
@@ -40,18 +46,34 @@ export class EstatisticasService {
     return { porAtleta, jogos: realizados.length, golsPro };
   }
 
-  async listarAjustes(timeId: string, escopo: string): Promise<ComId<AjusteEstatistica>[]> {
+  private async listarAjustes(timeId: string, escopo: string): Promise<ComId<AjusteEstatistica>[]> {
     const snap = await getDocs(query(this.colecao(timeId), where('escopo', '==', escopo)));
     return snap.docs.map(comId);
   }
 
-  /** Grava a diferença (ajuste = total desejado − automático). Zero volta ao automático. */
-  async salvarAjuste(timeId: string, escopo: string, atletaId: string, ajuste: NumerosAtleta, uid: string): Promise<void> {
+  /** Ajustes do escopo por atletaId. */
+  async ajustesPorAtleta(timeId: string, escopo: string): Promise<Map<string, NumerosAtleta>> {
+    const lista = await this.listarAjustes(timeId, escopo);
+    return new Map(lista.map((a) => [a.atletaId, { gols: a.gols, assistencias: a.assistencias }]));
+  }
+
+  /**
+   * Grava o total digitado pela diretoria como diferença sobre o automático (ajuste = total − automático).
+   * Total igual ao automático grava zero (volta ao automático).
+   */
+  async salvarTotais(
+    timeId: string,
+    escopo: string,
+    atletaId: string,
+    totais: NumerosAtleta,
+    automatico: NumerosAtleta | undefined,
+    uid: string,
+  ): Promise<void> {
     await setDoc(doc(this.colecao(timeId), idAjusteEstatistica(escopo, atletaId)), {
       atletaId,
       escopo,
-      gols: ajuste.gols,
-      assistencias: ajuste.assistencias,
+      gols: totais.gols - (automatico?.gols ?? 0),
+      assistencias: totais.assistencias - (automatico?.assistencias ?? 0),
       atualizadoPor: uid,
       atualizadoEm: serverTimestamp(),
     });

@@ -28,6 +28,9 @@ const MAX_PROXIMOS = 30;
 export const TAMANHO_PAGINA_ANTERIORES = 20;
 
 /** Campos editáveis de um evento. `adversario` vazio é removido. */
+/** Teto da lista de jogos de um campeonato. */
+export const MAX_JOGOS_CAMPEONATO = 100;
+
 export interface DadosEvento {
   tipo: TipoEvento;
   titulo: string;
@@ -35,6 +38,7 @@ export interface DadosEvento {
   local: string;
   esporte: Esporte;
   adversario?: string;
+  campeonatoId?: string;
 }
 
 export interface Placar {
@@ -130,6 +134,14 @@ export class EventosService {
     return snap.docs.map(comId);
   }
 
+  /** Jogos de um campeonato (qualquer status), por data. Índice composto campeonatoId + data. */
+  async listarDoCampeonato(timeId: string, campeonatoId: string): Promise<ComId<Evento>[]> {
+    const snap = await getDocs(
+      query(this.colecao(timeId), where('campeonatoId', '==', campeonatoId), orderBy('data'), limit(MAX_JOGOS_CAMPEONATO)),
+    );
+    return snap.docs.map(comId);
+  }
+
   async obter(timeId: string, eventoId: string): Promise<ComId<Evento> | null> {
     const snap = await getDoc(doc(this.colecao(timeId), eventoId));
     const dados = snap.data();
@@ -143,6 +155,7 @@ export class EventosService {
       batch.set(doc(collection(this.firestore, 'times', timeId, 'eventos')), {
         ...this.campos(e),
         ...(e.adversario ? { adversario: e.adversario } : {}),
+        ...(e.campeonatoId ? { campeonatoId: e.campeonatoId } : {}),
         status: 'agendado',
         criadoPor: uid,
         criadoEm: serverTimestamp(),
@@ -155,6 +168,7 @@ export class EventosService {
     await updateDoc(doc(this.firestore, 'times', timeId, 'eventos', eventoId), {
       ...this.campos(e),
       adversario: e.adversario || deleteField(),
+      campeonatoId: e.campeonatoId || deleteField(),
     });
   }
 

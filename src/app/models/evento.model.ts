@@ -22,10 +22,11 @@ export interface Evento {
   local: string;
   esporte: Esporte;
   adversario?: string;
-  /** Placar (0..99), informado no encerramento. Campeonato: Fase 4. */
+  /** Placar (0..99), informado no encerramento. */
   placarPro?: number;
   placarContra?: number;
   status: StatusEvento;
+  /** Só no tipo `campeonato` (opcional). */
   campeonatoId?: string;
   criadoPor: string;
   criadoEm: Timestamp;

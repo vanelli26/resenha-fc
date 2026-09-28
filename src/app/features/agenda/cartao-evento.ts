@@ -1,8 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
+import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Evento, RespostaPresenca } from '../../models/evento.model';
 import { ROTULO_TIPO_EVENTO } from '../../shared/rotulos';
 import { SeletorPresenca } from './seletor-presenca';
@@ -16,6 +17,8 @@ import { SeletorPresenca } from './seletor-presenca';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CartaoEvento {
+  private readonly timeAtual = inject(TimeAtualService);
+
   readonly evento = input.required<ComId<Evento>>();
   /** Rótulo do esporte, só quando o time pratica mais de um. */
   readonly esporte = input<string | null>(null);
@@ -25,4 +28,6 @@ export class CartaoEvento {
   readonly responder = output<RespostaPresenca>();
 
   protected readonly rotuloTipo = ROTULO_TIPO_EVENTO;
+  /** Link absoluto: o cartão aparece na agenda e na tela do campeonato. */
+  protected readonly link = computed(() => ['/t', this.timeAtual.timeId(), 'agenda', this.evento().id]);
 }

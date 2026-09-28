@@ -81,7 +81,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Presença por cadastro: `resposta` (`vou`, `nao_vou`, `talvez`) informada pela própria pessoa; `compareceu` marcado pela diretoria ao encerrar o evento.
 - Quem responde: cadastro `ativo`; em `jogo`, `treino`, `amistoso` e `campeonato`, só `vinculo` atleta; em `confraternizacao` e `outro`, qualquer cadastro (sócios e colaboradores inclusos). Sem limite de vagas nem prazo: responde enquanto o evento estiver `agendado`. A diretoria pode registrar a resposta de qualquer um.
 - Todo evento tem `esporte` (campo, society, futsal; entre os do time).
-- Jogo, amistoso e campeonato podem ter adversário e placar (opcional, informado no encerramento); vínculo com campeonato na Fase 4.
+- Jogo, amistoso e campeonato podem ter adversário e placar (opcional, informado no encerramento). Evento do tipo `campeonato` pode apontar para um campeonato do time (`campeonatoId`, opcional; 2.10).
 - **Encerrar** (diretoria): placar opcional e **gols** (um por gol a favor: autor entre quem participa ou "gol contra" do adversário, assistência opcional; autor também opcional), status `realizado`, num lote. Presença inicial = quem disse "Vou" (`compareceu`). Quem não respondeu só ganha documento de presença se compareceu (fica sem `resposta`).
 - Depois de realizado: "Editar encerramento" corrige placar e gols; **"Ajustar presença"** (diretoria) mostra duas listas, **Foram** e **Não foram**, e tocar numa pessoa a move de lista. Não volta a agendado nem é cancelado.
 - Gols ficam em `eventos/{id}/gols/{NN}` (NN = ordem "01".."99"; regravar sobrescreve e apaga as sobras). Base da artilharia e assistências da Fase 4; gol contra conta no placar, não na artilharia.
@@ -116,7 +116,11 @@ Por evento: formação e posicionamento de atletas com presença `vou` (titulare
 - Ranking por gols ou por assistências, navegação por ano (‹ 2026 ›, `?ano=AAAA`); empate divide a posição.
 - Cartões (amarelo/vermelho) fora por enquanto (decisão de 27/09/2026).
 
-**Campeonatos** (entrega 4b, a especificar no detalhe): por time, nome, temporada, status. Partidas são eventos com `campeonatoId`; artilharia do campeonato no mesmo modelo (automático + ajuste com escopo do campeonato).
+**Campeonatos** (Agenda › Campeonatos, `/t/:timeId/agenda/campeonatos`, visível a todos do time):
+- Cadastro pela diretoria: nome, temporada (texto livre: "2026", "2026/2") e situação (`andamento`, `encerrado`). Sem exclusão (eventos apontam para ele); encerra-se pela situação.
+- Partidas: eventos do tipo `campeonato` com `campeonatoId`, escolhido no formulário do evento (lista os em andamento + o atual do evento). O evento mostra o nome do campeonato com link.
+- Tela do campeonato: **campanha** (jogos, vitórias, empates, derrotas, gols pró:contra e saldo, a partir do placar dos jogos realizados; jogos sem placar ficam fora e são avisados), **artilharia própria** (mesmo modelo: automático dos gols dos jogos + ajuste com escopo `c-{campeonatoId}`) e **jogos** (próximos primeiro, depois os anteriores).
+- Leitura: 1 consulta do campeonato, 1 dos jogos (índice `campeonatoId + data`, até 100), o elenco, os ajustes e 1 leitura de gols por jogo realizado.
 
 ### 2.11 Entrada de novos membros (convite)
 
@@ -183,7 +187,7 @@ times/{timeId}/lancamentos/{id}
 
 times/{timeId}/eventos/{eventoId}
   tipo, titulo, data (Timestamp), local, esporte, adversario?, placarPro?, placarContra?
-  status, campeonatoId?, criadoPor, criadoEm
+  status, campeonatoId? (só tipo campeonato), criadoPor, criadoEm
 
 times/{timeId}/eventos/{eventoId}/presencas/{atletaId}
   resposta?, compareceu?, atualizadoEm   // resposta ausente = marcado pela diretoria sem ter respondido
@@ -209,12 +213,12 @@ times/{timeId}/patrocinadores/{id}
   nome, logo (data URL | null), link?, ordem, criadoEm
 
 times/{timeId}/ajustesEstatistica/{escopo}_{atletaId}   // correção manual da artilharia (2.10)
-  atletaId, escopo                       // escopo = ano "AAAA" (campeonato na 4b)
+  atletaId, escopo                       // escopo = ano "AAAA" ou campeonato "c-{campeonatoId}"
   gols, assistencias                     // diferença sobre o automático, −999..999
   atualizadoPor, atualizadoEm
 
-times/{timeId}/campeonatos/{campeonatoId}   // 4b
-  nome, temporada, status
+times/{timeId}/campeonatos/{campeonatoId}
+  nome, temporada, status: "andamento" | "encerrado", criadoEm
 ```
 
 ### 3.1 Posições por esporte
@@ -253,8 +257,9 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
-| `eventos`, `campeonatos`, `escalacao` | acesso ao time | diretoria |
-| `ajustesEstatistica` | acesso ao time | diretoria (id = `{escopo}_{atletaId}`, atleta existente, valores −999..999); sem exclusão |
+| `eventos`, `escalacao` | acesso ao time | diretoria (evento: `campeonatoId` só no tipo campeonato e de campeonato existente) |
+| `campeonatos` | acesso ao time | diretoria; sem exclusão |
+| `ajustesEstatistica` | acesso ao time | diretoria (id = `{escopo}_{atletaId}`, atleta existente, escopo ano ou campeonato existente, valores −999..999); sem exclusão |
 | `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; qualquer membro muda `qtdCurtidas` ±1 junto com a própria curtida; exclui autor ou diretoria |
 | `recados/{id}/curtidas/{uid}` | acesso ao time | a própria pessoa, junto com o contador do post |
 | `recados/{id}/comentarios` | acesso ao time | qualquer membro cria (autor = ele); sem edição; exclui autor, autor do post ou diretoria |
@@ -295,7 +300,7 @@ src/app/
   core/        auth, firebase providers, guards, interceptors, contexto do time atual
   shared/      componentes/pipes genéricos, constantes, utilitários (dinheiro, datas)
   features/    uma pasta por área; `data/` guarda os services do Firestore/Storage da área
-    agenda/ auth/ convites/ elenco/ financeiro/ gestao/ inicio/ membros/ mural/
+    agenda/ auth/ campeonatos/ convites/ elenco/ financeiro/ gestao/ inicio/ membros/ mural/
     estatisticas/ patrocinadores/ solicitacoes/ time/ (layout e rotas do time) times/ (admin)
   models/      interfaces e union types do domínio (seção 3)
 ```
@@ -354,7 +359,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 
 **Estilos** — CSS próprio, mobile-first, só tokens do tema. Classes globais em `styles.scss`: `.cartao`, `.cartao-link` (+ `__seta`), `.selo-alerta`, `.formulario`, `.campo` (+ `__dica`, `__erro`), `.acoes`, `.lista`, `.texto-suave`, `.dica`, `.cabecalho-secao`, `.visualmente-oculto`. Classes locais em BEM (`bloco__elemento--modificador`). Sem `::ng-deep`; para estilizar componente PrimeNG, usar inputs dele (`inputStyle`, `styleClass`).
 
-**Utilitários de `shared/`** — `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos: mês, semestre, ano), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`, `abas-secao` (abas internas por rota: Financeiro, Elenco). Navegação ‹ período › em `financeiro/navegador-periodo` (mês, semestre ou ano).
+**Utilitários de `shared/`** — `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos: mês, semestre, ano), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`, `abas-secao` (abas internas por rota: Financeiro, Elenco, Agenda). Ranking de artilharia reutilizável em `estatisticas/ranking-artilharia` (ano e campeonato). Navegação ‹ período › em `financeiro/navegador-periodo` (mês, semestre ou ano).
 
 **Nomes** — domínio e código em pt-BR (classes, métodos, signals); sufixos só para tipo de arquivo (`-page`, `.service`, `.model`, `.routes`). Signals booleanos como estado (`carregando`, `salvando`, `processando`), ações como verbos (`salvar`, `excluir`).
 
@@ -446,6 +451,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Revisão de código: padrões registrados em 6.2. Avisos e confirmação centralizados (`shared/avisos.ts`: `Avisos`, `executar`, `confirmacaoPadrao`); WhatsApp/copiar em `shared/compartilhar.ts`; tela do evento dividida (`lista-presenca`, `ajuste-presenca`, `chamar-time`, `lista-pessoas`); gravação da configuração financeira num só método do service; estilos repetidos (`.dica`, `.cartao-link`, `.selo-alerta`) no global. Lista de presença não volta à primeira aba a cada resposta recebida. `PROMPT-INICIAL.md` (Fase 0) removido; README reescrito. Sem mudança de regra de negócio. |
 | 27/09/2026 | Correção: `qtdCurtidas` faltava nos campos permitidos do post (toda curtida era negada); criação de post não pode trazer o contador. |
 | 27/09/2026 | Fase 4 em três entregas: 4a estatísticas → 4b campeonatos → 4c escalação (formação por esporte + vagas tocáveis com quem disse Vou). Artilharia e assistências **automáticas** a partir dos gols dos eventos, com **ajuste manual** da diretoria (coleção `ajustesEstatistica`, guarda a diferença). Cartões fora por enquanto. Artilharia como aba interna do Elenco (sem 6ª aba no rodapé); Campeonatos irão para a Agenda. Substitui `campeonatos/{id}/estatisticas` lançadas à mão. |
+| 27/09/2026 | Fase 4b (Campeonatos): cadastro pela diretoria (nome, temporada livre, situação andamento/encerrado; sem exclusão), como aba interna da Agenda. Evento do tipo campeonato aponta opcionalmente para um campeonato (`campeonatoId`, Rules conferem tipo e existência). Tela do campeonato com campanha derivada dos placares, artilharia própria (ajuste com escopo `c-{id}`) e jogos. Índice `campeonatoId + data`. |
 
 ---
 

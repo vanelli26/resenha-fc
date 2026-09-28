@@ -1,6 +1,6 @@
 @let e = evento();
 <article class="cartao evento" [class.evento--cancelado]="e.status === 'cancelado'">
-  <a class="evento__link" [routerLink]="e.id">
+  <a class="evento__link" [routerLink]="link()">
     <span class="evento__data">
       <span class="evento__dia">{{ e.data.toDate() | date: 'dd' }}</span>
       <span class="evento__mes">{{ e.data.toDate() | date: 'MMM' }}</span>
