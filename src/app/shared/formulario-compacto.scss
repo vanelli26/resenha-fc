@@ -18,6 +18,23 @@
   grid-column: 1 / -1;
 }
 
+// Inputs nativos têm largura mínima própria (maior que meia coluna no celular) e invadiam o campo vizinho.
+.grade .campo {
+  min-width: 0;
+}
+
+.grade input {
+  width: 100%;
+  min-width: 0;
+}
+
+// Celular bem estreito: um campo por linha.
+@media (max-width: 359px) {
+  .grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .posicoes {
   display: grid;
   gap: 0.375rem;

@@ -8,8 +8,15 @@
 }
 
 .esporte__texto {
+  flex: 1;
+  min-width: 0;
   display: grid;
   gap: 0.125rem;
+}
+
+// O texto das posições é longo: o switch mantém o tamanho em vez de ser espremido.
+p-toggleswitch {
+  flex-shrink: 0;
 }
 
 .acoes {

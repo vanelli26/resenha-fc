@@ -57,8 +57,13 @@ function paraFormulario(c: Campeonato | null): DadosCampeonato {
   styles: `
     .grade {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.75rem;
+    }
+    // Input nativo não pode passar da coluna (celular).
+    .grade input {
+      width: 100%;
+      min-width: 0;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
