@@ -72,6 +72,7 @@ export class EscalacaoPage {
   private readonly presencas = signal<ComId<Presenca>[]>([]);
   protected readonly salva = signal<Escalacao | null>(null);
   protected readonly salvando = signal(false);
+  protected readonly limpando = signal(false);
 
   // Edição (diretoria): formação e vaga → atletaId, gravados só ao salvar.
   protected readonly editando = signal(false);
@@ -213,7 +214,7 @@ export class EscalacaoPage {
         mensagem: 'Apagar a escalação deste evento?',
         rotulo: 'Limpar',
         aoConfirmar: async () => {
-          const ok = await this.avisos.executar(this.salvando, () => this.service.limpar(timeId, e.id), 'Escalação apagada');
+          const ok = await this.avisos.executar(this.limpando, () => this.service.limpar(timeId, e.id), 'Escalação apagada');
           if (!ok) return;
           this.editando.set(false);
           this.salva.set(null);

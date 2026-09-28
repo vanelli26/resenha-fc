@@ -54,10 +54,13 @@
             size="small"
             severity="secondary"
             ariaLabel="Mais ações"
+            [loading]="processando()"
             [disabled]="processando()"
             (onClick)="menu.toggle($event)"
           >
-            <svg data-p-icon="ellipsis-v" [size]="16" aria-hidden="true"></svg>
+            @if (!processando()) {
+              <svg data-p-icon="ellipsis-v" [size]="16" aria-hidden="true"></svg>
+            }
           </p-button>
           <p-menu #menu [model]="menuAcoes()" [popup]="true" appendTo="body" />
         </div>
@@ -67,7 +70,7 @@
     @if (podeResponder() || e.status === 'agendado') {
       <div class="detalhe__barra">
         @if (podeResponder()) {
-          <app-seletor-presenca [resposta]="minhaResposta()" [desabilitado]="respondendo()" (responder)="responder($event)" />
+          <app-seletor-presenca [resposta]="minhaResposta()" [enviando]="respondendo()" (responder)="responder($event)" />
         }
         @if (e.status === 'agendado') {
           <app-chamar-time class="detalhe__chamar" [evento]="e" />
@@ -115,6 +118,7 @@
         [evento]="e"
         [esportes]="esportes()"
         [campeonatos]="opcoesCampeonato()"
+        [carregandoCampeonatos]="carregandoCampeonatos()"
         [salvando]="processando()"
         (salvar)="salvarEdicao($event)"
         (cancelar)="dialogAberto.set(false)"

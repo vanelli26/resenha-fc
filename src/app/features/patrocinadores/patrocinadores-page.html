@@ -109,12 +109,13 @@
           [text]="true"
           type="button"
           class="acoes__remover"
-          [disabled]="processando()"
+          [loading]="removendo()"
+          [disabled]="processando() || removendo()"
           (onClick)="excluir()"
         />
       }
       <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
-      <p-button label="Salvar" type="submit" [loading]="processando()" [disabled]="processandoImagem()" />
+      <p-button label="Salvar" type="submit" [loading]="processando()" [disabled]="processandoImagem() || removendo()" />
     </div>
   </form>
 </p-dialog>

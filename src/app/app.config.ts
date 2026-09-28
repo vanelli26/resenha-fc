@@ -17,6 +17,7 @@ import { providePrimeNG } from 'primeng/config';
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { provideFirebase } from './core/firebase/firebase.providers';
+import { Atividade } from './core/layout/atividade.service';
 import { AtualizacaoApp } from './core/pwa/atualizacao-app.service';
 import { InstalacaoApp } from './core/pwa/instalacao-app.service';
 import { AppPreset } from './core/theme/app-theme';
@@ -42,8 +43,9 @@ export const appConfig: ApplicationConfig = {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),
-    // Cedo: o pedido de instalação pode chegar ainda na tela de login.
+    // Cedo: a primeira navegação e o pedido de instalação podem acontecer ainda na tela de login.
     provideAppInitializer(() => {
+      inject(Atividade).acompanharNavegacao();
       inject(InstalacaoApp).iniciar();
       inject(AtualizacaoApp).iniciar();
     }),

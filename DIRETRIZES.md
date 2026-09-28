@@ -353,6 +353,14 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 - Confirmação: `this.confirmacao.confirm(confirmacaoPadrao({ titulo, mensagem, rotulo, aoConfirmar }))`, com `ConfirmationService` e `<p-confirmdialog>` na própria tela. `perigosa: false` para ação não destrutiva.
 - Falha em complemento não essencial (ex.: contagens do feed) pode ser silenciosa, com comentário explicando.
 
+**Carregando (toda interação que espera o servidor)**
+- Barra fina no topo (`core/layout/barra-atividade.ts` + `Atividade`) em toda troca de tela (download da tela + guards) e em toda escrita via `Avisos.executar`; aparece só após 150 ms.
+- O botão tocado mostra `[loading]` e os que conflitam ficam `[disabled]`. Ação por item de lista usa um signal com o id em andamento (`emAndamento`, `desativando`, `recusando`, `lancando`, `postOcupado`, `excluindo`), e o `[loading]` só no botão daquele item. Diálogo com Salvar e Remover usa signals separados (`salvando`, `removendo`) passados como `ocupado` do `executar`.
+- Botão só com ícone: esconder o ícone enquanto carrega (`@if (!carregando) { <svg …/> }`) para não aparecerem os dois.
+- Presença: o botão escolhido (Vou/Talvez/Não vou) carrega (`SeletorPresenca.enviando`).
+- Campo que depende de leitura ao abrir um diálogo mostra carregando (`p-select [loading]`, texto "Buscando…") e bloqueia o envio até chegar.
+- Listas: `p-skeleton` na primeira carga; "Ver mais"/"Carregar mais" com `[loading]`.
+
 **Componentes** — standalone, OnPush, `input()`/`output()`; template/estilos inline quando curtos (< ~60 linhas), arquivos separados quando maiores.
 - Componente de apresentação não injeta services de dados; recebe dados por input e emite eventos (`lista-pessoas`, `lista-presenca`, `ajuste-presenca`, `seletor-presenca`). Exceção: ações autocontidas que só avisam (`chamar-time`).
 - Formulário em diálogo: componente próprio com `salvar`/`cancelar` como outputs, Signal Forms dentro dele; a tela grava (`atleta-form`, `evento-form`, `encerrar-evento`). Formulário denso usa `shared/formulario-compacto.scss`.
@@ -377,7 +385,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 - `public/manifest.webmanifest`: nome ResenhaFC, `display: standalone`, `start_url` e `scope` `/`, fundo e tema `#09090b`, pt-BR, ícones da marca (6.1). `index.html` liga o manifest e as metas do iPhone (tela cheia, barra de status translúcida; o layout respeita as safe areas).
 - Service worker oficial do Angular (`@angular/service-worker`, `ngsw-config.json`), só no build de produção, registrado quando o app estabiliza. Entrada em `public/sw-principal.js`: requisições de **outras origens** (Firestore, Storage, login Google, fotos) vão direto para a rede, sem passar pelo worker do Angular (ele responderia a todas, e o tráfego contínuo do Firestore por ele deixava o app lento, sobretudo no iPhone); depois carrega o `ngsw-worker.js`.
 - Cache só dos arquivos do app: grupo `inicial` (index, `main`, `styles`, manifest) baixado na instalação; `telas` (demais JS) sob demanda, ao abrir cada tela; `marca` sob demanda. **Sem cache de dados**: Firestore e Storage continuam online pelo SDK. Rotas com `__` (ex.: `/__/auth/…`) ficam fora da navegação do service worker.
-- Versão nova: baixada em segundo plano; o shell mostra "Nova versão do ResenhaFC disponível · Atualizar" (`core/pwa/atualizacao-app.service.ts`). Confere de novo ao voltar para o app (no máximo a cada 5 min). Cache quebrado no aparelho → recarrega.
+- Versão nova: baixada em segundo plano; o shell mostra "Nova versão do ResenhaFC disponível · Atualizar" (`core/pwa/atualizacao-app.service.ts`); o botão mostra carregando e recarrega após ativar, ou após 3 s se o worker não responder. Confere de novo ao voltar para o app (no máximo a cada 5 min). Cache quebrado no aparelho → recarrega.
 - "Instalar app" no menu do usuário (`core/pwa/instalacao-app.service.ts`): no Chrome/Android usa o pedido nativo (`beforeinstallprompt`); no iPhone mostra as instruções (Compartilhar › Adicionar à Tela de Início). Some quando o app já está aberto instalado.
 - Hosting: JS/CSS com hash ficam em cache por 1 ano; `sw-principal.js`, `ngsw-worker.js`, `safety-worker.js`, `worker-basic.min.js`, `ngsw.json`, `manifest.webmanifest` e `index.html` sempre revalidam (`no-cache`), senão a atualização não chega. Para desligar o service worker em produção, publicar com o `safety-worker.js` no lugar do `ngsw-worker.js` (procedimento oficial do Angular).
 
@@ -473,6 +481,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Fase 4c (Escalação): tela própria por evento esportivo, formação da lista fechada por esporte e vagas no campinho (diretoria toca e escolhe; troca de lugar ao escolher quem já está em campo). Titulares gravados como `{atletaId, vaga}` (posição derivada da formação), substituindo `{posicao, x, y}`; reservas calculadas (quem vai e não está em campo), não gravadas. Envio da escalação em texto pelo WhatsApp. Fase 4 concluída. |
 | 27/09/2026 | Fase 5 começa pelo PWA (6.3): manifest, ícones gerados da marca, `@angular/service-worker` 22.2 (dependência oficial do Angular, aprovada) com cache só dos arquivos do app, aviso de versão nova e "Instalar app" (pedido nativo no Android; instruções no iPhone). Cabeçalhos do Hosting ajustados para o service worker revalidar sempre. |
 | 27/09/2026 | Lentidão após o PWA: o worker do Angular respondia a todas as requisições, inclusive Firestore/Storage de outra origem, e baixava ~2,4 MB de telas logo ao abrir. Entrada própria `sw-principal.js` deixa outras origens fora do worker; telas passam a ser guardadas sob demanda. |
+| 27/09/2026 | Carregando em toda interação: barra de atividade global (troca de tela e escritas) + `[loading]` no botão tocado, inclusive ações por item, remover em diálogos, presença e campos que dependem de leitura. Padrão em 6.2. Botão "Atualizar" (versão nova) com carregando e limite de 3 s. |
 
 ---
 

@@ -57,8 +57,12 @@ export class AgendaPage {
   protected readonly mostrandoAnteriores = signal(false);
   protected readonly carregandoAnteriores = signal(false);
   protected readonly haMaisAnteriores = signal(false);
-  /** Evento com resposta sendo gravada (desabilita os botões dele). */
-  protected readonly respondendo = signal<string | null>(null);
+  /** Resposta sendo gravada (carregando no botão escolhido; desabilita os do evento). */
+  private readonly respondendo = signal<{ eventoId: string; resposta: RespostaPresenca } | null>(null);
+  protected readonly enviandoEm = computed(() => {
+    const r = this.respondendo();
+    return (eventoId: string) => (r?.eventoId === eventoId ? r.resposta : null);
+  });
 
   protected readonly itensProximos = computed(() => this.paraItens(this.proximos()));
   protected readonly itensAnteriores = computed(() => this.paraItens(this.anteriores()));
@@ -67,6 +71,7 @@ export class AgendaPage {
   protected readonly salvando = signal(false);
   /** Carregado ao abrir "Novo evento" (só a diretoria cria). */
   protected readonly opcoesCampeonato = signal<OpcaoCampeonato[]>([]);
+  protected readonly carregandoCampeonatos = signal(false);
 
   constructor() {
     effect(() => {
@@ -87,11 +92,14 @@ export class AgendaPage {
     this.dialogAberto.set(true);
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
+    this.carregandoCampeonatos.set(true);
     try {
       const lista = await this.campeonatosService.listar(timeId);
       if (this.timeAtual.timeId() === timeId) this.opcoesCampeonato.set(opcoesDeCampeonato(lista));
     } catch (e) {
       this.avisos.erro('Erro ao carregar campeonatos', e);
+    } finally {
+      this.carregandoCampeonatos.set(false);
     }
   }
 
@@ -101,7 +109,7 @@ export class AgendaPage {
     if (!timeId || !atleta) return;
     const anterior = this.respostas();
     this.respostas.set(new Map(anterior).set(item.evento.id, resposta));
-    this.respondendo.set(item.evento.id);
+    this.respondendo.set({ eventoId: item.evento.id, resposta });
     try {
       await this.eventosService.responder(timeId, item.evento.id, atleta.id, resposta);
     } catch (e) {

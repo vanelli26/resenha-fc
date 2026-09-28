@@ -24,11 +24,12 @@ interface OpcaoPresenca {
           [severity]="o.cor"
           [outlined]="!marcada"
           [fluid]="true"
-          [disabled]="desabilitado()"
+          [disabled]="enviando() !== null"
+          [loading]="enviando() === o.valor"
           [ariaLabel]="marcada ? o.rotulo + ' (sua resposta)' : o.rotulo"
           (onClick)="marcada || responder.emit(o.valor)"
         >
-          @switch (o.valor) {
+          @switch (enviando() === o.valor ? null : o.valor) {
             @case ('vou') {
               <svg data-p-icon="check" [size]="16" aria-hidden="true"></svg>
             }
@@ -56,7 +57,8 @@ interface OpcaoPresenca {
 })
 export class SeletorPresenca {
   readonly resposta = input<RespostaPresenca | null>(null);
-  readonly desabilitado = input(false);
+  /** Resposta sendo gravada: carregando nesse botão e os três desabilitados. */
+  readonly enviando = input<RespostaPresenca | null>(null);
   readonly responder = output<RespostaPresenca>();
 
   protected readonly opcoes: OpcaoPresenca[] = [

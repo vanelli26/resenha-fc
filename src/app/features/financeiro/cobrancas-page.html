@@ -77,14 +77,14 @@
             <div class="cobranca__acoes">
               @switch (item.cobranca.status) {
                 @case ('pendente') {
-                  <p-button label="Cancelar" size="small" [text]="true" severity="secondary" [disabled]="processando()" (onClick)="cancelar(item.cobranca)" />
+                  <p-button label="Cancelar" size="small" [loading]="emAndamento() === item.cobranca.id" [text]="true" severity="secondary" [disabled]="processando()" (onClick)="cancelar(item.cobranca)" />
                   <p-button label="Dar baixa" size="small" [disabled]="processando()" (onClick)="abrirBaixa(item.cobranca)" />
                 }
                 @case ('pago') {
-                  <p-button label="Estornar" size="small" [text]="true" severity="danger" [disabled]="processando()" (onClick)="estornar(item.cobranca)" />
+                  <p-button label="Estornar" size="small" [loading]="emAndamento() === item.cobranca.id" [text]="true" severity="danger" [disabled]="processando()" (onClick)="estornar(item.cobranca)" />
                 }
                 @case ('cancelado') {
-                  <p-button label="Reabrir" size="small" [text]="true" [disabled]="processando()" (onClick)="reabrir(item.cobranca)" />
+                  <p-button label="Reabrir" size="small" [loading]="emAndamento() === item.cobranca.id" [text]="true" [disabled]="processando()" (onClick)="reabrir(item.cobranca)" />
                 }
               }
             </div>

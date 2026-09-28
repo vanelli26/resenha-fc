@@ -119,11 +119,12 @@
           [text]="true"
           type="button"
           class="acoes__remover"
-          [disabled]="salvando()"
+          [loading]="removendo()"
+          [disabled]="salvando() || removendo()"
           (onClick)="remover()"
         />
       }
-      <p-button label="Salvar" type="submit" [loading]="salvando()" />
+      <p-button label="Salvar" type="submit" [loading]="salvando()" [disabled]="removendo()" />
     </div>
   </form>
 </p-dialog>

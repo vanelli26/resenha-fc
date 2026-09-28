@@ -21,7 +21,7 @@
           [esporte]="item.esporte"
           [podeResponder]="item.podeResponder"
           [resposta]="item.resposta"
-          [respondendo]="respondendo() === item.evento.id"
+          [enviando]="enviandoEm()(item.evento.id)"
           (responder)="responder(item, $event)"
         />
       </li>
@@ -42,7 +42,7 @@
           [esporte]="item.esporte"
           [podeResponder]="item.podeResponder"
           [resposta]="item.resposta"
-          [respondendo]="respondendo() === item.evento.id"
+          [enviando]="enviandoEm()(item.evento.id)"
           (responder)="responder(item, $event)"
         />
       </li>
@@ -70,6 +70,7 @@
     <app-evento-form
       [esportes]="esportes()"
       [campeonatos]="opcoesCampeonato()"
+      [carregandoCampeonatos]="carregandoCampeonatos()"
       [salvando]="salvando()"
       (salvar)="criar($event)"
       (cancelar)="dialogAberto.set(false)"

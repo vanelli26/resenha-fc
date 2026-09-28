@@ -15,6 +15,7 @@
           [podeModerar]="ehDiretoria()"
           [curtido]="curtidos().has(r.id)"
           [qtdComentarios]="qtdComentarios().get(r.id) ?? null"
+          [ocupado]="postOcupado() === r.id"
           (curtir)="curtir(r.id, $event)"
           (abrirComentarios)="comentariosDe.set(r.id)"
           (editar)="editar(r)"
@@ -27,7 +28,15 @@
     }
   </ul>
   @if (haMais()) {
-    <p-button class="ver-mais" label="Ver mais" size="small" [text]="true" severity="secondary" (onClick)="verMais()" />
+    <p-button
+      class="ver-mais"
+      label="Ver mais"
+      size="small"
+      [text]="true"
+      severity="secondary"
+      [loading]="carregandoMais()"
+      (onClick)="verMais()"
+    />
   }
 } @else {
   <div class="feed">

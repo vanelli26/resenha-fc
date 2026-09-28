@@ -52,6 +52,8 @@ export class PatrocinadoresPage {
   protected readonly podeAdicionar = computed(() => (this.lista()?.length ?? 0) < MAX_PATROCINADORES);
   protected readonly maximo = MAX_PATROCINADORES;
   protected readonly processando = signal(false);
+  /** Remoção em andamento (carregando no botão Remover; Salvar fica desabilitado). */
+  protected readonly removendo = signal(false);
 
   protected readonly dialogAberto = signal(false);
   protected readonly emEdicao = signal<ComId<Patrocinador> | null>(null);
@@ -134,7 +136,7 @@ export class PatrocinadoresPage {
         mensagem: `Remover "${atual.nome}" do mural?`,
         rotulo: 'Remover',
         aoConfirmar: async () => {
-          if (await this.executar(() => this.service.excluir(timeId, atual.id), 'Apoiador removido')) {
+          if (await this.executar(() => this.service.excluir(timeId, atual.id), 'Apoiador removido', this.removendo)) {
             this.dialogAberto.set(false);
           }
         },
@@ -154,10 +156,10 @@ export class PatrocinadoresPage {
   }
 
   /** Recarrega mesmo se falhar: a reordenação otimista precisa voltar ao que está gravado. */
-  private async executar(acao: () => Promise<void>, sucesso: string | null): Promise<boolean> {
+  private async executar(acao: () => Promise<void>, sucesso: string | null, ocupado = this.processando): Promise<boolean> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return false;
-    const ok = await this.avisos.executar(this.processando, acao, sucesso);
+    const ok = await this.avisos.executar(ocupado, acao, sucesso);
     await this.carregar(timeId);
     return ok;
   }

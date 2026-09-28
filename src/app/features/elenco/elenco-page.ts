@@ -65,6 +65,7 @@ export class ElencoPage {
   );
   protected readonly carregando = signal(true);
   protected readonly dialogAberto = signal(false);
+  protected readonly salvando = signal(false);
   protected readonly emEdicao = signal<ComId<Atleta> | null>(null);
   /** Jogador (sem diretoria) editando o próprio atleta. */
   protected readonly modoForm = computed(() => (this.ehDiretoria() ? 'completo' : 'proprio'));
@@ -111,20 +112,21 @@ export class ElencoPage {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
     const atleta = this.emEdicao();
-    try {
-      if (atleta && this.modoForm() === 'proprio') {
-        await this.atletasService.atualizarProprio(timeId, atleta.id, dados);
-      } else if (atleta) {
-        await this.atletasService.atualizar(timeId, atleta.id, dados);
-      } else {
-        await this.atletasService.criar(timeId, dados);
-      }
-      this.dialogAberto.set(false);
-      this.avisos.sucesso(atleta ? 'Atleta atualizado' : 'Atleta cadastrado');
-      await this.carregar();
-    } catch (e) {
-      this.avisos.erro('Não foi possível salvar', e);
-    }
+    const proprio = this.modoForm() === 'proprio';
+    const ok = await this.avisos.executar(
+      this.salvando,
+      () =>
+        atleta
+          ? proprio
+            ? this.atletasService.atualizarProprio(timeId, atleta.id, dados)
+            : this.atletasService.atualizar(timeId, atleta.id, dados)
+          : this.atletasService.criar(timeId, dados),
+      atleta ? 'Atleta atualizado' : 'Atleta cadastrado',
+      'Não foi possível salvar',
+    );
+    if (!ok) return;
+    this.dialogAberto.set(false);
+    await this.carregar();
   }
 
   private async carregar(): Promise<void> {

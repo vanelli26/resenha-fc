@@ -64,6 +64,8 @@
         <p-select
           [formField]="formulario.campeonatoId"
           [options]="opcoesCampeonato()"
+          [loading]="carregandoCampeonatos()"
+          [placeholder]="carregandoCampeonatos() ? 'Carregando…' : ''"
           optionLabel="label"
           optionValue="value"
           [fluid]="true"

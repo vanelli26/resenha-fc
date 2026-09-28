@@ -1,5 +1,5 @@
 @let r = recado();
-<article class="post" [class.post--fixado]="r.fixado">
+<article class="post" [class.post--fixado]="r.fixado" [class.post--ocupado]="ocupado()" [attr.aria-busy]="ocupado()">
   <header class="post__topo">
     <app-foto-pessoa [src]="r.autorFotoUrl" [nome]="r.autorNome" />
     <span class="post__autor">
@@ -14,8 +14,19 @@
       </small>
     </span>
     @if (menu().length > 0) {
-      <p-button [text]="true" [rounded]="true" size="small" severity="secondary" ariaLabel="Opções da postagem" (onClick)="opcoes.toggle($event)">
-        <svg data-p-icon="ellipsis-v" [size]="16" aria-hidden="true"></svg>
+      <p-button
+        [text]="true"
+        [rounded]="true"
+        size="small"
+        severity="secondary"
+        ariaLabel="Opções da postagem"
+        [loading]="ocupado()"
+        [disabled]="ocupado()"
+        (onClick)="opcoes.toggle($event)"
+      >
+        @if (!ocupado()) {
+          <svg data-p-icon="ellipsis-v" [size]="16" aria-hidden="true"></svg>
+        }
       </p-button>
       <p-menu #opcoes [model]="menu()" [popup]="true" appendTo="body" />
     }

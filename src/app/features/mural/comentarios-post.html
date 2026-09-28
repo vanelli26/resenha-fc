@@ -24,9 +24,13 @@
               size="small"
               severity="secondary"
               ariaLabel="Excluir comentário"
+              [loading]="excluindo() === c.id"
+              [disabled]="excluindo() !== null"
               (onClick)="excluir(c.id)"
             >
-              <svg data-p-icon="trash" [size]="14" aria-hidden="true"></svg>
+              @if (excluindo() !== c.id) {
+                <svg data-p-icon="trash" [size]="14" aria-hidden="true"></svg>
+              }
             </p-button>
           }
         </li>

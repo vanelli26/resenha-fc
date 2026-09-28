@@ -39,7 +39,7 @@
     <app-seletor-presenca
       class="evento__presenca"
       [resposta]="resposta()"
-      [desabilitado]="respondendo()"
+      [enviando]="enviando()"
       (responder)="responder.emit($event)"
     />
   }

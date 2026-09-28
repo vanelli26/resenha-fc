@@ -34,6 +34,8 @@ export class PostCard {
   readonly curtido = input(false);
   /** null enquanto a contagem carrega. */
   readonly qtdComentarios = input<number | null>(null);
+  /** Fixando/soltando ou excluindo: post esmaecido e menu com carregando. */
+  readonly ocupado = input(false);
   readonly curtir = output<boolean>();
   readonly abrirComentarios = output<void>();
   readonly editar = output<void>();

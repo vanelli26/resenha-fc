@@ -59,6 +59,8 @@ export class PlanosCobranca {
   protected readonly dialogAberto = signal(false);
   protected readonly emEdicao = signal<PlanoCobranca | null>(null);
   protected readonly salvando = signal(false);
+  /** Remoção em andamento (carregando no botão Remover; Salvar fica desabilitado). */
+  protected readonly removendo = signal(false);
   /** Pessoas no plano em edição (bloqueia a remoção). */
   protected readonly usoDoEmEdicao = computed(() => {
     const id = this.emEdicao()?.id;
@@ -120,15 +122,15 @@ export class PlanosCobranca {
         rotulo: 'Remover',
         aoConfirmar: async () => {
           const lista = this.planos().filter((p) => p.id !== atual.id);
-          if (await this.gravar(lista, 'Plano removido')) this.dialogAberto.set(false);
+          if (await this.gravar(lista, 'Plano removido', this.removendo)) this.dialogAberto.set(false);
         },
       }),
     );
   }
 
-  private gravar(planos: PlanoCobranca[], sucesso: string): Promise<boolean> {
+  private gravar(planos: PlanoCobranca[], sucesso: string, ocupado = this.salvando): Promise<boolean> {
     return this.avisos.executar(
-      this.salvando,
+      ocupado,
       () => this.service.atualizar({ planos }),
       sucesso,
       'Não foi possível salvar',

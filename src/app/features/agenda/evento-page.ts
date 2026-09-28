@@ -88,12 +88,14 @@ export class EventoPage {
   protected readonly naoEncontrado = signal(false);
   private readonly cadastros = signal<ComId<Atleta>[]>([]);
   private readonly presencas = signal<ComId<Presenca>[]>([]);
-  protected readonly respondendo = signal(false);
+  /** Resposta sendo gravada (carregando no botão escolhido). */
+  protected readonly respondendo = signal<RespostaPresenca | null>(null);
   protected readonly processando = signal(false);
   protected readonly dialogAberto = signal(false);
   /** Campeonato do evento (nome e link) e opções do formulário de edição (diretoria). */
   protected readonly campeonato = signal<ComId<Campeonato> | null>(null);
   protected readonly opcoesCampeonato = signal<OpcaoCampeonato[]>([]);
+  protected readonly carregandoCampeonatos = signal(false);
   protected readonly linkCampeonato = computed(() => [
     '/t',
     this.timeAtual.timeId(),
@@ -217,14 +219,14 @@ export class EventoPage {
     const e = this.evento();
     const eu = this.meuAtleta();
     if (!timeId || !e || !eu) return;
-    this.respondendo.set(true);
+    this.respondendo.set(resposta);
     try {
       // O listener atualiza as listas.
       await this.eventosService.responder(timeId, e.id, eu.id, resposta);
     } catch (err) {
       this.avisos.erro('Não foi possível responder', err);
     } finally {
-      this.respondendo.set(false);
+      this.respondendo.set(null);
     }
   }
 
@@ -313,6 +315,7 @@ export class EventoPage {
     this.dialogAberto.set(true);
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
+    this.carregandoCampeonatos.set(true);
     try {
       const lista = await this.campeonatosService.listar(timeId);
       if (this.timeAtual.timeId() === timeId) {
@@ -320,6 +323,8 @@ export class EventoPage {
       }
     } catch (err) {
       this.avisos.erro('Erro ao carregar campeonatos', err);
+    } finally {
+      this.carregandoCampeonatos.set(false);
     }
   }
 

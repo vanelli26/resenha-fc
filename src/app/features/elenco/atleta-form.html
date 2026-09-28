@@ -145,7 +145,7 @@
   }
 
   <div class="acoes">
-    <p-button label="Cancelar" [text]="true" type="button" (onClick)="cancelar.emit()" />
-    <p-button label="Salvar" type="submit" />
+    <p-button label="Cancelar" [text]="true" type="button" [disabled]="salvando()" (onClick)="cancelar.emit()" />
+    <p-button label="Salvar" type="submit" [loading]="salvando()" />
   </div>
 </form>

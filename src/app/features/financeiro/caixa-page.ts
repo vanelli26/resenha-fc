@@ -96,6 +96,10 @@ export class CaixaPage {
   protected readonly lancamentos = signal<ComId<Lancamento>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
+  /** Exclusão em andamento (carregando no botão Excluir). */
+  protected readonly excluindo = signal(false);
+  /** Despesa recorrente sendo lançada (carregando no botão dela). */
+  protected readonly lancando = signal<string | null>(null);
 
   protected readonly resumo = computed(() => {
     let receitas = 0;
@@ -216,7 +220,11 @@ export class CaixaPage {
         mensagem: `Excluir "${atual.descricao}" do caixa?`,
         rotulo: 'Excluir',
         aoConfirmar: async () => {
-          const ok = await this.executar((timeId) => this.lancamentosService.excluir(timeId, atual.id), 'Lançamento excluído');
+          const ok = await this.executar(
+            (timeId) => this.lancamentosService.excluir(timeId, atual.id),
+            'Lançamento excluído',
+            this.excluindo,
+          );
           if (ok) this.dialogAberto.set(false);
         },
       }),
@@ -227,11 +235,16 @@ export class CaixaPage {
     const uid = this.auth.usuario()?.uid;
     const mes = this.mes();
     if (!uid) return;
-    await this.executar(
-      (timeId) =>
-        this.lancamentosService.lancarRecorrente(timeId, despesa, mes, vencimentoMensal(mes, despesa.diaVencimento), uid),
-      `${despesa.descricao} lançada`,
-    );
+    this.lancando.set(despesa.id);
+    try {
+      await this.executar(
+        (timeId) =>
+          this.lancamentosService.lancarRecorrente(timeId, despesa, mes, vencimentoMensal(mes, despesa.diaVencimento), uid),
+        `${despesa.descricao} lançada`,
+      );
+    } finally {
+      this.lancando.set(null);
+    }
   }
 
   /** Reaproveita a grafia de uma categoria já usada ("campo" → "Campo"), evitando variações no relatório. */
@@ -249,10 +262,14 @@ export class CaixaPage {
     return { tipo: 'despesa', descricao: '', categoria: '', valor: 0, data: paraDataInput(data) };
   }
 
-  private async executar(acao: (timeId: string) => Promise<void>, sucesso: string): Promise<boolean> {
+  private async executar(
+    acao: (timeId: string) => Promise<void>,
+    sucesso: string,
+    ocupado = this.processando,
+  ): Promise<boolean> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return false;
-    const ok = await this.avisos.executar(this.processando, () => acao(timeId), sucesso);
+    const ok = await this.avisos.executar(ocupado, () => acao(timeId), sucesso);
     if (ok) await Promise.all([this.carregar(timeId, this.mes()), this.carregarSaldo(timeId)]);
     return ok;
   }

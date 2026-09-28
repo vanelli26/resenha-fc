@@ -63,7 +63,12 @@
   @if (atualizacao.disponivel()) {
     <div class="cartao atualizacao" role="status">
       <span>Nova versão do ResenhaFC disponível.</span>
-      <p-button label="Atualizar" size="small" (onClick)="atualizacao.atualizar()" />
+      <p-button
+        [label]="atualizacao.atualizando() ? 'Atualizando…' : 'Atualizar'"
+        size="small"
+        [loading]="atualizacao.atualizando()"
+        (onClick)="atualizacao.atualizar()"
+      />
     </div>
   }
   <router-outlet />

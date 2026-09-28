@@ -79,6 +79,8 @@ export class EventoForm {
   readonly esportes = input<readonly Esporte[]>(ESPORTES_PADRAO);
   /** Campeonatos em andamento (+ o do evento, se encerrado). Vazio: campo oculto. */
   readonly campeonatos = input<OpcaoCampeonato[]>([]);
+  /** Campeonatos ainda sendo buscados (o campo aparece com carregando). */
+  readonly carregandoCampeonatos = input(false);
   readonly salvando = input(false);
   readonly salvar = output<DadosEvento[]>();
   readonly cancelar = output<void>();
@@ -105,7 +107,7 @@ export class EventoForm {
     maxLength(p.adversario, 60, { message: 'Máximo de 60 caracteres.' });
     hidden(p.adversario, { when: ({ valueOf }) => !TIPOS_COM_ADVERSARIO.includes(valueOf(p.tipo)) });
     hidden(p.esporte, { when: () => this.opcoesEsporte().length < 2 });
-    hidden(p.campeonatoId, { when: ({ valueOf }) => valueOf(p.tipo) !== 'campeonato' || this.opcoesCampeonato().length < 2 });
+    hidden(p.campeonatoId, { when: ({ valueOf }) => valueOf(p.tipo) !== 'campeonato' || (!this.carregandoCampeonatos() && this.opcoesCampeonato().length < 2) });
     // Repetição só na criação.
     hidden(p.repetir, { when: () => this.evento() !== null });
     hidden(p.semanas, { when: ({ valueOf }) => this.evento() !== null || !valueOf(p.repetir) });

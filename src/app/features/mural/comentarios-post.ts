@@ -33,6 +33,8 @@ export class ComentariosPost {
   protected readonly comentarios = signal<ComId<Comentario>[] | null>(null);
   protected readonly texto = signal('');
   protected readonly enviando = signal(false);
+  /** Comentário sendo excluído (carregando no botão dele). */
+  protected readonly excluindo = signal<string | null>(null);
   protected readonly erro = signal<string | null>(null);
   protected readonly maximo = MAX_COMENTARIO;
   protected readonly meuUid = computed(() => this.auth.usuario()?.uid ?? null);
@@ -92,10 +94,13 @@ export class ComentariosPost {
   protected async excluir(comentarioId: string): Promise<void> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
+    this.excluindo.set(comentarioId);
     try {
       await this.service.excluirComentario(timeId, this.recadoId(), comentarioId);
     } catch (e) {
       this.erro.set(mensagemDeErro(e));
+    } finally {
+      this.excluindo.set(null);
     }
   }
 

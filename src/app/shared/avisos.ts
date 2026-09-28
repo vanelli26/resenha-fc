@@ -1,5 +1,6 @@
 import { Injectable, WritableSignal, inject } from '@angular/core';
 import { Confirmation, MessageService } from 'primeng/api';
+import { Atividade } from '../core/layout/atividade.service';
 import { mensagemDeErro } from './erros';
 
 /**
@@ -9,6 +10,7 @@ import { mensagemDeErro } from './erros';
 @Injectable({ providedIn: 'root' })
 export class Avisos {
   private readonly mensagens = inject(MessageService);
+  private readonly atividade = inject(Atividade);
 
   sucesso(resumo: string, detalhe?: string): void {
     this.mensagens.add({ severity: 'success', summary: resumo, detail: detalhe });
@@ -27,8 +29,8 @@ export class Avisos {
   }
 
   /**
-   * Escrita disparada pelo usuário: liga `ocupado` durante a ação, avisa sucesso (se houver texto) ou erro.
-   * Retorna se deu certo; recarregar dados ou fechar diálogo fica com quem chama.
+   * Escrita disparada pelo usuário: liga `ocupado` (botão com carregando) e a barra do topo durante a ação,
+   * avisa sucesso (se houver texto) ou erro. Retorna se deu certo; recarregar ou fechar diálogo fica com quem chama.
    */
   async executar(
     ocupado: WritableSignal<boolean>,
@@ -37,6 +39,7 @@ export class Avisos {
     resumoErro = 'Não foi possível concluir',
   ): Promise<boolean> {
     ocupado.set(true);
+    const terminar = this.atividade.iniciar();
     try {
       await acao();
       if (sucesso) this.sucesso(sucesso);
@@ -46,6 +49,7 @@ export class Avisos {
       return false;
     } finally {
       ocupado.set(false);
+      terminar();
     }
   }
 }

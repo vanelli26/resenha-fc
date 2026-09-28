@@ -30,10 +30,10 @@
     <app-campinho [vagas]="vagas()" [editavel]="true" (tocar)="vagaEscolhendo.set($event)" />
     <div class="acoes barra">
       @if (salva()) {
-        <p-button label="Limpar" [text]="true" severity="danger" [disabled]="salvando()" (onClick)="limpar()" />
+        <p-button label="Limpar" [text]="true" severity="danger" [loading]="limpando()" [disabled]="salvando() || limpando()" (onClick)="limpar()" />
       }
-      <p-button label="Cancelar" [text]="true" [disabled]="salvando()" (onClick)="editando.set(false)" />
-      <p-button label="Salvar" [loading]="salvando()" (onClick)="salvar()" />
+      <p-button label="Cancelar" [text]="true" [disabled]="salvando() || limpando()" (onClick)="editando.set(false)" />
+      <p-button label="Salvar" [loading]="salvando()" [disabled]="limpando()" (onClick)="salvar()" />
     </div>
   } @else if (salva(); as s) {
     <div class="resumo">

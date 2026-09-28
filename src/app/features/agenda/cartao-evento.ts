@@ -24,7 +24,8 @@ export class CartaoEvento {
   readonly esporte = input<string | null>(null);
   readonly podeResponder = input(false);
   readonly resposta = input<RespostaPresenca | null>(null);
-  readonly respondendo = input(false);
+  /** Resposta sendo gravada neste evento (carregando no botão). */
+  readonly enviando = input<RespostaPresenca | null>(null);
   readonly responder = output<RespostaPresenca>();
 
   protected readonly rotuloTipo = ROTULO_TIPO_EVENTO;

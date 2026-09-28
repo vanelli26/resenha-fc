@@ -98,6 +98,7 @@ export class AtletaForm {
   readonly modalidadePadrao = input<Modalidade>(ISENTO);
   /** Esportes do time: um grupo de posições para cada. */
   readonly esportes = input<readonly Esporte[]>(ESPORTES_PADRAO);
+  readonly salvando = input(false);
   readonly salvar = output<DadosAtleta>();
   readonly cancelar = output<void>();
 

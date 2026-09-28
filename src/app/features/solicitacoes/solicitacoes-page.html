@@ -17,7 +17,15 @@
           <small class="texto-suave">{{ s.email }}</small>
           <small class="texto-suave">Pedido em {{ s.criadoEm.toDate() | date: 'dd/MM HH:mm' }}</small>
         </div>
-        <p-button label="Recusar" size="small" severity="danger" [text]="true" [disabled]="processando()" (onClick)="recusar(s)" />
+        <p-button
+          label="Recusar"
+          size="small"
+          severity="danger"
+          [text]="true"
+          [loading]="recusando() === s.id"
+          [disabled]="processando()"
+          (onClick)="recusar(s)"
+        />
         <p-button label="Aprovar" size="small" [disabled]="processando()" (onClick)="abrirAprovacao(s)" />
       </li>
     } @empty {
@@ -34,7 +42,9 @@
       <p-radiobutton value="novo" [formField]="formulario.tipo" />
       Não, criar novo cadastro
     </label>
-    @if (opcoesAtleta().length > 0) {
+    @if (carregandoAtletas()) {
+      <small class="texto-suave">Buscando cadastros do time…</small>
+    } @else if (opcoesAtleta().length > 0) {
       <label class="opcao">
         <p-radiobutton value="existente" [formField]="formulario.tipo" />
         Sim, vincular a um cadastro existente
@@ -87,7 +97,7 @@
 
     <div class="acoes">
       <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
-      <p-button label="Aprovar" type="submit" [loading]="processando()" />
+      <p-button label="Aprovar" type="submit" [loading]="processando()" [disabled]="carregandoAtletas()" />
     </div>
   </form>
 </p-dialog>

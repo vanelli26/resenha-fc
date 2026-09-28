@@ -48,7 +48,7 @@
           @if (r.lancada) {
             <p-tag value="Lançada" severity="success" />
           } @else {
-            <p-button label="Lançar" size="small" [outlined]="true" [disabled]="processando() || carregando()" (onClick)="lancarRecorrente(r.despesa)" />
+            <p-button label="Lançar" size="small" [outlined]="true" [loading]="lancando() === r.despesa.id" [disabled]="processando() || carregando()" (onClick)="lancarRecorrente(r.despesa)" />
           }
         </li>
       }
@@ -145,10 +145,10 @@
 
     <div class="acoes">
       @if (emEdicao()) {
-        <p-button label="Excluir" severity="danger" [text]="true" type="button" class="acoes__remover" [disabled]="processando()" (onClick)="excluir()" />
+        <p-button label="Excluir" severity="danger" [text]="true" type="button" class="acoes__remover" [loading]="excluindo()" [disabled]="processando() || excluindo()" (onClick)="excluir()" />
       }
       <p-button label="Cancelar" [text]="true" type="button" (onClick)="dialogAberto.set(false)" />
-      <p-button label="Salvar" type="submit" [loading]="processando()" />
+      <p-button label="Salvar" type="submit" [loading]="processando()" [disabled]="excluindo()" />
     </div>
   </form>
 </p-dialog>

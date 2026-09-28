@@ -38,6 +38,8 @@ export class ConvitesPage {
   protected readonly validadeDias = VALIDADE_CONVITE_DIAS;
   protected readonly carregando = signal(true);
   protected readonly gerando = signal(false);
+  /** Convite sendo desativado (carregando no botão dele). */
+  protected readonly desativando = signal<string | null>(null);
   private readonly convites = signal<ComId<Convite>[]>([]);
 
   protected readonly lista = computed<ConviteVisao[]>(() => {
@@ -101,11 +103,14 @@ export class ConvitesPage {
   protected async desativar(codigo: string): Promise<void> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
+    this.desativando.set(codigo);
     try {
       await this.convitesService.desativar(timeId, codigo);
       await this.carregar();
     } catch (e) {
       this.avisos.erro('Não foi possível desativar', e);
+    } finally {
+      this.desativando.set(null);
     }
   }
 

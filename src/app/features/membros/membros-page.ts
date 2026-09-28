@@ -76,6 +76,8 @@ export class MembrosPage {
   protected readonly membros = signal<ComId<Acesso>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly salvando = signal(false);
+  /** Remoção em andamento (carregando no botão Remover; Salvar fica desabilitado). */
+  protected readonly removendo = signal(false);
   protected readonly qtdDiretoria = computed(
     () => this.membros().filter((m) => m.papeis.includes('diretoria')).length,
   );
@@ -209,7 +211,7 @@ export class MembrosPage {
       this.avisos.atencao('Não é possível remover a última pessoa da diretoria.');
       return;
     }
-    await this.executar(() => this.acessosService.remover(time.id, membro), 'Membro removido');
+    await this.executar(() => this.acessosService.remover(time.id, membro), 'Membro removido', this.removendo);
   }
 
   private abrirDialog(): void {
@@ -234,8 +236,8 @@ export class MembrosPage {
   }
 
   /** Após salvar/remover: fecha o diálogo e recarrega (pode ter alterado os próprios papéis/vínculo: contexto e "Meus times"). */
-  private async executar(acao: () => Promise<void>, sucesso: string): Promise<void> {
-    if (!(await this.avisos.executar(this.salvando, acao, sucesso, 'Não foi possível salvar'))) return;
+  private async executar(acao: () => Promise<void>, sucesso: string, ocupado = this.salvando): Promise<void> {
+    if (!(await this.avisos.executar(ocupado, acao, sucesso, 'Não foi possível salvar'))) return;
     this.dialogAberto.set(false);
     await Promise.all([this.carregar(), this.timeAtual.recarregarAcesso(), this.sessao.carregarMeusTimes()]);
   }

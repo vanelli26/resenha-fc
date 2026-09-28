@@ -51,6 +51,8 @@ export class MuralPage {
   protected readonly recados = signal<ComId<Recado>[] | null>(null);
   /** Limite do listener; "Ver mais" soma uma página. */
   private readonly quantidade = signal(TAMANHO_PAGINA_MURAL);
+  /** "Ver mais" aguardando o listener trazer a página seguinte. */
+  protected readonly carregandoMais = signal(false);
   protected readonly haMais = computed(() => (this.recados()?.length ?? 0) >= this.quantidade());
 
   protected readonly novaAberta = signal(false);
@@ -60,6 +62,9 @@ export class MuralPage {
   protected readonly emEdicao = signal<ComId<Recado> | null>(null);
   protected readonly textoEdicao = signal('');
   protected readonly salvando = signal(false);
+  /** Post com ação em andamento (fixar, excluir). */
+  protected readonly postOcupado = signal<string | null>(null);
+  private readonly processandoPost = signal(false);
 
   /** Posts que eu curti e contagem de comentários; carregados só para posts ainda não vistos. */
   protected readonly curtidos = signal<ReadonlySet<string>>(new Set());
@@ -81,9 +86,13 @@ export class MuralPage {
         this.pararDeOuvir = this.recadosService.ouvir(
           timeId,
           quantidade,
-          (recados) => this.recados.set(recados),
+          (recados) => {
+            this.recados.set(recados);
+            this.carregandoMais.set(false);
+          },
           (e) => {
             this.recados.set([]);
+            this.carregandoMais.set(false);
             this.avisos.erro('Erro ao carregar o mural', e);
           },
         );
@@ -95,6 +104,7 @@ export class MuralPage {
       untracked(() => {
         this.recados.set(null);
         this.quantidade.set(TAMANHO_PAGINA_MURAL);
+        this.carregandoMais.set(false);
         this.novaAberta.set(false);
         this.emEdicao.set(null);
         this.comentariosDe.set(null);
@@ -153,6 +163,7 @@ export class MuralPage {
   }
 
   protected verMais(): void {
+    this.carregandoMais.set(true);
     this.quantidade.update((q) => q + TAMANHO_PAGINA_MURAL);
   }
 
@@ -197,11 +208,7 @@ export class MuralPage {
   protected async fixar(recado: ComId<Recado>, fixado: boolean): Promise<void> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
-    try {
-      await this.recadosService.fixar(timeId, recado.id, fixado);
-    } catch (e) {
-      this.avisos.erro('Não foi possível concluir', e);
-    }
+    await this.noPost(recado.id, () => this.recadosService.fixar(timeId, recado.id, fixado), null);
   }
 
   protected excluir(recado: ComId<Recado>): void {
@@ -212,15 +219,16 @@ export class MuralPage {
         titulo: 'Excluir postagem',
         mensagem: 'Excluir esta postagem e as fotos dela?',
         rotulo: 'Excluir',
-        aoConfirmar: async () => {
-          try {
-            await this.recadosService.excluir(timeId, recado);
-            this.avisos.sucesso('Postagem excluída');
-          } catch (e) {
-            this.avisos.erro('Não foi possível excluir', e);
-          }
-        },
+        aoConfirmar: () =>
+          void this.noPost(recado.id, () => this.recadosService.excluir(timeId, recado), 'Postagem excluída', 'Não foi possível excluir'),
       }),
     );
+  }
+
+  /** Ação num post (fixar, excluir): o card fica ocupado até terminar; o listener atualiza o feed. */
+  private async noPost(recadoId: string, acao: () => Promise<void>, sucesso: string | null, resumoErro?: string): Promise<void> {
+    this.postOcupado.set(recadoId);
+    await this.avisos.executar(this.processandoPost, acao, sucesso, resumoErro);
+    this.postOcupado.set(null);
   }
 }

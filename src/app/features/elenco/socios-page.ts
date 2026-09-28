@@ -45,6 +45,7 @@ export class SociosPage {
   );
   protected readonly carregando = signal(true);
   protected readonly dialogAberto = signal(false);
+  protected readonly salvando = signal(false);
   protected readonly emEdicao = signal<ComId<Atleta> | null>(null);
 
   protected readonly rotuloStatus = ROTULO_STATUS_ATLETA;
@@ -69,15 +70,16 @@ export class SociosPage {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
     const atual = this.emEdicao();
-    try {
-      if (!atual) return;
-      await this.atletasService.atualizar(timeId, atual.id, dados);
-      this.dialogAberto.set(false);
-      this.avisos.sucesso('Cadastro atualizado');
-      await this.carregar(timeId);
-    } catch (e) {
-      this.avisos.erro('Não foi possível salvar', e);
-    }
+    if (!atual) return;
+    const ok = await this.avisos.executar(
+      this.salvando,
+      () => this.atletasService.atualizar(timeId, atual.id, dados),
+      'Cadastro atualizado',
+      'Não foi possível salvar',
+    );
+    if (!ok) return;
+    this.dialogAberto.set(false);
+    await this.carregar(timeId);
   }
 
   private async carregar(timeId: string): Promise<void> {

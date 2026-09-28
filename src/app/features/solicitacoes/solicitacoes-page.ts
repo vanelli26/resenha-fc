@@ -42,11 +42,15 @@ export class SolicitacoesPage {
   protected readonly pendentes = signal<ComId<Solicitacao>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
+  /** Solicitação sendo recusada (carregando no botão dela). */
+  protected readonly recusando = signal<string | null>(null);
   protected readonly opcoesVinculo = opcoes(VINCULOS, ROTULO_VINCULO);
   protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
 
   // Atletas ainda sem conta vinculada, para "vincular a atleta existente".
   private readonly atletasSemConta = signal<ComId<Atleta>[]>([]);
+  /** Cadastros sem conta sendo buscados ao abrir a aprovação. */
+  protected readonly carregandoAtletas = signal(false);
   protected readonly opcoesAtleta = computed(() =>
     this.atletasSemConta().map((a) => ({ label: a.apelido ? `${a.apelido} (${a.nome})` : a.nome, value: a.id })),
   );
@@ -83,11 +87,14 @@ export class SolicitacoesPage {
     this.dialogAberto.set(true);
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
+    this.carregandoAtletas.set(true);
     try {
       const atletas = await this.atletasService.listar(timeId);
       this.atletasSemConta.set(atletas.filter((a) => a.uid === null && a.status !== 'inativo'));
     } catch (e) {
       this.avisos.erro('Erro ao carregar atletas', e);
+    } finally {
+      this.carregandoAtletas.set(false);
     }
   }
 
@@ -113,7 +120,12 @@ export class SolicitacoesPage {
   protected async recusar(solicitacao: ComId<Solicitacao>): Promise<void> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
-    await this.executar(() => this.solicitacoesService.recusar(timeId, solicitacao.id), 'Solicitação recusada');
+    this.recusando.set(solicitacao.id);
+    try {
+      await this.executar(() => this.solicitacoesService.recusar(timeId, solicitacao.id), 'Solicitação recusada');
+    } finally {
+      this.recusando.set(null);
+    }
   }
 
   private async executar(acao: () => Promise<void>, sucesso: string): Promise<void> {

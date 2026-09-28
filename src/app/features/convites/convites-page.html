@@ -35,7 +35,15 @@
         @if (convite.situacao === 'ativo') {
           <p-button label="Compartilhar" size="small" (onClick)="compartilhar(convite.link)" />
           <p-button label="Copiar link" size="small" [outlined]="true" (onClick)="copiar(convite.link)" />
-          <p-button label="Desativar" size="small" severity="danger" [text]="true" (onClick)="desativar(convite.codigo)" />
+          <p-button
+            label="Desativar"
+            size="small"
+            severity="danger"
+            [text]="true"
+            [loading]="desativando() === convite.codigo"
+            [disabled]="desativando() !== null"
+            (onClick)="desativar(convite.codigo)"
+          />
         }
       </li>
     } @empty {

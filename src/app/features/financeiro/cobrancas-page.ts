@@ -113,6 +113,8 @@ export class CobrancasPage {
   private readonly cobrancas = signal<ComId<Cobranca>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
+  /** Cobrança com ação em andamento (carregando no botão dela). */
+  protected readonly emAndamento = signal<string | null>(null);
 
   protected readonly lista = computed<CobrancaVisao[]>(() => {
     const hoje = new Date();
@@ -195,6 +197,7 @@ export class CobrancasPage {
     if (!cobranca || !uid || !this.dataPagamento()) return;
     const observacao = this.observacao().trim().slice(0, 200);
     await this.executar(
+      cobranca.id,
       (timeId) => this.cobrancasService.darBaixa(timeId, cobranca, { pagoEm: deDataInput(this.dataPagamento()), observacao, uid }),
       'Pagamento registrado',
     );
@@ -205,7 +208,8 @@ export class CobrancasPage {
     this.confirmar(
       `Estornar o pagamento de ${cobranca.atletaNome}? A cobrança volta a pendente e a receita sai do caixa.`,
       'Estornar',
-      () => this.executar((timeId) => this.cobrancasService.estornar(timeId, cobranca.id), 'Pagamento estornado'),
+      () =>
+        this.executar(cobranca.id, (timeId) => this.cobrancasService.estornar(timeId, cobranca.id), 'Pagamento estornado'),
     );
   }
 
@@ -213,12 +217,18 @@ export class CobrancasPage {
     this.confirmar(
       `Cancelar a cobrança de ${cobranca.atletaNome}? Ela deixa de contar como pendente.`,
       'Cancelar cobrança',
-      () => this.executar((timeId) => this.cobrancasService.definirCancelada(timeId, cobranca.id, true), 'Cobrança cancelada'),
+      () =>
+        this.executar(
+          cobranca.id,
+          (timeId) => this.cobrancasService.definirCancelada(timeId, cobranca.id, true),
+          'Cobrança cancelada',
+        ),
     );
   }
 
   protected reabrir(cobranca: ComId<Cobranca>): Promise<void> {
     return this.executar(
+      cobranca.id,
       (timeId) => this.cobrancasService.definirCancelada(timeId, cobranca.id, false),
       'Cobrança reaberta',
     );
@@ -235,11 +245,16 @@ export class CobrancasPage {
     );
   }
 
-  private async executar(acao: (timeId: string) => Promise<void>, sucesso: string): Promise<void> {
+  private async executar(cobrancaId: string, acao: (timeId: string) => Promise<void>, sucesso: string): Promise<void> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
-    if (await this.avisos.executar(this.processando, () => acao(timeId), sucesso)) {
-      await this.carregar(timeId, this.filtro());
+    this.emAndamento.set(cobrancaId);
+    try {
+      if (await this.avisos.executar(this.processando, () => acao(timeId), sucesso)) {
+        await this.carregar(timeId, this.filtro());
+      }
+    } finally {
+      this.emAndamento.set(null);
     }
   }
 

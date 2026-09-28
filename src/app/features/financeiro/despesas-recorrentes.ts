@@ -43,6 +43,8 @@ export class DespesasRecorrentes {
   protected readonly dialogAberto = signal(false);
   protected readonly emEdicao = signal<DespesaRecorrente | null>(null);
   protected readonly salvando = signal(false);
+  /** Remoção em andamento (carregando no botão Remover; Salvar fica desabilitado). */
+  protected readonly removendo = signal(false);
 
   protected readonly modelo = signal<FormDespesa>({ ...VAZIO });
   protected readonly formulario = form(this.modelo, (p) => {
@@ -103,15 +105,15 @@ export class DespesasRecorrentes {
         rotulo: 'Remover',
         aoConfirmar: async () => {
           const lista = this.despesas().filter((d) => d.id !== atual.id);
-          if (await this.gravar(lista, 'Despesa removida')) this.dialogAberto.set(false);
+          if (await this.gravar(lista, 'Despesa removida', this.removendo)) this.dialogAberto.set(false);
         },
       }),
     );
   }
 
-  private gravar(despesasRecorrentes: DespesaRecorrente[], sucesso: string): Promise<boolean> {
+  private gravar(despesasRecorrentes: DespesaRecorrente[], sucesso: string, ocupado = this.salvando): Promise<boolean> {
     return this.avisos.executar(
-      this.salvando,
+      ocupado,
       () => this.service.atualizar({ despesasRecorrentes }),
       sucesso,
       'Não foi possível salvar',
