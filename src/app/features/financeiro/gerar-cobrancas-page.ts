@@ -2,7 +2,6 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
@@ -11,6 +10,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { PlanoCobranca } from '../../models/time.model';
+import { Avisos } from '../../shared/avisos';
 import {
   referenciaMensal,
   referenciaSemestral,
@@ -21,7 +21,6 @@ import {
   vencimentoSemestral,
 } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { CobrancasService, NovaCobranca } from './data/cobrancas.service';
@@ -49,7 +48,7 @@ export class GerarCobrancasPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly atletasService = inject(AtletasService);
   private readonly cobrancasService = inject(CobrancasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly router = inject(Router);
 
   protected readonly timeId = this.timeAtual.timeId;
@@ -163,11 +162,11 @@ export class GerarCobrancasPage {
     this.gerando.set(true);
     try {
       await this.cobrancasService.gerar(timeId, novas);
-      this.mensagens.add({ severity: 'success', summary: `${novas.length} cobrança(s) gerada(s)` });
+      this.avisos.sucesso(`${novas.length} cobrança(s) gerada(s)`);
       // Abre Cobranças no período gerado (o mês ou o semestre da referência).
       await this.router.navigate(['/t', timeId, 'financeiro', 'cobrancas'], { queryParams: { periodo: referencia } });
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível gerar', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível gerar', e);
       await this.carregarExistentes(timeId, referencia);
     } finally {
       this.gerando.set(false);
@@ -179,7 +178,7 @@ export class GerarCobrancasPage {
       const dados = await this.atletasService.listar(timeId);
       if (this.timeAtual.timeId() === timeId) this.atletas.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o elenco', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar o elenco', e);
     }
   }
 
@@ -191,7 +190,7 @@ export class GerarCobrancasPage {
         this.existentes.set(new Set(dados.map((c) => c.atletaId)));
       }
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar cobranças', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar cobranças', e);
     } finally {
       this.carregando.set(false);
     }

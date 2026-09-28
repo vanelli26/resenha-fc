@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -8,7 +7,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { AuthService } from '../../core/auth/auth.service';
 import { TimeAtualService, nomeDaModalidade } from '../../core/time/time-atual.service';
 import { Atleta, vinculoDe } from '../../models/atleta.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 import { esportesComPosicao } from '../../models/posicao.model';
 import {
@@ -31,7 +30,7 @@ export class ElencoPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly auth = inject(AuthService);
   private readonly atletasService = inject(AtletasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
   protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
@@ -120,10 +119,10 @@ export class ElencoPage {
         await this.atletasService.criar(timeId, dados);
       }
       this.dialogAberto.set(false);
-      this.mensagens.add({ severity: 'success', summary: atleta ? 'Atleta atualizado' : 'Atleta cadastrado' });
+      this.avisos.sucesso(atleta ? 'Atleta atualizado' : 'Atleta cadastrado');
       await this.carregar();
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível salvar', e);
     }
   }
 
@@ -137,7 +136,7 @@ export class ElencoPage {
       if (this.timeAtual.timeId() === timeId) this.cadastros.set(dados);
       void this.sincronizarMinhaFoto(timeId);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o elenco', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar o elenco', e);
     } finally {
       this.carregando.set(false);
     }

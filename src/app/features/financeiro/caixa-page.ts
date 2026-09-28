@@ -4,7 +4,7 @@ import { FormField, form, maxLength, required, submit, validate } from '@angular
 import { Router } from '@angular/router';
 import { ArrowDown } from '@primeicons/angular/arrow-down';
 import { ArrowUp } from '@primeicons/angular/arrow-up';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -18,6 +18,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Lancamento, TipoLancamento } from '../../models/financeiro.model';
 import { DespesaRecorrente } from '../../models/time.model';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import {
   deDataInput,
   ehReferenciaMensal,
@@ -27,7 +28,6 @@ import {
   vencimentoMensal,
 } from '../../shared/competencia';
 import { ReaisPipe, centavosParaReais, reaisParaCentavos } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { ROTULO_TIPO_COBRANCA } from '../../shared/rotulos';
 import { LancamentosService, ehLancamentoDeBaixa, idLancamentoRecorrente } from './data/lancamentos.service';
 import { FinanceiroAbas } from './financeiro-abas';
@@ -74,7 +74,7 @@ export class CaixaPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly auth = inject(AuthService);
   private readonly lancamentosService = inject(LancamentosService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
   private readonly router = inject(Router);
 
@@ -210,18 +210,17 @@ export class CaixaPage {
   protected excluir(): void {
     const atual = this.emEdicao();
     if (!atual) return;
-    this.confirmacao.confirm({
-      header: 'Excluir lançamento',
-      message: `Excluir "${atual.descricao}" do caixa?`,
-      acceptLabel: 'Excluir',
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { text: true },
-      accept: async () => {
-        const ok = await this.executar((timeId) => this.lancamentosService.excluir(timeId, atual.id), 'Lançamento excluído');
-        if (ok) this.dialogAberto.set(false);
-      },
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: 'Excluir lançamento',
+        mensagem: `Excluir "${atual.descricao}" do caixa?`,
+        rotulo: 'Excluir',
+        aoConfirmar: async () => {
+          const ok = await this.executar((timeId) => this.lancamentosService.excluir(timeId, atual.id), 'Lançamento excluído');
+          if (ok) this.dialogAberto.set(false);
+        },
+      }),
+    );
   }
 
   protected async lancarRecorrente(despesa: DespesaRecorrente): Promise<void> {
@@ -253,18 +252,9 @@ export class CaixaPage {
   private async executar(acao: (timeId: string) => Promise<void>, sucesso: string): Promise<boolean> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return false;
-    this.processando.set(true);
-    try {
-      await acao(timeId);
-      this.mensagens.add({ severity: 'success', summary: sucesso });
-      await Promise.all([this.carregar(timeId, this.mes()), this.carregarSaldo(timeId)]);
-      return true;
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível concluir', detail: mensagemDeErro(e) });
-      return false;
-    } finally {
-      this.processando.set(false);
-    }
+    const ok = await this.avisos.executar(this.processando, () => acao(timeId), sucesso);
+    if (ok) await Promise.all([this.carregar(timeId, this.mes()), this.carregarSaldo(timeId)]);
+    return ok;
   }
 
   private async carregar(timeId: string, mes: string): Promise<void> {
@@ -275,7 +265,7 @@ export class CaixaPage {
       // Descarta resposta atrasada (outro time ou outro mês).
       if (this.timeAtual.timeId() === timeId && this.mes() === mes) this.lancamentos.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o caixa', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar o caixa', e);
     } finally {
       this.carregando.set(false);
     }
@@ -286,7 +276,7 @@ export class CaixaPage {
       const saldo = await this.lancamentosService.saldo(timeId);
       if (this.timeAtual.timeId() === timeId) this.saldo.set(saldo);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao calcular o saldo', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao calcular o saldo', e);
     }
   }
 }

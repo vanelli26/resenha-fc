@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormField, form, hidden, required, submit } from '@angular/forms/signals';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -16,7 +15,7 @@ import { Acesso } from '../../models/acesso.model';
 import { Atleta, TipoVinculo, VINCULOS } from '../../models/atleta.model';
 import { Modalidade } from '../../models/modalidade.model';
 import { PAPEIS_TIME, PapelTime } from '../../models/papel.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
 import { Voltar } from '../../shared/voltar';
 import { ROTULO_PAPEL, ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
@@ -66,7 +65,7 @@ export class MembrosPage {
   private readonly acessosService = inject(AcessosService);
   private readonly atletasService = inject(AtletasService);
   private readonly usuariosService = inject(UsuariosService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly papeisTime = PAPEIS_TIME;
   protected readonly rotuloPapel = ROTULO_PAPEL;
@@ -161,7 +160,7 @@ export class MembrosPage {
           .map((u) => ({ label: `${u.nome} (${u.email})`, value: u.id, nome: u.nome || u.email })),
       );
     } catch (e) {
-      this.erro('Erro ao carregar usuários', e);
+      this.avisos.erro('Erro ao carregar usuários', e);
     }
   }
 
@@ -174,12 +173,12 @@ export class MembrosPage {
       const { uid, atleta, modalidade, vinculo: tipoVinculo } = this.modelo();
       const papeis = marcados(this.modelo().papeis);
       if (papeis.length === 0) {
-        this.aviso('Marque ao menos um papel. Para tirar a pessoa do time, use "Remover do time".');
+        this.avisos.atencao('Marque ao menos um papel. Para tirar a pessoa do time, use "Remover do time".');
         return;
       }
       const membro = this.emEdicao();
       if (membro && this.tiraUltimaDiretoria(membro) && !papeis.includes('diretoria')) {
-        this.aviso('O time precisa de ao menos uma pessoa na diretoria.');
+        this.avisos.atencao('O time precisa de ao menos uma pessoa na diretoria.');
         return;
       }
 
@@ -207,7 +206,7 @@ export class MembrosPage {
     const membro = this.emEdicao();
     if (!time || !membro) return;
     if (this.tiraUltimaDiretoria(membro)) {
-      this.aviso('Não é possível remover a última pessoa da diretoria.');
+      this.avisos.atencao('Não é possível remover a última pessoa da diretoria.');
       return;
     }
     await this.executar(() => this.acessosService.remover(time.id, membro), 'Membro removido');
@@ -225,7 +224,7 @@ export class MembrosPage {
       const dados = await this.atletasService.listar(timeId);
       if (this.timeAtual.timeId() === timeId) this.atletas.set(dados);
     } catch (e) {
-      this.erro('Erro ao carregar o elenco', e);
+      this.avisos.erro('Erro ao carregar o elenco', e);
     }
   }
 
@@ -234,27 +233,11 @@ export class MembrosPage {
     return membro.papeis.includes('diretoria') && this.qtdDiretoria() <= 1;
   }
 
+  /** Após salvar/remover: fecha o diálogo e recarrega (pode ter alterado os próprios papéis/vínculo: contexto e "Meus times"). */
   private async executar(acao: () => Promise<void>, sucesso: string): Promise<void> {
-    this.salvando.set(true);
-    try {
-      await acao();
-      this.dialogAberto.set(false);
-      this.mensagens.add({ severity: 'success', summary: sucesso });
-      // Pode ter alterado os próprios papéis/vínculo: atualiza contexto e "Meus times".
-      await Promise.all([this.carregar(), this.timeAtual.recarregarAcesso(), this.sessao.carregarMeusTimes()]);
-    } catch (e) {
-      this.erro('Não foi possível salvar', e);
-    } finally {
-      this.salvando.set(false);
-    }
-  }
-
-  private aviso(detalhe: string): void {
-    this.mensagens.add({ severity: 'warn', summary: 'Atenção', detail: detalhe });
-  }
-
-  private erro(resumo: string, e: unknown): void {
-    this.mensagens.add({ severity: 'error', summary: resumo, detail: mensagemDeErro(e) });
+    if (!(await this.avisos.executar(this.salvando, acao, sucesso, 'Não foi possível salvar'))) return;
+    this.dialogAberto.set(false);
+    await Promise.all([this.carregar(), this.timeAtual.recarregarAcesso(), this.sessao.carregarMeusTimes()]);
   }
 
   private async carregar(): Promise<void> {
@@ -266,7 +249,7 @@ export class MembrosPage {
       // Descarta resposta atrasada de um time anterior.
       if (this.timeAtual.timeId() === timeId) this.membros.set(dados);
     } catch (e) {
-      this.erro('Erro ao carregar membros', e);
+      this.avisos.erro('Erro ao carregar membros', e);
     } finally {
       this.carregando.set(false);
     }

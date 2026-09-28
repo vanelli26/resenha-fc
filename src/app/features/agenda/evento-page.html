@@ -67,21 +67,7 @@
           <app-seletor-presenca [resposta]="minhaResposta()" [desabilitado]="respondendo()" (responder)="responder($event)" />
         }
         @if (e.status === 'agendado') {
-          <div class="detalhe__chamar">
-            <p-button size="small" severity="success" ariaLabel="Chamar o time no WhatsApp" (onClick)="enviarWhatsApp()">
-              <svg data-p-icon="whatsapp" [size]="16" aria-hidden="true"></svg>
-              <span class="detalhe__chamar-rotulo">Chamar</span>
-            </p-button>
-            <p-button
-              size="small"
-              [outlined]="true"
-              severity="secondary"
-              ariaLabel="Copiar mensagem com o link"
-              (onClick)="copiarLink()"
-            >
-              <svg data-p-icon="copy" [size]="16" aria-hidden="true"></svg>
-            </p-button>
-          </div>
+          <app-chamar-time class="detalhe__chamar" [evento]="e" />
         }
       </div>
     }
@@ -97,64 +83,19 @@
 
   <section class="presencas">
     @if (ajustando()) {
-      <div class="presencas__topo">
-        <p-selectbutton
-          [options]="opcoesAbaAjuste()"
-          optionLabel="label"
-          optionValue="value"
-          [allowEmpty]="false"
-          [ngModel]="abaAjuste()"
-          (ngModelChange)="abaAjuste.set($event)"
-          size="small"
-          ariaLabel="Quem foi e quem não foi"
-        />
-      </div>
-      <small class="texto-suave">
-        Toque em alguém para mover para "{{ abaAjuste() === 'foram' ? 'Não foram' : 'Foram' }}".
-      </small>
-      <ul class="pessoas">
-        @for (pessoa of listaAjuste(); track pessoa.id) {
-          <li>
-            <button type="button" class="pessoa pessoa--botao" (click)="moverNoAjuste(pessoa.id)">
-              <app-foto-pessoa [src]="pessoa.fotoUrl" [nome]="pessoa.apelido || pessoa.nome" />
-              <span>{{ pessoa.apelido || pessoa.nome }}</span>
-            </button>
-          </li>
-        } @empty {
-          <li class="texto-suave">Ninguém.</li>
-        }
-      </ul>
-      <div class="acoes">
-        <p-button label="Cancelar" [text]="true" [disabled]="processando()" (onClick)="ajustando.set(false)" />
-        <p-button label="Salvar presença" [loading]="processando()" (onClick)="salvarAjuste()" />
-      </div>
+      <app-ajuste-presenca
+        [participantes]="participantes()"
+        [presentesIniciais]="idsCompareceram()"
+        [salvando]="processando()"
+        (salvar)="salvarAjuste($event)"
+        (cancelar)="ajustando.set(false)"
+      />
     } @else {
-      <div class="presencas__topo">
-        <p-selectbutton
-          class="presencas__abas"
-          [options]="opcoesGrupo()"
-          optionLabel="label"
-          optionValue="value"
-          [allowEmpty]="false"
-          [ngModel]="grupoAtivo()"
-          (ngModelChange)="grupoAtivo.set($event)"
-          size="small"
-          ariaLabel="Lista de presença"
-        />
+      <app-lista-presenca [grupos]="grupos()">
         @if (ehDiretoria() && e.status === 'realizado') {
-          <p-button label="Ajustar presença" size="small" [outlined]="true" (onClick)="iniciarAjuste()" />
+          <p-button label="Ajustar presença" size="small" [outlined]="true" (onClick)="ajustando.set(true)" />
         }
-      </div>
-      <ul class="pessoas" [class.pessoas--apagadas]="grupoAtivo() === 'sem' || grupoAtivo() === 'nao_vou' || grupoAtivo() === 'faltou'">
-        @for (pessoa of pessoasDoGrupo(); track pessoa.id) {
-          <li class="pessoa">
-            <app-foto-pessoa [src]="pessoa.fotoUrl" [nome]="pessoa.apelido || pessoa.nome" />
-            <span>{{ pessoa.apelido || pessoa.nome }}</span>
-          </li>
-        } @empty {
-          <li class="texto-suave">Ninguém.</li>
-        }
-      </ul>
+      </app-lista-presenca>
     }
   </section>
 

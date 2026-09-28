@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -10,7 +10,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Recado } from '../../models/recado.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { FaixaPatrocinadores } from '../patrocinadores/faixa-patrocinadores';
 import { ComentariosPost } from './comentarios-post';
 import { InteracoesService } from './data/interacoes.service';
@@ -43,7 +43,7 @@ export class MuralPage {
   private readonly auth = inject(AuthService);
   private readonly recadosService = inject(RecadosService);
   private readonly interacoes = inject(InteracoesService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
@@ -84,7 +84,7 @@ export class MuralPage {
           (recados) => this.recados.set(recados),
           (e) => {
             this.recados.set([]);
-            this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o mural', detail: mensagemDeErro(e) });
+            this.avisos.erro('Erro ao carregar o mural', e);
           },
         );
       });
@@ -125,7 +125,7 @@ export class MuralPage {
       await this.interacoes.definirCurtida(timeId, recadoId, uid, curtir);
     } catch (e) {
       this.curtidos.set(antes);
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível curtir', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível curtir', e);
     }
   }
 
@@ -160,22 +160,15 @@ export class MuralPage {
     const timeId = this.timeAtual.timeId();
     const usuario = this.auth.usuario();
     if (!timeId || !usuario) return;
-    this.enviando.set(true);
     this.enviadas.set(0);
-    try {
-      await this.recadosService.publicar(
-        timeId,
-        post,
-        { uid: usuario.uid, nome: this.timeAtual.acesso()?.nome || usuario.nome, fotoUrl: usuario.fotoUrl },
-        (n) => this.enviadas.set(n),
-      );
-      this.novaAberta.set(false);
-      this.mensagens.add({ severity: 'success', summary: 'Publicado' });
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível publicar', detail: mensagemDeErro(e) });
-    } finally {
-      this.enviando.set(false);
-    }
+    const autor = { uid: usuario.uid, nome: this.timeAtual.acesso()?.nome || usuario.nome, fotoUrl: usuario.fotoUrl };
+    const ok = await this.avisos.executar(
+      this.enviando,
+      () => this.recadosService.publicar(timeId, post, autor, (n) => this.enviadas.set(n)),
+      'Publicado',
+      'Não foi possível publicar',
+    );
+    if (ok) this.novaAberta.set(false);
   }
 
   protected editar(recado: ComId<Recado>): void {
@@ -189,18 +182,16 @@ export class MuralPage {
     const texto = this.textoEdicao().trim();
     if (!timeId || !recado) return;
     if (!texto && !recado.fotos?.length && !recado.titulo) {
-      this.mensagens.add({ severity: 'warn', summary: 'Escreva algo', detail: 'Post sem foto precisa de texto.' });
+      this.avisos.atencao('Post sem foto precisa de texto.', 'Escreva algo');
       return;
     }
-    this.salvando.set(true);
-    try {
-      await this.recadosService.editarTexto(timeId, recado.id, texto);
-      this.emEdicao.set(null);
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
-    } finally {
-      this.salvando.set(false);
-    }
+    const ok = await this.avisos.executar(
+      this.salvando,
+      () => this.recadosService.editarTexto(timeId, recado.id, texto),
+      null,
+      'Não foi possível salvar',
+    );
+    if (ok) this.emEdicao.set(null);
   }
 
   protected async fixar(recado: ComId<Recado>, fixado: boolean): Promise<void> {
@@ -209,28 +200,27 @@ export class MuralPage {
     try {
       await this.recadosService.fixar(timeId, recado.id, fixado);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível concluir', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível concluir', e);
     }
   }
 
   protected excluir(recado: ComId<Recado>): void {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
-    this.confirmacao.confirm({
-      header: 'Excluir postagem',
-      message: 'Excluir esta postagem e as fotos dela?',
-      acceptLabel: 'Excluir',
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { text: true },
-      accept: async () => {
-        try {
-          await this.recadosService.excluir(timeId, recado);
-          this.mensagens.add({ severity: 'success', summary: 'Postagem excluída' });
-        } catch (e) {
-          this.mensagens.add({ severity: 'error', summary: 'Não foi possível excluir', detail: mensagemDeErro(e) });
-        }
-      },
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: 'Excluir postagem',
+        mensagem: 'Excluir esta postagem e as fotos dela?',
+        rotulo: 'Excluir',
+        aoConfirmar: async () => {
+          try {
+            await this.recadosService.excluir(timeId, recado);
+            this.avisos.sucesso('Postagem excluída');
+          } catch (e) {
+            this.avisos.erro('Não foi possível excluir', e);
+          }
+        },
+      }),
+    );
   }
 }

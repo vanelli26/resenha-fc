@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ===============================================================
-// ResenhaFC — Security Rules (Fases 0, 1 e 2)
+// ResenhaFC — Security Rules (Fases 0 a 3)
 // Fonte: DIRETRIZES.md, seções 3 e 4. Negar tudo por padrão; liberar por coleção.
 // Protótipo: revisar e endurecer a cada fase antes de ampliar o público.
 // ===============================================================
@@ -78,7 +78,7 @@ rules_version = '2';
 //   texto (0..2000) · fotos?: list 1..4 de {url https, caminho = times/{timeId}/recados/{id}/{0-3}.webp|jpeg, largura, altura}
 //   titulo? (1..100, posts antigos) · precisa de texto, fotos ou título · fixado: bool (só diretoria liga)
 //   autorUid (= request.auth.uid) · autorNome (1..100) · autorFotoUrl? (https) · criadoEm (= request.time)
-//   qtdCurtidas?: int >= 0 (±1 só junto com a curtida da própria pessoa)
+//   qtdCurtidas?: int >= 0 (nunca na criação; ±1 só junto com a curtida da própria pessoa)
 //   Autor edita só `texto`; diretoria só `fixado`; exclui o autor ou a diretoria. Fotos no Storage (storage.rules).
 //
 // times/{timeId}/recados/{id}/curtidas/{uid}      criadoEm (= request.time) — existir = curtiu

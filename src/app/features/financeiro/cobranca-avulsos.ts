@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { Evento } from '../../models/evento.model';
 import { PlanoCobranca } from '../../models/time.model';
+import { Avisos } from '../../shared/avisos';
 import { ReaisPipe } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { CobrancasService, NovaCobranca } from './data/cobrancas.service';
 
 interface Avulso {
@@ -30,7 +29,7 @@ interface Avulso {
 export class CobrancaAvulsos {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly cobrancasService = inject(CobrancasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   readonly evento = input.required<ComId<Evento>>();
   /** Quem compareceu (marcado no encerramento). */
@@ -77,16 +76,13 @@ export class CobrancaAvulsos {
       vencimento: evento.data.toDate(),
       planoNome: a.plano.nome,
     }));
-    this.gerando.set(true);
-    try {
-      await this.cobrancasService.gerar(timeId, novas);
-      this.mensagens.add({ severity: 'success', summary: `${novas.length} cobrança(s) gerada(s)` });
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível gerar', detail: mensagemDeErro(e) });
-    } finally {
-      this.gerando.set(false);
-      await this.carregarGeradas(timeId, evento.id);
-    }
+    await this.avisos.executar(
+      this.gerando,
+      () => this.cobrancasService.gerar(timeId, novas),
+      `${novas.length} cobrança(s) gerada(s)`,
+      'Não foi possível gerar',
+    );
+    await this.carregarGeradas(timeId, evento.id);
   }
 
   private async carregarGeradas(timeId: string, eventoId: string): Promise<void> {
@@ -96,7 +92,7 @@ export class CobrancaAvulsos {
         this.geradas.set(new Set(cobrancas.map((c) => c.atletaId)));
       }
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar cobranças', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar cobranças', e);
     }
   }
 }

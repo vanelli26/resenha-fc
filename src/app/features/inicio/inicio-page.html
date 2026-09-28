@@ -14,7 +14,7 @@
   <ul class="lista">
     @for (time of meusTimes(); track time.timeId) {
       <li>
-        <a class="item" [routerLink]="['/t', time.timeId]">
+        <a class="cartao-link" [routerLink]="['/t', time.timeId]">
           <app-escudo [src]="time.escudo ?? ''" [nome]="time.timeNome" />
           <span class="item__texto">
             <span class="item__nome">{{ time.timeNome }}</span>
@@ -32,9 +32,9 @@
             }
           </span>
           @if (pendentes().get(time.timeId); as qtd) {
-            <span class="item__pendentes">{{ qtd }} pendente{{ qtd > 1 ? 's' : '' }}</span>
+            <span class="selo-alerta">{{ qtd }} pendente{{ qtd > 1 ? 's' : '' }}</span>
           }
-          <svg class="item__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+          <svg class="cartao-link__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
         </a>
       </li>
     } @empty {

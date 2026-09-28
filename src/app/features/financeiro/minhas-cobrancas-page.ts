@@ -1,12 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MessageService } from 'primeng/api';
 import { SkeletonModule } from 'primeng/skeleton';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Cobranca } from '../../models/financeiro.model';
+import { Avisos } from '../../shared/avisos';
 import { ReaisPipe } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
@@ -31,7 +30,7 @@ interface MinhaCobranca {
 export class MinhasCobrancasPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly cobrancasService = inject(CobrancasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly ehGestao = this.timeAtual.ehGestao;
   protected readonly atletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
@@ -79,7 +78,7 @@ export class MinhasCobrancasPage {
       const dados = await this.cobrancasService.listarDoAtleta(timeId, atletaId);
       if (this.timeAtual.timeId() === timeId) this.cobrancas.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar suas cobranças', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar suas cobranças', e);
     } finally {
       this.carregando.set(false);
     }

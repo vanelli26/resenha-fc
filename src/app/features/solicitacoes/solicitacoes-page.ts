@@ -1,7 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormField, form, hidden, required, submit } from '@angular/forms/signals';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { RadioButtonModule } from 'primeng/radiobutton';
@@ -13,7 +12,7 @@ import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta, TipoVinculo, VINCULOS } from '../../models/atleta.model';
 import { Solicitacao } from '../../models/convite.model';
 import { Modalidade } from '../../models/modalidade.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
 import { Voltar } from '../../shared/voltar';
 import { ROTULO_VINCULO, opcoes } from '../../shared/rotulos';
 import { AtletasService, VinculoAtleta } from '../elenco/data/atletas.service';
@@ -38,7 +37,7 @@ export class SolicitacoesPage {
   private readonly auth = inject(AuthService);
   private readonly solicitacoesService = inject(SolicitacoesService);
   private readonly atletasService = inject(AtletasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly pendentes = signal<ComId<Solicitacao>[]>([]);
   protected readonly carregando = signal(true);
@@ -88,7 +87,7 @@ export class SolicitacoesPage {
       const atletas = await this.atletasService.listar(timeId);
       this.atletasSemConta.set(atletas.filter((a) => a.uid === null && a.status !== 'inativo'));
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar atletas', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar atletas', e);
     }
   }
 
@@ -118,16 +117,7 @@ export class SolicitacoesPage {
   }
 
   private async executar(acao: () => Promise<void>, sucesso: string): Promise<void> {
-    this.processando.set(true);
-    try {
-      await acao();
-      this.mensagens.add({ severity: 'success', summary: sucesso });
-      await this.carregar();
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível concluir', detail: mensagemDeErro(e) });
-    } finally {
-      this.processando.set(false);
-    }
+    if (await this.avisos.executar(this.processando, acao, sucesso)) await this.carregar();
   }
 
   private async carregar(): Promise<void> {
@@ -139,7 +129,7 @@ export class SolicitacoesPage {
       // Descarta resposta atrasada de um time anterior.
       if (this.timeAtual.timeId() === timeId) this.pendentes.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar solicitações', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar solicitações', e);
     } finally {
       this.carregando.set(false);
     }

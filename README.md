@@ -1,59 +1,50 @@
-# ResenhaFc
+# ResenhaFC
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.0.
+Gestão de times de futebol (society, campo e futsal): elenco, cobranças e caixa, agenda com presença, mural com fotos e apoiadores. Mobile-first, pt-BR. Em uso por **Piratas FC** e **Futebol Profissa**, cada um com dados independentes.
 
-## Development server
+- Produção: https://resenhafc-2f357.web.app
+- Domínio, regras de negócio, modelo de dados, permissões, padrões de código e roadmap: [DIRETRIZES.md](DIRETRIZES.md)
+- Instruções para o agente de código: [CLAUDE.md](CLAUDE.md)
 
-To start a local development server, run:
+## Stack
 
-```bash
-ng serve
-```
+Angular 22 (standalone, zoneless, signals, Signal Forms) · PrimeNG 22 · Firebase (SDK modular): Authentication (Google), Firestore, Storage e Hosting, plano Blaze. Sem Cloud Functions.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Rodar local
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Requisitos: Node 22 e Firebase CLI (`npm i -g firebase-tools`, `firebase login`).
 
 ```bash
-ng generate component component-name
+npm install
+npm start          # http://localhost:4200 (usa o projeto Firebase de produção)
+npm run lint
+npm run build      # saída em dist/resenha-fc
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Publicar
+
+Só com os comandos abaixo, e só o que mudou (ver DIRETRIZES 8.1):
 
 ```bash
-ng generate --help
+npm run build && firebase deploy --only hosting
+firebase deploy --only firestore:rules
+firebase deploy --only firestore:indexes
+firebase deploy --only storage
 ```
 
-## Building
+As regras do Storage consultam o Firestore: a conta de serviço do Storage precisa do papel IAM **Firebase Rules Firestore Service Agent** (DIRETRIZES 10).
 
-To build the project run:
+## Estrutura
 
-```bash
-ng build
+```
+src/app/
+  core/       auth, providers Firebase, layout (shell), tema, contexto do time atual
+  shared/     avisos, dinheiro, competência, imagem, compartilhar, rótulos e componentes genéricos
+  models/     tipos e listas fechadas do domínio
+  features/   uma pasta por área (agenda, elenco, financeiro, mural, ...); data/ com os services
+firestore.rules · firestore.indexes.json · storage.rules · firebase.json
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## Licenças
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+PrimeNG 22 usa a PrimeUI Community License (chave em `environments`, renovação anual; ver DIRETRIZES 10).

@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { ESPORTES, Esporte, POSICOES_POR_ESPORTE } from '../../models/posicao.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
 import { ROTULO_ESPORTE, ROTULO_POSICAO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
 import { TimesService } from '../times/data/times.service';
@@ -21,7 +20,7 @@ import { TimesService } from '../times/data/times.service';
 export class EsportesPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly timesService = inject(TimesService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly itens = ESPORTES.map((esporte) => ({
     esporte,
@@ -51,15 +50,14 @@ export class EsportesPage {
     const timeId = this.timeAtual.timeId();
     const esportes = ESPORTES.filter((e) => this.selecionados().has(e));
     if (!timeId || esportes.length === 0) return;
-    this.salvando.set(true);
-    try {
-      await this.timesService.salvarEsportes(timeId, esportes);
-      this.timeAtual.definirEsportes(esportes);
-      this.mensagens.add({ severity: 'success', summary: 'Esportes atualizados' });
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
-    } finally {
-      this.salvando.set(false);
-    }
+    await this.avisos.executar(
+      this.salvando,
+      async () => {
+        await this.timesService.salvarEsportes(timeId, esportes);
+        this.timeAtual.definirEsportes(esportes);
+      },
+      'Esportes atualizados',
+      'Não foi possível salvar',
+    );
   }
 }

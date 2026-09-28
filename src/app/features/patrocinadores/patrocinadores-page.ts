@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { FormField, form, maxLength, pattern, required, submit } from '@angular/forms/signals';
 import { ArrowDown } from '@primeicons/angular/arrow-down';
 import { ArrowUp } from '@primeicons/angular/arrow-up';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -11,7 +11,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { MAX_PATROCINADORES, Patrocinador, TAMANHO_MAX_LOGO } from '../../models/patrocinador.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { imagemParaDataUrl } from '../../shared/imagem';
 import { Voltar } from '../../shared/voltar';
 import { PatrocinadoresService, normalizarLink } from './data/patrocinadores.service';
@@ -45,7 +45,7 @@ interface FormPatrocinador {
 export class PatrocinadoresPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly service = inject(PatrocinadoresService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
 
   protected readonly lista = signal<ComId<Patrocinador>[] | null>(null);
@@ -100,7 +100,7 @@ export class PatrocinadoresPage {
     try {
       this.logo.set(await imagemParaDataUrl(arquivo, TAMANHO_MAX_LOGO));
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Imagem não aceita', detail: mensagemDeErro(e) });
+      this.avisos.erro('Imagem não aceita', e);
     } finally {
       this.processandoImagem.set(false);
     }
@@ -128,19 +128,18 @@ export class PatrocinadoresPage {
     const timeId = this.timeAtual.timeId();
     const atual = this.emEdicao();
     if (!timeId || !atual) return;
-    this.confirmacao.confirm({
-      header: 'Remover apoiador',
-      message: `Remover "${atual.nome}" do mural?`,
-      acceptLabel: 'Remover',
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { text: true },
-      accept: async () => {
-        if (await this.executar(() => this.service.excluir(timeId, atual.id), 'Apoiador removido')) {
-          this.dialogAberto.set(false);
-        }
-      },
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: 'Remover apoiador',
+        mensagem: `Remover "${atual.nome}" do mural?`,
+        rotulo: 'Remover',
+        aoConfirmar: async () => {
+          if (await this.executar(() => this.service.excluir(timeId, atual.id), 'Apoiador removido')) {
+            this.dialogAberto.set(false);
+          }
+        },
+      }),
+    );
   }
 
   /** Troca de lugar com o vizinho (−1 sobe, +1 desce) e regrava a ordem de todos. */
@@ -154,21 +153,13 @@ export class PatrocinadoresPage {
     await this.executar(() => this.service.reordenar(timeId, lista.map((p) => p.id)), null);
   }
 
+  /** Recarrega mesmo se falhar: a reordenação otimista precisa voltar ao que está gravado. */
   private async executar(acao: () => Promise<void>, sucesso: string | null): Promise<boolean> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return false;
-    this.processando.set(true);
-    try {
-      await acao();
-      if (sucesso) this.mensagens.add({ severity: 'success', summary: sucesso });
-      return true;
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível concluir', detail: mensagemDeErro(e) });
-      return false;
-    } finally {
-      this.processando.set(false);
-      await this.carregar(timeId);
-    }
+    const ok = await this.avisos.executar(this.processando, acao, sucesso);
+    await this.carregar(timeId);
+    return ok;
   }
 
   private async carregar(timeId: string): Promise<void> {
@@ -176,7 +167,7 @@ export class PatrocinadoresPage {
       const lista = await this.service.listar(timeId);
       if (this.timeAtual.timeId() === timeId) this.lista.set(lista);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar apoiadores', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar apoiadores', e);
     }
   }
 }

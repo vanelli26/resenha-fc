@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, maxLength, pattern, readonly, required, submit, validate } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -10,8 +9,8 @@ import { SessaoService } from '../../core/sessao/sessao.service';
 import { amostraDaCor } from '../../core/theme/app-theme';
 import { ESPORTES, ESPORTES_PADRAO, Esporte } from '../../models/posicao.model';
 import { CORES_TIME, CorTime, TimeGravado } from '../../models/time.model';
+import { Avisos } from '../../shared/avisos';
 import { Escudo } from '../../shared/escudo';
-import { mensagemDeErro } from '../../shared/erros';
 import { FotoProcessada, fotoParaEnvio } from '../../shared/imagem';
 import { ROTULO_COR, ROTULO_ESPORTE, opcoes } from '../../shared/rotulos';
 import { TimesService } from './data/times.service';
@@ -36,7 +35,7 @@ const FORM_VAZIO: FormTime = { slug: '', nome: '', cor: 'emerald', esportes: [..
 export class TimesAdminPage {
   private readonly timesService = inject(TimesService);
   private readonly sessao = inject(SessaoService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly times = signal<ComId<TimeGravado>[]>([]);
   protected readonly editandoId = signal<string | null>(null);
@@ -118,7 +117,7 @@ export class TimesAdminPage {
       this.limparNovoEscudo();
       this.novoEscudo.set({ foto, previa: URL.createObjectURL(foto.blob) });
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Imagem não aceita', detail: mensagemDeErro(e) });
+      this.avisos.erro('Imagem não aceita', e);
     } finally {
       this.processandoImagem.set(false);
     }
@@ -146,11 +145,11 @@ export class TimesAdminPage {
           throw e;
         }
         if (original !== dados.escudo) await this.timesService.apagarEscudo(original);
-        this.mensagens.add({ severity: 'success', summary: id ? 'Time atualizado' : 'Time criado' });
+        this.avisos.sucesso(id ? 'Time atualizado' : 'Time criado');
         this.cancelar();
         await Promise.all([this.carregar(), this.sessao.carregarMeusTimes()]);
       } catch (e) {
-        this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
+        this.avisos.erro('Não foi possível salvar', e);
       }
     });
   }
@@ -159,7 +158,7 @@ export class TimesAdminPage {
     try {
       this.times.set(await this.timesService.listar());
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar times', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar times', e);
     }
   }
 }

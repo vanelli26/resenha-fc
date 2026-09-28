@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -13,6 +13,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Cobranca } from '../../models/financeiro.model';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import {
   deDataInput,
   ehReferenciaMensal,
@@ -23,7 +24,6 @@ import {
   referenciaSemestral,
 } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { NavegadorPeriodo } from './navegador-periodo';
@@ -67,7 +67,7 @@ export class CobrancasPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly auth = inject(AuthService);
   private readonly cobrancasService = inject(CobrancasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
   private readonly router = inject(Router);
 
@@ -225,29 +225,21 @@ export class CobrancasPage {
   }
 
   private confirmar(mensagem: string, rotulo: string, acao: () => Promise<void>): void {
-    this.confirmacao.confirm({
-      header: 'Confirmar',
-      message: mensagem,
-      acceptLabel: rotulo,
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { text: true },
-      accept: () => void acao(),
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: 'Confirmar',
+        mensagem: mensagem,
+        rotulo: rotulo,
+        aoConfirmar: () => void acao(),
+      }),
+    );
   }
 
   private async executar(acao: (timeId: string) => Promise<void>, sucesso: string): Promise<void> {
     const timeId = this.timeAtual.timeId();
     if (!timeId) return;
-    this.processando.set(true);
-    try {
-      await acao(timeId);
-      this.mensagens.add({ severity: 'success', summary: sucesso });
+    if (await this.avisos.executar(this.processando, () => acao(timeId), sucesso)) {
       await this.carregar(timeId, this.filtro());
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível concluir', detail: mensagemDeErro(e) });
-    } finally {
-      this.processando.set(false);
     }
   }
 
@@ -261,7 +253,7 @@ export class CobrancasPage {
       // Descarta resposta atrasada (outro time ou outro filtro).
       if (this.timeAtual.timeId() === timeId && this.filtro() === filtro) this.cobrancas.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar cobranças', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar cobranças', e);
     } finally {
       this.carregando.set(false);
     }

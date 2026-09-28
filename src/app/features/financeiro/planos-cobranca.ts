@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { FormField, form, maxLength, required, submit, validate } from '@angular/forms/signals';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -10,8 +10,8 @@ import { SelectModule } from 'primeng/select';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { ISENTO, PERIODICIDADES, Periodicidade } from '../../models/modalidade.model';
 import { PlanoCobranca } from '../../models/time.model';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { ReaisPipe, centavosParaReais, reaisParaCentavos } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { ROTULO_PERIODICIDADE, opcoes } from '../../shared/rotulos';
 import { ConfigFinanceiraService, MAX_PLANOS, novoIdConfiguracao } from './data/config-financeira.service';
 
@@ -44,7 +44,7 @@ const VAZIO: FormPlano = { nome: '', periodicidade: 'mensal', valor: 0 };
 export class PlanosCobranca {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly service = inject(ConfigFinanceiraService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
 
   /** Quantas pessoas usam cada plano (id → total); null enquanto carrega. */
@@ -113,35 +113,25 @@ export class PlanosCobranca {
   protected remover(): void {
     const atual = this.emEdicao();
     if (!atual || this.usoDoEmEdicao() > 0) return;
-    this.confirmacao.confirm({
-      header: 'Remover plano',
-      message: `Remover "${atual.nome}"? Cobranças já geradas continuam como estão.`,
-      acceptLabel: 'Remover',
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { text: true },
-      accept: async () => {
-        const lista = this.planos().filter((p) => p.id !== atual.id);
-        if (await this.gravar(lista, 'Plano removido')) this.dialogAberto.set(false);
-      },
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: 'Remover plano',
+        mensagem: `Remover "${atual.nome}"? Cobranças já geradas continuam como estão.`,
+        rotulo: 'Remover',
+        aoConfirmar: async () => {
+          const lista = this.planos().filter((p) => p.id !== atual.id);
+          if (await this.gravar(lista, 'Plano removido')) this.dialogAberto.set(false);
+        },
+      }),
+    );
   }
 
-  private async gravar(planos: PlanoCobranca[], sucesso: string): Promise<boolean> {
-    const time = this.timeAtual.time();
-    if (!time) return false;
-    this.salvando.set(true);
-    try {
-      const financeiro = { ...time.financeiro, planos };
-      await this.service.salvar(time.id, financeiro);
-      this.timeAtual.definirFinanceiro(financeiro);
-      this.mensagens.add({ severity: 'success', summary: sucesso });
-      return true;
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
-      return false;
-    } finally {
-      this.salvando.set(false);
-    }
+  private gravar(planos: PlanoCobranca[], sucesso: string): Promise<boolean> {
+    return this.avisos.executar(
+      this.salvando,
+      () => this.service.atualizar({ planos }),
+      sucesso,
+      'Não foi possível salvar',
+    );
   }
 }

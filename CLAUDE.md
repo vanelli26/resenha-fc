@@ -9,11 +9,11 @@ Atuar como Senior/Staff Engineer (Angular + PrimeNG + Firebase) responsável pel
 ## Fluxo obrigatório por tarefa
 
 1. Investigar antes de alterar: `package.json`, `angular.json`, `tsconfig*.json`, config de ESLint, `src/`, `firestore.rules`, `firebase.json` e demais arquivos Firebase que existirem.
-2. Localizar o que já existe (models, services, componentes, rotas, regras). Nunca criar uma segunda implementação de algo existente.
+2. Localizar o que já existe (models, services, componentes, rotas, regras, utilitários de `shared/`). Nunca criar uma segunda implementação de algo existente. Seguir os padrões de código de DIRETRIZES 6.2 (tela, avisos/confirmação, componentes, services, estilos, nomes).
 3. Planejar. Tarefa complexa: apresentar `Plano: 1. … 2. …` antes de implementar. Tarefa simples: executar direto.
 4. Implementar com alterações pequenas e localizadas. Sem upgrade de dependência, migração arquitetural, troca de biblioteca, renomeação em massa ou refatoração grande fora do escopo pedido.
 5. Validar com `npm run lint` e `npm run build`. Não executar nem criar testes automatizados nesta fase. Não validar no navegador (preview, screenshots, console): consome muitos recursos e o usuário valida o visual por conta própria. Ao final, dizer o que mudou visualmente para ele conferir.
-6. Revisar como Staff Engineer: duplicação, `any`, casts `as` para silenciar o compilador, abstração desnecessária, leituras/listeners Firestore desnecessários, Security Rules coerentes, segredos expostos, efeitos colaterais, mudanças não pedidas.
+6. Revisar como Staff Engineer: desvio dos padrões de 6.2, duplicação, `any`, casts `as` para silenciar o compilador, abstração desnecessária, leituras/listeners Firestore desnecessários, Security Rules coerentes, segredos expostos, efeitos colaterais, mudanças não pedidas.
 
 ## Não inventar
 
@@ -31,7 +31,7 @@ Não inventar collections, campos, regras de negócio, papéis, permissões, cla
 ## Firebase
 
 - Produtos em uso (plano Blaze): Authentication (Google), Firestore (regras em `firestore.rules`, índices em `firestore.indexes.json`), Storage (regras em `storage.rules`; fotos do mural) e Hosting (`firebase.json`, `.firebaserc`). Cloud Functions **não** é usado até decisão registrada em DIRETRIZES, seção 10. Manter esta lista atualizada quando isso mudar.
-- Publicar (`firebase deploy`) só quando o usuário pedir — ver DIRETRIZES 8.1.
+- Publicar (`firebase deploy`) só quando o usuário pedir — ver DIRETRIZES 8.1. Commit e push também só quando pedido (repositório público: nada de segredo).
 - Toda mudança em collection/dado sensível avalia `firestore.rules` no mesmo trabalho. Autorização no Angular é UX, não segurança.
 - Rules não são filtros: toda consulta do frontend deve conter os mesmos filtros que a regra exige (ex.: jogador consultando cobranças filtra por `atletaId`).
 - SDK modular (`firebase`), sem `@angular/fire`. Providers em `core/firebase/`: `FIREBASE_APP` e `FIREBASE_AUTH` em `firebase.providers.ts`; `FIRESTORE` em `firestore.token.ts` e `STORAGE` em `storage.token.ts` (só importar a partir de código lazy, para manter os SDKs fora do bundle inicial).

@@ -1,6 +1,5 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DOCUMENT, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
@@ -8,7 +7,8 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Convite } from '../../models/convite.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
+import { abrirWhatsApp, copiarTexto } from '../../shared/compartilhar';
 import { Voltar } from '../../shared/voltar';
 import { ConvitesService, VALIDADE_CONVITE_DIAS, conviteValido } from './data/convites.service';
 
@@ -32,7 +32,7 @@ export class ConvitesPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly auth = inject(AuthService);
   private readonly convitesService = inject(ConvitesService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly origem = inject(DOCUMENT).location.origin;
 
   protected readonly validadeDias = VALIDADE_CONVITE_DIAS;
@@ -71,19 +71,15 @@ export class ConvitesPage {
       await this.carregar();
       await this.copiar(`${this.origem}/convite/${time.id}/${codigo}`);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível gerar', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível gerar', e);
     } finally {
       this.gerando.set(false);
     }
   }
 
   protected async copiar(link: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(link);
-      this.mensagens.add({ severity: 'success', summary: 'Link copiado', detail: 'Envie para quem vai entrar no time.' });
-    } catch {
-      this.mensagens.add({ severity: 'info', summary: 'Copie o link', detail: link, life: 10000 });
-    }
+    if (await copiarTexto(link)) this.avisos.sucesso('Link copiado', 'Envie para quem vai entrar no time.');
+    else this.avisos.info('Copie o link', link, 10000);
   }
 
   /** Compartilhamento nativo do celular; sem suporte, abre o WhatsApp com o texto pronto. */
@@ -99,7 +95,7 @@ export class ConvitesPage {
         if (e instanceof DOMException && e.name === 'AbortError') return;
       }
     }
-    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+    abrirWhatsApp(texto);
   }
 
   protected async desativar(codigo: string): Promise<void> {
@@ -109,7 +105,7 @@ export class ConvitesPage {
       await this.convitesService.desativar(timeId, codigo);
       await this.carregar();
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível desativar', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível desativar', e);
     }
   }
 
@@ -122,7 +118,7 @@ export class ConvitesPage {
       // Descarta resposta atrasada de um time anterior.
       if (this.timeAtual.timeId() === timeId) this.convites.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar convites', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar convites', e);
     } finally {
       this.carregando.set(false);
     }

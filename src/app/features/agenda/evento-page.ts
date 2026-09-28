@@ -1,75 +1,59 @@
-import { DatePipe, formatDate } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  LOCALE_ID,
   computed,
   effect,
   inject,
   input,
-  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
-import { Copy } from '@primeicons/angular/copy';
 import { EllipsisV } from '@primeicons/angular/ellipsis-v';
-import { Whatsapp } from '@primeicons/angular/whatsapp';
-import { FormsModule } from '@angular/forms';
-import { ConfirmationService, MenuItem, MessageService } from 'primeng/api';
+import { ConfirmationService, MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { MenuModule } from 'primeng/menu';
-import { SelectButtonModule } from 'primeng/selectbutton';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { Evento, Gol, Presenca, RespostaPresenca } from '../../models/evento.model';
-import { mensagemDeErro } from '../../shared/erros';
-import { FotoPessoa } from '../../shared/foto-pessoa';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { ROTULO_ESPORTE, ROTULO_STATUS_EVENTO, ROTULO_TIPO_EVENTO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { DadosEvento, EventosService, participa, podeResponder } from './data/eventos.service';
 import { CobrancaAvulsos } from '../financeiro/cobranca-avulsos';
+import { AjustePresenca } from './ajuste-presenca';
+import { ChamarTime } from './chamar-time';
 import { EncerrarEvento, Encerramento, Participante } from './encerrar-evento';
 import { EventoForm } from './evento-form';
+import { ListaPresenca, gruposDePresenca, ordenarPorNome } from './lista-presenca';
 import { SeletorPresenca } from './seletor-presenca';
-
-interface GrupoPresenca {
-  chave: RespostaPresenca | 'sem' | 'compareceu' | 'faltou';
-  titulo: string;
-  pessoas: ComId<Atleta>[];
-}
-
-function ordenarPorNome(lista: ComId<Atleta>[]): ComId<Atleta>[] {
-  return [...lista].sort((a, b) => (a.apelido || a.nome).localeCompare(b.apelido || b.nome, 'pt-BR'));
-}
 
 @Component({
   selector: 'app-evento-page',
   imports: [
     DatePipe,
-    FormsModule,
     ButtonModule,
-    MenuModule,
-    SelectButtonModule,
-    EllipsisV,
     ConfirmDialogModule,
     DialogModule,
+    MenuModule,
     SkeletonModule,
     TagModule,
+    EllipsisV,
+    AjustePresenca,
+    ChamarTime,
     CobrancaAvulsos,
     EncerrarEvento,
     EventoForm,
-    FotoPessoa,
+    ListaPresenca,
     SeletorPresenca,
     Voltar,
-    Copy,
-    Whatsapp,
   ],
   providers: [ConfirmationService],
   templateUrl: './evento-page.html',
@@ -80,9 +64,8 @@ export class EventoPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly eventosService = inject(EventosService);
   private readonly atletasService = inject(AtletasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
-  private readonly locale = inject(LOCALE_ID);
 
   /** Parâmetro da rota (withComponentInputBinding). */
   readonly eventoId = input.required<string>();
@@ -103,25 +86,8 @@ export class EventoPage {
   protected readonly encerrandoAberto = signal(false);
   protected readonly gols = signal<ComId<Gol>[]>([]);
 
-  // Ajuste de presença do evento encerrado (diretoria): duas listas, tocar move entre elas.
+  /** Ajuste de presença do evento encerrado (diretoria), no lugar da lista. */
   protected readonly ajustando = signal(false);
-  protected readonly presentesEmAjuste = signal<ReadonlySet<string>>(new Set());
-  protected readonly abaAjuste = signal<'foram' | 'nao_foram'>('foram');
-  protected readonly opcoesAbaAjuste = computed(() => {
-    const presentes = this.presentesEmAjuste();
-    const foram = this.participantes().filter((p) => presentes.has(p.atleta.id)).length;
-    return [
-      { value: 'foram', label: `Foram ${foram}` },
-      { value: 'nao_foram', label: `Não foram ${this.participantes().length - foram}` },
-    ];
-  });
-  protected readonly listaAjuste = computed(() => {
-    const presentes = this.presentesEmAjuste();
-    const foram = this.abaAjuste() === 'foram';
-    return this.participantes()
-      .filter((p) => presentes.has(p.atleta.id) === foram)
-      .map((p) => p.atleta);
-  });
 
   /** Gols para exibir: "Fulano (Beltrano)", "Gol contra". */
   protected readonly textoGols = computed(() => {
@@ -177,47 +143,13 @@ export class EventoPage {
     return this.cadastros().filter((a) => presentes.has(a.id));
   });
 
-  /**
-   * Agendado: Vão · Talvez · Não vão · Sem resposta (quem participa e ainda não respondeu).
-   * Realizado: Compareceram · Faltaram (disseram "Vou" ou "Talvez" e não foram).
-   */
-  protected readonly grupos = computed<GrupoPresenca[]>(() => {
+  protected readonly grupos = computed(() => {
     const e = this.evento();
-    if (!e) return [];
-    if (e.status === 'realizado') {
-      const faltaram = this.presencas()
-        .filter((p) => !p.compareceu && (p.resposta === 'vou' || p.resposta === 'talvez'))
-        .map((p) => p.id);
-      const idsFaltaram = new Set(faltaram);
-      return [
-        { chave: 'compareceu', titulo: 'Compareceram', pessoas: ordenarPorNome(this.compareceram()) },
-        { chave: 'faltou', titulo: 'Faltaram', pessoas: ordenarPorNome(this.cadastros().filter((a) => idsFaltaram.has(a.id))) },
-      ];
-    }
-    const porId = new Map(this.cadastros().map((a) => [a.id, a]));
-    const respostas = new Map<string, RespostaPresenca>();
-    for (const p of this.presencas()) if (p.resposta) respostas.set(p.id, p.resposta);
-    const doGrupo = (r: RespostaPresenca) =>
-      [...respostas].flatMap(([id, resp]) => {
-        const pessoa = porId.get(id);
-        return resp === r && pessoa ? [pessoa] : [];
-      });
-    const semResposta = this.cadastros().filter((a) => participa(e.tipo, a) && !respostas.has(a.id));
-    return [
-      { chave: 'vou', titulo: 'Vão', pessoas: ordenarPorNome(doGrupo('vou')) },
-      { chave: 'talvez', titulo: 'Talvez', pessoas: ordenarPorNome(doGrupo('talvez')) },
-      { chave: 'nao_vou', titulo: 'Não vão', pessoas: ordenarPorNome(doGrupo('nao_vou')) },
-      { chave: 'sem', titulo: 'Sem resposta', pessoas: ordenarPorNome(semResposta) },
-    ];
+    return e ? gruposDePresenca(e, this.cadastros(), this.presencas()) : [];
   });
 
-  /** Grupo exibido (a lista pode ser longa: um grupo por vez). Começa no primeiro (Vão / Compareceram). */
-  protected readonly grupoAtivo = linkedSignal<GrupoPresenca['chave']>(() => this.grupos()[0]?.chave ?? 'vou');
-  protected readonly opcoesGrupo = computed(() =>
-    this.grupos().map((g) => ({ value: g.chave, label: `${g.titulo} ${g.pessoas.length}` })),
-  );
-  protected readonly pessoasDoGrupo = computed(
-    () => this.grupos().find((g) => g.chave === this.grupoAtivo())?.pessoas ?? [],
+  protected readonly idsCompareceram = computed<ReadonlySet<string>>(
+    () => new Set(this.compareceram().map((a) => a.id)),
   );
 
   /** Ações secundárias da diretoria (menu "⋯"); Encerrar fica como botão principal. */
@@ -255,40 +187,6 @@ export class EventoPage {
     inject(DestroyRef).onDestroy(() => this.pararDeOuvir?.());
   }
 
-  /** Link direto do evento: quem não está logado entra e volta para cá (authGuard guarda a URL). */
-  private readonly link = computed(() => {
-    const e = this.evento();
-    const timeId = this.timeAtual.timeId();
-    return e && timeId ? `${location.origin}/t/${timeId}/agenda/${e.id}` : '';
-  });
-
-  /** Mensagem pronta para o grupo do time (negrito no formato do WhatsApp). */
-  private readonly mensagemConvite = computed(() => {
-    const e = this.evento();
-    if (!e) return '';
-    const quando = formatDate(e.data.toDate(), "EEE, dd/MM 'às' HH:mm", this.locale);
-    return [
-      `⚽ *${e.titulo}*${e.adversario ? ` x ${e.adversario}` : ''}`,
-      `📅 ${quando.charAt(0).toUpperCase()}${quando.slice(1)}`,
-      ...(e.local ? [`📍 ${e.local}`] : []),
-      '',
-      `Confirme sua presença: ${this.link()}`,
-    ].join('\n');
-  });
-
-  protected enviarWhatsApp(): void {
-    window.open(`https://wa.me/?text=${encodeURIComponent(this.mensagemConvite())}`, '_blank', 'noopener');
-  }
-
-  protected async copiarLink(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(this.mensagemConvite());
-      this.mensagens.add({ severity: 'success', summary: 'Mensagem copiada', detail: 'Cole no grupo do time.' });
-    } catch {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível copiar', detail: this.link() });
-    }
-  }
-
   protected async responder(resposta: RespostaPresenca): Promise<void> {
     const timeId = this.timeAtual.timeId();
     const e = this.evento();
@@ -299,7 +197,7 @@ export class EventoPage {
       // O listener atualiza as listas.
       await this.eventosService.responder(timeId, e.id, eu.id, resposta);
     } catch (err) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível responder', detail: mensagemDeErro(err) });
+      this.avisos.erro('Não foi possível responder', err);
     } finally {
       this.respondendo.set(false);
     }
@@ -335,27 +233,10 @@ export class EventoPage {
     }
   }
 
-  protected iniciarAjuste(): void {
-    this.presentesEmAjuste.set(new Set(this.compareceram().map((a) => a.id)));
-    this.abaAjuste.set('foram');
-    this.ajustando.set(true);
-  }
-
-  /** Toque numa pessoa: passa de "Foram" para "Não foram" e vice-versa. */
-  protected moverNoAjuste(atletaId: string): void {
-    this.presentesEmAjuste.update((atual) => {
-      const novo = new Set(atual);
-      if (novo.has(atletaId)) novo.delete(atletaId);
-      else novo.add(atletaId);
-      return novo;
-    });
-  }
-
-  protected async salvarAjuste(): Promise<void> {
+  protected async salvarAjuste(presentes: ReadonlySet<string>): Promise<void> {
     const timeId = this.timeAtual.timeId();
     const e = this.evento();
     if (!timeId || !e) return;
-    const presentes = this.presentesEmAjuste();
     const lista = this.participantes().map((p) => ({
       atletaId: p.atleta.id,
       compareceu: presentes.has(p.atleta.id),
@@ -373,39 +254,31 @@ export class EventoPage {
     const e = this.evento();
     if (!timeId || !e) return;
     const cancelar = e.status === 'agendado';
-    this.confirmacao.confirm({
-      header: cancelar ? 'Cancelar evento' : 'Reativar evento',
-      message: cancelar
-        ? `Cancelar "${e.titulo}"? Ele continua na agenda, marcado como cancelado, e ninguém mais responde.`
-        : `Reativar "${e.titulo}"? As respostas já dadas continuam valendo.`,
-      acceptLabel: cancelar ? 'Cancelar evento' : 'Reativar',
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: cancelar ? 'danger' : 'primary' },
-      rejectButtonProps: { text: true },
-      accept: () =>
-        void this.executar(
-          () => this.eventosService.definirCancelado(timeId, e.id, cancelar),
-          cancelar ? 'Evento cancelado' : 'Evento reativado',
-        ),
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: cancelar ? 'Cancelar evento' : 'Reativar evento',
+        mensagem: cancelar
+          ? `Cancelar "${e.titulo}"? Ele continua na agenda, marcado como cancelado, e ninguém mais responde.`
+          : `Reativar "${e.titulo}"? As respostas já dadas continuam valendo.`,
+        rotulo: cancelar ? 'Cancelar evento' : 'Reativar',
+        perigosa: cancelar,
+        aoConfirmar: () =>
+          void this.executar(
+            () => this.eventosService.definirCancelado(timeId, e.id, cancelar),
+            cancelar ? 'Evento cancelado' : 'Evento reativado',
+          ),
+      }),
+    );
   }
 
+  /** Escrita no evento: em caso de sucesso, relê o evento (status, placar). */
   private async executar(acao: () => Promise<void>, sucesso: string): Promise<boolean> {
     const timeId = this.timeAtual.timeId();
     const e = this.evento();
     if (!timeId || !e) return false;
-    this.processando.set(true);
-    try {
-      await acao();
-      this.mensagens.add({ severity: 'success', summary: sucesso });
-      this.evento.set(await this.eventosService.obter(timeId, e.id));
-      return true;
-    } catch (err) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível concluir', detail: mensagemDeErro(err) });
-      return false;
-    } finally {
-      this.processando.set(false);
-    }
+    const ok = await this.avisos.executar(this.processando, acao, sucesso);
+    if (ok) this.evento.set(await this.eventosService.obter(timeId, e.id));
+    return ok;
   }
 
   private async carregarGols(timeId: string, eventoId: string): Promise<void> {
@@ -413,7 +286,7 @@ export class EventoPage {
       const gols = await this.eventosService.listarGols(timeId, eventoId);
       if (this.timeAtual.timeId() === timeId && this.eventoId() === eventoId) this.gols.set(gols);
     } catch (err) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar os gols', detail: mensagemDeErro(err) });
+      this.avisos.erro('Erro ao carregar os gols', err);
     }
   }
 
@@ -435,11 +308,10 @@ export class EventoPage {
         timeId,
         eventoId,
         (presencas) => this.presencas.set(presencas),
-        (err) =>
-          this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar presenças', detail: mensagemDeErro(err) }),
+        (err) => this.avisos.erro('Erro ao carregar presenças', err),
       );
     } catch (err) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o evento', detail: mensagemDeErro(err) });
+      this.avisos.erro('Erro ao carregar o evento', err);
     }
   }
 }

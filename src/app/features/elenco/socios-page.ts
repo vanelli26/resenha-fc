@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -7,7 +6,7 @@ import { TagModule } from 'primeng/tag';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService, nomeDaModalidade } from '../../core/time/time-atual.service';
 import { Atleta, vinculoDe } from '../../models/atleta.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 import { ROTULO_STATUS_ATLETA, ROTULO_VINCULO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
@@ -25,7 +24,7 @@ import { AtletasService, DadosAtleta } from './data/atletas.service';
 export class SociosPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly atletasService = inject(AtletasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
   protected readonly modalidadePadrao = this.timeAtual.modalidadePadrao;
@@ -74,10 +73,10 @@ export class SociosPage {
       if (!atual) return;
       await this.atletasService.atualizar(timeId, atual.id, dados);
       this.dialogAberto.set(false);
-      this.mensagens.add({ severity: 'success', summary: 'Cadastro atualizado' });
+      this.avisos.sucesso('Cadastro atualizado');
       await this.carregar(timeId);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível salvar', e);
     }
   }
 
@@ -87,7 +86,7 @@ export class SociosPage {
       const dados = await this.atletasService.listar(timeId);
       if (this.timeAtual.timeId() === timeId) this.cadastros.set(dados);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o cadastro', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar o cadastro', e);
     } finally {
       this.carregando.set(false);
     }

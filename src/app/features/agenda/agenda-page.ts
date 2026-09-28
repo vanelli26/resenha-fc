@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -8,7 +7,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { Evento, RespostaPresenca } from '../../models/evento.model';
-import { mensagemDeErro } from '../../shared/erros';
+import { Avisos } from '../../shared/avisos';
 import { ROTULO_ESPORTE } from '../../shared/rotulos';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { DadosEvento, EventosService, TAMANHO_PAGINA_ANTERIORES, podeResponder } from './data/eventos.service';
@@ -42,7 +41,7 @@ export class AgendaPage {
   private readonly auth = inject(AuthService);
   private readonly eventosService = inject(EventosService);
   private readonly atletasService = inject(AtletasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
   protected readonly esportes = this.timeAtual.esportes;
@@ -90,7 +89,7 @@ export class AgendaPage {
       await this.eventosService.responder(timeId, item.evento.id, atleta.id, resposta);
     } catch (e) {
       this.respostas.set(anterior);
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível responder', detail: mensagemDeErro(e) });
+      this.avisos.erro('Não foi possível responder', e);
     } finally {
       this.respondendo.set(null);
     }
@@ -108,7 +107,7 @@ export class AgendaPage {
       this.anteriores.update((lista) => [...lista, ...pagina]);
       this.haMaisAnteriores.set(pagina.length === TAMANHO_PAGINA_ANTERIORES);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar a agenda', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar a agenda', e);
     } finally {
       this.carregandoAnteriores.set(false);
     }
@@ -118,20 +117,15 @@ export class AgendaPage {
     const timeId = this.timeAtual.timeId();
     const uid = this.auth.usuario()?.uid;
     if (!timeId || !uid) return;
-    this.salvando.set(true);
-    try {
-      await this.eventosService.criar(timeId, eventos, uid);
-      this.dialogAberto.set(false);
-      this.mensagens.add({
-        severity: 'success',
-        summary: eventos.length > 1 ? `${eventos.length} eventos criados` : 'Evento criado',
-      });
-      await this.carregar(timeId, this.timeAtual.acesso()?.atletaId ?? null);
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
-    } finally {
-      this.salvando.set(false);
-    }
+    const ok = await this.avisos.executar(
+      this.salvando,
+      () => this.eventosService.criar(timeId, eventos, uid),
+      eventos.length > 1 ? `${eventos.length} eventos criados` : 'Evento criado',
+      'Não foi possível salvar',
+    );
+    if (!ok) return;
+    this.dialogAberto.set(false);
+    await this.carregar(timeId, this.timeAtual.acesso()?.atletaId ?? null);
   }
 
   private paraItens(eventos: ComId<Evento>[]): ItemAgenda[] {
@@ -162,7 +156,7 @@ export class AgendaPage {
         if (this.timeAtual.timeId() === timeId) this.respostas.set(respostas);
       }
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar a agenda', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar a agenda', e);
     } finally {
       this.carregando.set(false);
     }

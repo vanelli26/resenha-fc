@@ -5,7 +5,7 @@
 <ul class="lista">
   @for (item of itens(); track item.caminho) {
     <li>
-      <a class="item" [routerLink]="item.caminho">
+      <a class="cartao-link item" [routerLink]="item.caminho">
         <span class="item__icone">
           @switch (item.icone) {
             @case ('membros') {
@@ -36,9 +36,9 @@
           <small class="texto-suave">{{ item.descricao }}</small>
         </span>
         @if (item.selo) {
-          <span class="item__selo" [attr.aria-label]="item.selo + ' pendentes'">{{ item.selo }}</span>
+          <span class="selo-alerta" [attr.aria-label]="item.selo + ' pendentes'">{{ item.selo }}</span>
         }
-        <svg class="item__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+        <svg class="cartao-link__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
       </a>
     </li>
   }

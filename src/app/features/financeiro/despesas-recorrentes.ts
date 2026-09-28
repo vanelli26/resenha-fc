@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormField, form, max, maxLength, min, required, submit, validate } from '@angular/forms/signals';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -8,8 +8,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { DespesaRecorrente } from '../../models/time.model';
+import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { ReaisPipe, centavosParaReais, reaisParaCentavos } from '../../shared/dinheiro';
-import { mensagemDeErro } from '../../shared/erros';
 import { ConfigFinanceiraService, MAX_DESPESAS_RECORRENTES, novoIdConfiguracao } from './data/config-financeira.service';
 
 interface FormDespesa {
@@ -33,7 +33,7 @@ const VAZIO: FormDespesa = { descricao: '', categoria: '', valor: 0, dia: 10 };
 export class DespesasRecorrentes {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly service = inject(ConfigFinanceiraService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
 
   protected readonly despesas = computed(() => this.timeAtual.time()?.financeiro.despesasRecorrentes ?? []);
@@ -96,35 +96,25 @@ export class DespesasRecorrentes {
   protected remover(): void {
     const atual = this.emEdicao();
     if (!atual) return;
-    this.confirmacao.confirm({
-      header: 'Remover despesa',
-      message: `Remover "${atual.descricao}"? Os lançamentos já feitos continuam no caixa.`,
-      acceptLabel: 'Remover',
-      rejectLabel: 'Voltar',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { text: true },
-      accept: async () => {
-        const lista = this.despesas().filter((d) => d.id !== atual.id);
-        if (await this.gravar(lista, 'Despesa removida')) this.dialogAberto.set(false);
-      },
-    });
+    this.confirmacao.confirm(
+      confirmacaoPadrao({
+        titulo: 'Remover despesa',
+        mensagem: `Remover "${atual.descricao}"? Os lançamentos já feitos continuam no caixa.`,
+        rotulo: 'Remover',
+        aoConfirmar: async () => {
+          const lista = this.despesas().filter((d) => d.id !== atual.id);
+          if (await this.gravar(lista, 'Despesa removida')) this.dialogAberto.set(false);
+        },
+      }),
+    );
   }
 
-  private async gravar(despesasRecorrentes: DespesaRecorrente[], sucesso: string): Promise<boolean> {
-    const time = this.timeAtual.time();
-    if (!time) return false;
-    this.salvando.set(true);
-    try {
-      const financeiro = { ...time.financeiro, despesasRecorrentes };
-      await this.service.salvar(time.id, financeiro);
-      this.timeAtual.definirFinanceiro(financeiro);
-      this.mensagens.add({ severity: 'success', summary: sucesso });
-      return true;
-    } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
-      return false;
-    } finally {
-      this.salvando.set(false);
-    }
+  private gravar(despesasRecorrentes: DespesaRecorrente[], sucesso: string): Promise<boolean> {
+    return this.avisos.executar(
+      this.salvando,
+      () => this.service.atualizar({ despesasRecorrentes }),
+      sucesso,
+      'Não foi possível salvar',
+    );
   }
 }

@@ -93,19 +93,16 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 
 ### 2.8 Mural
 
-Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fotos e legenda. **Qualquer membro publica.** O autor edita a legenda e exclui o próprio post (as fotos saem junto); a diretoria fixa no topo e exclui qualquer post. Posts antigos (só texto, com título) continuam válidos.
+Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fotos e legenda (texto simples, até 2000 caracteres, com quebras de linha). Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Posts antigos (só texto, com título) continuam válidos.
 
-- **Curtidas**: qualquer membro; documento `curtidas/{uid}` no post + contador `qtdCurtidas` no próprio post (atualiza em tempo real no feed). Rules: o contador só muda ±1 no mesmo lote em que a curtida da própria pessoa nasce ou some.
+- **Quem faz o quê**: qualquer membro publica; o autor edita a legenda e exclui o próprio post (as fotos saem junto); a diretoria fixa no topo e exclui qualquer post.
+- **Feed**: tempo real (listener), fixados primeiro e depois os mais novos (índice `fixado desc + criadoEm desc`), de 10 em 10 ("Ver mais" aumenta o limite do listener). Carrossel com rolagem lateral e proporção da 1ª foto entre 1:1 e 1.91:1 (retrato cortado no centro), altura máxima de 55% da tela; tocar abre a foto inteira.
+- **Fotos**: reduzidas no aparelho (lado maior 1600px, WebP; JPEG onde não houver encoder) e enviadas ao Storage em `times/{timeId}/recados/{postId}/{0-3}.webp|jpeg`, com metadado `autorUid`. O post guarda URL de download, caminho, largura e altura. Se gravar o post falhar, as fotos enviadas são apagadas.
+- **Curtidas**: qualquer membro; documento `curtidas/{uid}` no post + contador `qtdCurtidas` no próprio post (atualiza em tempo real no feed). Rules: o contador nunca vem na criação do post e só muda ±1 no mesmo lote em que a curtida da própria pessoa nasce ou some.
 - **Comentários**: qualquer membro, até 500 caracteres, sem edição; excluem o autor do comentário, o autor do post ou a diretoria. Abrem num diálogo em tempo real (até 200, mais antigos primeiro). O número de comentários de cada post é contado no servidor (`count`) ao carregar o feed, sem contador no post (um contador de comentários não é verificável com segurança nas Rules).
-- Excluir post apaga também curtidas e comentários (mesmo lote; Rules liberam apagar filhos de post que deixa de existir no lote).
-
-- Fotos reduzidas no aparelho (lado maior 1600px, WebP; JPEG onde não houver encoder) e enviadas ao Storage em `times/{timeId}/recados/{postId}/{0-3}.webp|jpeg`, com metadado `autorUid`. O post guarda URL de download, caminho, largura e altura. Se gravar o post falhar, as fotos enviadas são apagadas.
-- Feed de 10 em 10 ("Ver mais" aumenta o limite do listener), fixados primeiro. Carrossel com rolagem lateral e proporção da 1ª foto entre 1:1 e 1.91:1 (retrato cortado no centro), altura máxima de 55% da tela; tocar abre a foto inteira.
-- Storage Rules: envio só por membro do time, imagem webp/jpeg < 5 MB, sem sobrescrever; leitura pelo SDK só membros; exclusão pelo autor (metadado) ou diretoria. As URLs de download têm token: quem tiver o link vê a foto (não indexado, não adivinhável).
-
-- Aba **Mural** é a primeira do time e a tela inicial ao abri-lo. Todos do time leem, em tempo real (listener), fixados no topo e depois os mais novos (índice `fixado desc + criadoEm desc`). Legenda em texto simples (até 2000 caracteres), com quebras de linha.
-- **Apoiadores/patrocinadores**: faixa no topo do mural (logos em fila, rolagem lateral; tocar abre o link). Cadastro pela diretoria em Gestão › Apoiadores: nome, logo (data URL reduzido, como o escudo; até 80 000 caracteres), link https opcional (site, Instagram, wa.me) e ordem (setas sobe/desce). Até 20 por time.
-- Evolução aprovada (27/09/2026): postagens estilo Instagram (fotos no Storage, todos os membros publicam), curtidas e comentários. Ver seção 10.
+- **Excluir post** apaga também curtidas e comentários (mesmo lote; Rules liberam apagar filhos de post que deixa de existir no lote).
+- **Storage Rules**: envio só por membro do time, imagem webp/jpeg < 5 MB, sem sobrescrever; leitura pelo SDK só membros; exclusão pelo autor (metadado) ou diretoria. As URLs de download têm token: quem tiver o link vê a foto (não indexado, não adivinhável).
+- **Apoiadores/patrocinadores**: faixa no topo do mural (logos em fila, rolagem lateral; tocar abre o link). Cadastro pela diretoria em Gestão › Apoiadores: nome, logo (data URL reduzido; até 80 000 caracteres), link https opcional (site, Instagram, wa.me) e ordem (setas sobe/desce). Até 20 por time.
 
 ### 2.9 Escalação
 
@@ -266,11 +263,11 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 ## 5. Fluxos principais
 
 - **Gerar cobranças** (tesouraria): escolhe a periodicidade (mensal/semestral) e a referência → sistema lista os cadastros ativos cujo plano tem essa periodicidade, cada um com o valor do próprio plano → confirma → escrita em lote com IDs determinísticos (existentes são ignorados).
-- **Cobrar avulsos** (tesouraria): a partir de evento `realizado` → atletas `avulso` com `compareceu == true` → escrita em lote.
+- **Cobrar avulsos** (tesouraria): no evento `realizado` (ou pelo atalho em Gerar cobranças) → quem compareceu e tem plano `avulso` → escrita em lote (2.4).
 - **Baixa / estorno**: seção 2.5.
 - **Lançar despesa recorrente**: seção 2.6.
-- **Encerrar evento** (diretoria): marca presença efetiva, placar, status `realizado`.
-- **Meus times** (jogador): consulta collection group `acessos` com `where('uid', '==', meuUid)` (o doc de acesso guarda também o campo `uid`; regra de collection group permite ler quando `resource.data.uid == request.auth.uid`) e, por time, conta as cobranças pendentes do meu atleta (próximas partidas entram na Fase 3).
+- **Encerrar evento** (diretoria): placar e gols, status `realizado`; presença inicial = quem disse Vou, ajustada depois (2.7).
+- **Meus times** (jogador): consulta collection group `acessos` com `where('uid', '==', meuUid)` (o doc de acesso guarda também o campo `uid`; regra de collection group permite ler quando `resource.data.uid == request.auth.uid`) e, por time, conta as cobranças pendentes do meu atleta e mostra o próximo evento agendado.
 
 Lotes do Firestore têm limite de 500 operações; dividir quando necessário.
 
@@ -288,15 +285,16 @@ Lotes do Firestore têm limite de 500 operações; dividir quando necessário.
 src/app/
   core/        auth, firebase providers, guards, interceptors, contexto do time atual
   shared/      componentes/pipes genéricos, constantes, utilitários (dinheiro, datas)
-  features/
-    auth/  times/  elenco/  financeiro/  agenda/  mural/  escalacao/  campeonatos/  convites/
+  features/    uma pasta por área; `data/` guarda os services do Firestore/Storage da área
+    agenda/ auth/ convites/ elenco/ financeiro/ gestao/ inicio/ membros/ mural/
+    patrocinadores/ solicitacoes/ time/ (layout e rotas do time) times/ (admin)
   models/      interfaces e union types do domínio (seção 3)
 ```
 
 - Acesso ao Firestore só em services de `features/*/data` ou `core`; componentes não chamam o SDK diretamente.
 - Um service por agregado; sem repositório genérico abstrato.
 - Contexto do time selecionado em um service com signal (`timeAtual`), refletido na URL (`/t/:timeId/...`).
-- Firebase: usar `@angular/fire` se houver versão compatível com o major do Angular instalado; caso contrário, SDK modular do Firebase com providers próprios em `core`. Registrar a escolha na seção 10.
+- Firebase: SDK modular com providers próprios em `core/firebase` (sem `@angular/fire`; ver seção 10).
 - PrimeNG: tema por preset oficial via `providePrimeNG`, tradução pt-BR configurada globalmente. Não adicionar PrimeFlex, Tailwind ou outra lib de UI sem decisão. Layout com CSS próprio (flex/grid), mobile-first.
 - Locale: `registerLocaleData(pt)`, `LOCALE_ID = 'pt-BR'`, `DEFAULT_CURRENCY_CODE = 'BRL'`.
 - Proibido: `any`, `as` para silenciar erro, lógica de negócio em template, subscribe manual sem necessidade (preferir `toSignal`/`async`).
@@ -316,10 +314,45 @@ src/app/
 
 ---
 
+### 6.2 Padrões de código
+
+Seguir o que já existe antes de criar algo novo. Exemplos de referência entre parênteses.
+
+**Tela (page)** — `features/<area>/<nome>-page.ts|html|scss`, rota lazy em `time.routes.ts`.
+- Estado em signals; derivados em `computed`; valor editável que reinicia com a entrada em `linkedSignal`.
+- **Carregar por time**: um `effect` lê `timeAtual.timeId()` (e outros parâmetros), limpa o estado e chama `carregar()` dentro de `untracked` (a tela é reaproveitada ao trocar de time). Ao receber a resposta, **descartar resposta atrasada**: só aplicar se `timeAtual.timeId()` (e o parâmetro) ainda for o mesmo (`caixa-page`, `convites-page`).
+- Listener (`onSnapshot`) só onde a seção 7 permite; guardar a função de parar e chamá-la ao trocar de time e no `DestroyRef` (`mural-page`, `evento-page`).
+- Estados visuais: `p-skeleton` carregando; texto `.texto-suave` para vazio ("Ninguém.", "Nenhum…"); erro em aviso.
+
+**Avisos e confirmação** (`shared/avisos.ts`) — nunca usar `MessageService` direto.
+- `Avisos.sucesso/info/atencao/erro`. Erro sempre com `erro('Não foi possível …', e)` (o detalhe vem de `mensagemDeErro`).
+- Escrita disparada pelo usuário: `await avisos.executar(this.processando, () => service.x(...), 'Feito', 'Não foi possível salvar')`, que liga o indicador, avisa e retorna `true/false`; depois do `true`, a tela fecha diálogo e recarrega.
+- Confirmação: `this.confirmacao.confirm(confirmacaoPadrao({ titulo, mensagem, rotulo, aoConfirmar }))`, com `ConfirmationService` e `<p-confirmdialog>` na própria tela. `perigosa: false` para ação não destrutiva.
+- Falha em complemento não essencial (ex.: contagens do feed) pode ser silenciosa, com comentário explicando.
+
+**Componentes** — standalone, OnPush, `input()`/`output()`; template/estilos inline quando curtos (< ~60 linhas), arquivos separados quando maiores.
+- Componente de apresentação não injeta services de dados; recebe dados por input e emite eventos (`lista-pessoas`, `lista-presenca`, `ajuste-presenca`, `seletor-presenca`). Exceção: ações autocontidas que só avisam (`chamar-time`).
+- Formulário em diálogo: componente próprio com `salvar`/`cancelar` como outputs, Signal Forms dentro dele; a tela grava (`atleta-form`, `evento-form`, `encerrar-evento`). Formulário denso usa `shared/formulario-compacto.scss`.
+- Lógica pura reaproveitável fica em função exportada ao lado do componente ou em `shared/` (`gruposDePresenca`, `situacaoDaCobranca`, `shared/competencia.ts`).
+- Dividir uma tela quando ela mistura modos ou passa de ~300 linhas.
+
+**Services** (`features/<area>/data/*.service.ts`, `providedIn: 'root'`) — um por agregado; únicos que importam o SDK do Firebase.
+- Recebem `timeId` por parâmetro, retornam `ComId<T>` via `conversor<T>()`. Escritas compostas em `writeBatch` (limite 500).
+- Constantes de limite das Rules exportadas pelo service ou model (`MAX_PLANOS`, `MAX_FOTOS_POST`).
+- Exceção documentada: `ConfigFinanceiraService.atualizar` usa o time atual e atualiza o contexto após gravar.
+
+**Modelos e rótulos** — tipos e listas fechadas em `models/` (union type + constante); textos de exibição em `shared/rotulos.ts` (`ROTULO_*`). Nunca string solta de enum no template.
+
+**Estilos** — CSS próprio, mobile-first, só tokens do tema. Classes globais em `styles.scss`: `.cartao`, `.cartao-link` (+ `__seta`), `.selo-alerta`, `.formulario`, `.campo` (+ `__dica`, `__erro`), `.acoes`, `.lista`, `.texto-suave`, `.dica`, `.cabecalho-secao`, `.visualmente-oculto`. Classes locais em BEM (`bloco__elemento--modificador`). Sem `::ng-deep`; para estilizar componente PrimeNG, usar inputs dele (`inputStyle`, `styleClass`).
+
+**Utilitários de `shared/`** — `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`.
+
+**Nomes** — domínio e código em pt-BR (classes, métodos, signals); sufixos só para tipo de arquivo (`-page`, `.service`, `.model`, `.routes`). Signals booleanos como estado (`carregando`, `salvando`, `processando`), ações como verbos (`salvar`, `excluir`).
+
 ## 7. Firestore — consultas e índices
 
 - Toda listagem com limite/paginação quando puder crescer (lançamentos, cobranças, recados).
-- Listeners em tempo real só onde agrega valor: presença de evento aberto e mural. Resto: leitura única.
+- Listeners em tempo real só onde agrega valor: presença de evento aberto, feed do mural e comentários abertos. Resto: leitura única.
 - Totais do caixa e contagens via `getAggregateFromServer` (`sum`, `count`).
 - Índices compostos declarados em `firestore.indexes.json` no mesmo trabalho da consulta que os exige.
 
@@ -401,6 +434,8 @@ src/app/
 | 27/09/2026 | Regras do Storage consultam o Firestore (membro/diretoria): exige o papel **Firebase Rules Firestore Service Agent** para a conta de serviço do Storage (`service-…@gcp-sa-firebasestorage.iam.gserviceaccount.com`), concedido pelo usuário no IAM. Sem ele, todo envio falha com `storage/unauthorized`. |
 | 27/09/2026 | M2 do mural: curtidas com contador no post validado nas Rules (±1 com `exists`/`existsAfter` da curtida da própria pessoa); comentários sem contador (contagem `count` no servidor por post ao carregar o feed). Moderação de comentários: autor, autor do post e diretoria. |
 | 27/09/2026 | Escudo do time passa para o Storage (substitui a decisão de data URL no documento): 512px, nome com data/hora (URL nova a cada troca, sem cache velho), anterior apagado. Storage: só adminGeral envia/apaga, qualquer logado lê. Firestore Rules aceitam só URL do bucket do projeto na pasta do próprio time (ou data URL antigo). Logos de apoiadores continuam em data URL. |
+| 27/09/2026 | Revisão de código: padrões registrados em 6.2. Avisos e confirmação centralizados (`shared/avisos.ts`: `Avisos`, `executar`, `confirmacaoPadrao`); WhatsApp/copiar em `shared/compartilhar.ts`; tela do evento dividida (`lista-presenca`, `ajuste-presenca`, `chamar-time`, `lista-pessoas`); gravação da configuração financeira num só método do service; estilos repetidos (`.dica`, `.cartao-link`, `.selo-alerta`) no global. Lista de presença não volta à primeira aba a cada resposta recebida. `PROMPT-INICIAL.md` (Fase 0) removido; README reescrito. Sem mudança de regra de negócio. |
+| 27/09/2026 | Correção: `qtdCurtidas` faltava nos campos permitidos do post (toda curtida era negada); criação de post não pode trazer o contador. |
 
 ---
 

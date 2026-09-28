@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { FormField, form, max, min, required, submit } from '@angular/forms/signals';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { VENCIMENTOS_PADRAO, Vencimentos } from '../../models/time.model';
+import { Avisos } from '../../shared/avisos';
 import { NOMES_MESES } from '../../shared/competencia';
-import { mensagemDeErro } from '../../shared/erros';
 import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { ConfigFinanceiraService } from './data/config-financeira.service';
@@ -28,12 +27,13 @@ export class ConfigFinanceiraPage {
   private readonly timeAtual = inject(TimeAtualService);
   private readonly service = inject(ConfigFinanceiraService);
   private readonly atletasService = inject(AtletasService);
-  private readonly mensagens = inject(MessageService);
+  private readonly avisos = inject(Avisos);
 
   protected readonly mesesS1 = mesesDe(1);
   protected readonly mesesS2 = mesesDe(7);
 
   /** Pessoas por plano (id → total), para mostrar o uso e impedir remover plano em uso. */
+  protected readonly salvando = signal(false);
   protected readonly usoPorPlano = signal<ReadonlyMap<string, number> | null>(null);
 
   // Recomeça do time atual ao trocar de time (a tela é reaproveitada).
@@ -60,16 +60,12 @@ export class ConfigFinanceiraPage {
 
   protected salvarVencimentos(): void {
     void submit(this.formulario, async () => {
-      const time = this.timeAtual.time();
-      if (!time) return;
-      const financeiro = { ...time.financeiro, vencimentos: { ...this.modelo() } };
-      try {
-        await this.service.salvar(time.id, financeiro);
-        this.timeAtual.definirFinanceiro(financeiro);
-        this.mensagens.add({ severity: 'success', summary: 'Vencimentos salvos' });
-      } catch (e) {
-        this.mensagens.add({ severity: 'error', summary: 'Não foi possível salvar', detail: mensagemDeErro(e) });
-      }
+      await this.avisos.executar(
+        this.salvando,
+        () => this.service.atualizar({ vencimentos: { ...this.modelo() } }),
+        'Vencimentos salvos',
+        'Não foi possível salvar',
+      );
     });
   }
 
@@ -82,7 +78,7 @@ export class ConfigFinanceiraPage {
       }
       if (this.timeAtual.timeId() === timeId) this.usoPorPlano.set(uso);
     } catch (e) {
-      this.mensagens.add({ severity: 'error', summary: 'Erro ao carregar o cadastro', detail: mensagemDeErro(e) });
+      this.avisos.erro('Erro ao carregar o cadastro', e);
     }
   }
 }
