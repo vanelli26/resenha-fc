@@ -56,18 +56,3 @@ export interface Gol {
   assistenciaId?: string;
   atualizadoEm: Timestamp;
 }
-
-export interface Titular {
-  atletaId: string;
-  posicao: string;
-  x: number;
-  y: number;
-}
-
-/** times/{timeId}/eventos/{eventoId}/escalacao/principal */
-export interface Escalacao {
-  formacao: string;
-  titulares: Titular[];
-  /** atletaIds. */
-  reservas: string[];
-}

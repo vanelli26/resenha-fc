@@ -1,0 +1,49 @@
+h2 small {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.edicao,
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.resumo__compartilhar {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.barra {
+  margin-top: 1rem;
+}
+
+.reservas {
+  margin-top: 1.5rem;
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1.0625rem;
+
+    small {
+      font-size: 0.8125rem;
+      font-weight: 400;
+    }
+  }
+}
+
+.candidatos {
+  display: grid;
+  gap: 1rem;
+
+  h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+    color: var(--p-text-muted-color);
+  }
+}

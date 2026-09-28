@@ -1,0 +1,90 @@
+<app-voltar [para]="caminhoEvento()" rotulo="Evento" />
+
+@if (evento(); as e) {
+  <div class="cabecalho-secao">
+    <h2>
+      Escalação
+      <small class="texto-suave">{{ e.titulo }}</small>
+    </h2>
+    @if (ehDiretoria() && permiteEscalacao() && !editando()) {
+      <p-button [label]="salva() ? 'Editar' : 'Montar'" size="small" (onClick)="editar()" />
+    }
+  </div>
+
+  @if (!permiteEscalacao()) {
+    <p class="cartao texto-suave">Este tipo de evento não tem escalação.</p>
+  } @else if (editando()) {
+    <div class="edicao">
+      <p-selectbutton
+        [options]="opcoesFormacao()"
+        optionLabel="label"
+        optionValue="value"
+        [allowEmpty]="false"
+        [ngModel]="formacaoEmEdicao()"
+        (ngModelChange)="trocarFormacao($event)"
+        size="small"
+        ariaLabel="Formação"
+      />
+      <small class="texto-suave">Toque numa vaga para escolher quem joga nela.</small>
+    </div>
+    <app-campinho [vagas]="vagas()" [editavel]="true" (tocar)="vagaEscolhendo.set($event)" />
+    <div class="acoes barra">
+      @if (salva()) {
+        <p-button label="Limpar" [text]="true" severity="danger" [disabled]="salvando()" (onClick)="limpar()" />
+      }
+      <p-button label="Cancelar" [text]="true" [disabled]="salvando()" (onClick)="editando.set(false)" />
+      <p-button label="Salvar" [loading]="salvando()" (onClick)="salvar()" />
+    </div>
+  } @else if (salva(); as s) {
+    <div class="resumo">
+      <small class="texto-suave">Formação {{ s.formacao }}</small>
+      <div class="resumo__compartilhar">
+        <p-button size="small" severity="success" ariaLabel="Enviar escalação no WhatsApp" (onClick)="enviarWhatsApp()">
+          <svg data-p-icon="whatsapp" [size]="16" aria-hidden="true"></svg>
+          <span>Enviar</span>
+        </p-button>
+        <p-button size="small" [outlined]="true" severity="secondary" ariaLabel="Copiar escalação" (onClick)="copiar()">
+          <svg data-p-icon="copy" [size]="16" aria-hidden="true"></svg>
+        </p-button>
+      </div>
+    </div>
+    <app-campinho [vagas]="vagas()" />
+  } @else {
+    <p class="cartao texto-suave">
+      A escalação ainda não foi montada.
+      {{ ehDiretoria() ? 'Toque em Montar para escolher a formação e quem joga.' : '' }}
+    </p>
+  }
+
+  @if (permiteEscalacao() && (salva() || editando())) {
+    <section class="reservas">
+      <h3>Reservas <small class="texto-suave">({{ e.status === 'realizado' ? 'foram' : 'disseram Vou' }} e não estão no campo)</small></h3>
+      <app-lista-pessoas [pessoas]="reservas()" />
+    </section>
+  }
+
+  <p-dialog
+    header="Quem joga nesta vaga?"
+    [visible]="vagaEscolhendo() !== null"
+    (visibleChange)="$event || vagaEscolhendo.set(null)"
+    [modal]="true"
+    [style]="{ width: 'min(28rem, 100vw - 2rem)' }"
+  >
+    <div class="candidatos">
+      @for (g of candidatos(); track g.titulo) {
+        <section>
+          <h4>{{ g.titulo }}</h4>
+          <app-lista-pessoas [pessoas]="g.pessoas" [tocavel]="true" (tocar)="escolher($event)" />
+        </section>
+      }
+      <div class="acoes">
+        <p-button label="Deixar vaga livre" [text]="true" severity="secondary" (onClick)="escolher(null)" />
+      </div>
+    </div>
+  </p-dialog>
+  <p-confirmdialog [style]="{ width: 'min(24rem, 100vw - 2rem)' }" />
+} @else if (naoEncontrado()) {
+  <p class="cartao texto-suave">Evento não encontrado.</p>
+} @else {
+  <p-skeleton height="24rem" />
+}

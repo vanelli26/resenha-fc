@@ -106,7 +106,13 @@ Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fo
 
 ### 2.9 Escalação
 
-Por evento: formação e posicionamento de atletas com presença `vou` (titulares e reservas). Sorteio equilibrado de times para jogos internos é fase posterior.
+Por evento esportivo (não em confraternização/outro; não em cancelado), tela própria `/t/:timeId/agenda/:eventoId/escalacao`, com atalho "⚽ Escalação" no evento. Todos do time veem; a diretoria monta.
+
+- **Formação** da lista fechada do esporte do evento (goleiro implícito): futsal `2-2`, `1-2-1`, `3-1`; society `2-3-1`, `3-2-1`, `2-2-2`; campo `4-4-2`, `4-3-3`, `3-5-2`, `4-2-3-1`, `5-3-2`. Alteração exige decisão (constante `FORMACOES_POR_ESPORTE` e Rules).
+- **Campinho** com as vagas (goleiro, defesa, meio, ataque). A diretoria toca numa vaga e escolhe quem joga: primeiro quem vai, depois talvez, depois o resto do elenco; escolher quem já está em outra vaga troca os dois de lugar. Trocar de formação mantém quem cabe pelo número da vaga.
+- **Reservas** não são gravadas: quem disse Vou (evento realizado: quem compareceu) e não está no campinho.
+- "Enviar" (WhatsApp) ou copiar a escalação em texto para o grupo. "Limpar" apaga a escalação.
+- Leitura: evento, elenco, presenças (leitura única, sem listener) e a escalação. Sorteio equilibrado de times para jogos internos é fase posterior.
 
 ### 2.10 Estatísticas e campeonatos
 
@@ -197,7 +203,9 @@ times/{timeId}/eventos/{eventoId}/gols/{NN}   // NN = "01".."99" (ordem)
   assistenciaId?, atualizadoEm
 
 times/{timeId}/eventos/{eventoId}/escalacao/principal
-  formacao, titulares: [{ atletaId, posicao, x, y }], reservas: string[]
+  formacao                               // da lista do esporte do evento (2.9)
+  titulares: [{ atletaId, vaga }]        // até 11; vaga 0 = goleiro, depois da defesa ao ataque
+  atualizadoPor, atualizadoEm
 
 times/{timeId}/recados/{id}              // postagem do mural
   texto, fotos?: [{ url, caminho, largura, altura }] (1..4), titulo? (antigos)
@@ -257,7 +265,8 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
-| `eventos`, `escalacao` | acesso ao time | diretoria (evento: `campeonatoId` só no tipo campeonato e de campeonato existente) |
+| `eventos` | acesso ao time | diretoria (`campeonatoId` só no tipo campeonato e de campeonato existente) |
+| `eventos/{id}/escalacao/principal` | acesso ao time | diretoria; formação da lista do esporte do evento, até 11 titulares, fora de confraternização/outro; pode apagar |
 | `campeonatos` | acesso ao time | diretoria; sem exclusão |
 | `ajustesEstatistica` | acesso ao time | diretoria (id = `{escopo}_{atletaId}`, atleta existente, escopo ano ou campeonato existente, valores −999..999); sem exclusão |
 | `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; qualquer membro muda `qtdCurtidas` ±1 junto com a própria curtida; exclui autor ou diretoria |
@@ -300,7 +309,7 @@ src/app/
   core/        auth, firebase providers, guards, interceptors, contexto do time atual
   shared/      componentes/pipes genéricos, constantes, utilitários (dinheiro, datas)
   features/    uma pasta por área; `data/` guarda os services do Firestore/Storage da área
-    agenda/ auth/ campeonatos/ convites/ elenco/ financeiro/ gestao/ inicio/ membros/ mural/
+    agenda/ auth/ campeonatos/ convites/ elenco/ escalacao/ financeiro/ gestao/ inicio/ membros/ mural/
     estatisticas/ patrocinadores/ solicitacoes/ time/ (layout e rotas do time) times/ (admin)
   models/      interfaces e union types do domínio (seção 3)
 ```
@@ -452,6 +461,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Correção: `qtdCurtidas` faltava nos campos permitidos do post (toda curtida era negada); criação de post não pode trazer o contador. |
 | 27/09/2026 | Fase 4 em três entregas: 4a estatísticas → 4b campeonatos → 4c escalação (formação por esporte + vagas tocáveis com quem disse Vou). Artilharia e assistências **automáticas** a partir dos gols dos eventos, com **ajuste manual** da diretoria (coleção `ajustesEstatistica`, guarda a diferença). Cartões fora por enquanto. Artilharia como aba interna do Elenco (sem 6ª aba no rodapé); Campeonatos irão para a Agenda. Substitui `campeonatos/{id}/estatisticas` lançadas à mão. |
 | 27/09/2026 | Fase 4b (Campeonatos): cadastro pela diretoria (nome, temporada livre, situação andamento/encerrado; sem exclusão), como aba interna da Agenda. Evento do tipo campeonato aponta opcionalmente para um campeonato (`campeonatoId`, Rules conferem tipo e existência). Tela do campeonato com campanha derivada dos placares, artilharia própria (ajuste com escopo `c-{id}`) e jogos. Índice `campeonatoId + data`. |
+| 27/09/2026 | Fase 4c (Escalação): tela própria por evento esportivo, formação da lista fechada por esporte e vagas no campinho (diretoria toca e escolhe; troca de lugar ao escolher quem já está em campo). Titulares gravados como `{atletaId, vaga}` (posição derivada da formação), substituindo `{posicao, x, y}`; reservas calculadas (quem vai e não está em campo), não gravadas. Envio da escalação em texto pelo WhatsApp. Fase 4 concluída. |
 
 ---
 

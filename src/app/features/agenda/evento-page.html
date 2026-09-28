@@ -84,6 +84,13 @@
     }
   }
 
+  @if (temEscalacao()) {
+    <a class="cartao-link escalacao" [routerLink]="['/t', timeId(), 'agenda', e.id, 'escalacao']">
+      <span>⚽ <strong>Escalação</strong></span>
+      <svg class="cartao-link__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+    </a>
+  }
+
   <section class="presencas">
     @if (ajustando()) {
       <app-ajuste-presenca

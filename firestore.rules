@@ -95,7 +95,11 @@ rules_version = '2';
 //   nome (1..60) · temporada (1..20, texto livre: "2026", "2026/2") · status: 'andamento'|'encerrado' · criadoEm (imutável)
 //   Só a diretoria; sem exclusão.
 //
-// Demais coleções (escalação...) entram nas próximas fases e ficam negadas.
+// times/{timeId}/eventos/{eventoId}/escalacao/principal
+//   formacao (da lista do esporte do evento) · titulares: list 0..11 de {atletaId, vaga: int 0..10}
+//   atualizadoPor (= request.auth.uid) · atualizadoEm (= request.time). Só diretoria; fora de confraternização/outro.
+//
+// Demais coleções: negadas.
 // ===============================================================
 
 service cloud.firestore {
@@ -532,6 +536,43 @@ service cloud.firestore {
         && data.criadoEm is timestamp;
     }
 
+    // Escalação (DIRETRIZES 2.9): formação da lista do esporte do evento; titulares ≤ 11, um por vaga (0 = goleiro).
+    function isValidTitular(t) {
+      return t is map && t.keys().hasOnly(['atletaId', 'vaga']) && t.keys().hasAll(['atletaId', 'vaga'])
+        && t.atletaId is string && t.atletaId.size() >= 1 && t.atletaId.size() <= 40
+        && t.vaga is int && t.vaga >= 0 && t.vaga <= 10;
+    }
+
+    function titularesValidos(l) {
+      return l is list && l.size() <= 11
+        && (l.size() < 1 || isValidTitular(l[0]))
+        && (l.size() < 2 || isValidTitular(l[1]))
+        && (l.size() < 3 || isValidTitular(l[2]))
+        && (l.size() < 4 || isValidTitular(l[3]))
+        && (l.size() < 5 || isValidTitular(l[4]))
+        && (l.size() < 6 || isValidTitular(l[5]))
+        && (l.size() < 7 || isValidTitular(l[6]))
+        && (l.size() < 8 || isValidTitular(l[7]))
+        && (l.size() < 9 || isValidTitular(l[8]))
+        && (l.size() < 10 || isValidTitular(l[9]))
+        && (l.size() < 11 || isValidTitular(l[10]));
+    }
+
+    function isValidEscalacao(data, evento) {
+      let formacoes = {
+        'futsal': ['2-2', '1-2-1', '3-1'],
+        'society': ['2-3-1', '3-2-1', '2-2-2'],
+        'campo': ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-3-2']
+      };
+      return data.keys().hasOnly(['formacao', 'titulares', 'atualizadoPor', 'atualizadoEm'])
+        && data.keys().hasAll(['formacao', 'titulares', 'atualizadoPor', 'atualizadoEm'])
+        && !(evento.tipo in ['confraternizacao', 'outro'])
+        && data.formacao in formacoes[evento.esporte]
+        && titularesValidos(data.titulares)
+        && data.atualizadoPor == request.auth.uid
+        && data.atualizadoEm == request.time;
+    }
+
     function diretoriaNoEvento(timeId, eventoId) {
       return podeGerir(timeId)
         && existsAfter(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId));
@@ -843,6 +884,18 @@ service cloud.firestore {
               || diretoriaNoEvento(timeId, eventoId));
 
           allow delete: if false;
+        }
+
+        // Escalação: um documento só ("principal"); todos do time leem; a diretoria monta e limpa.
+        match /escalacao/{escalacaoId} {
+          allow read: if temAcesso(timeId) || isAdminGeral();
+
+          allow create, update: if podeGerir(timeId)
+            && escalacaoId == 'principal'
+            && isValidEscalacao(request.resource.data,
+              get(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId)).data);
+
+          allow delete: if podeGerir(timeId);
         }
 
         // Gols do time: só a diretoria, com o evento realizado (no mesmo lote do encerramento ou depois).

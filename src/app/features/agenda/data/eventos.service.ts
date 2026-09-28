@@ -249,6 +249,12 @@ export class EventosService {
   }
 
   /** Presenças do evento em tempo real (DIRETRIZES 7). Retorna a função que encerra o listener. */
+  /** Presenças do evento, leitura única (telas que não precisam de tempo real, ex.: escalação). */
+  async listarPresencas(timeId: string, eventoId: string): Promise<ComId<Presenca>[]> {
+    const snap = await getDocs(this.presencas(timeId, eventoId));
+    return snap.docs.map(comId);
+  }
+
   ouvirPresencas(
     timeId: string,
     eventoId: string,

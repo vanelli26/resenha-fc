@@ -11,6 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ChevronRight } from '@primeicons/angular/chevron-right';
 import { EllipsisV } from '@primeicons/angular/ellipsis-v';
 import { ConfirmationService, MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -23,7 +24,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { Campeonato } from '../../models/campeonato.model';
-import { Evento, Gol, Presenca, RespostaPresenca } from '../../models/evento.model';
+import { Evento, Gol, Presenca, RespostaPresenca, TIPOS_EVENTO_ABERTOS } from '../../models/evento.model';
 import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { ROTULO_ESPORTE, ROTULO_STATUS_EVENTO, ROTULO_TIPO_EVENTO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
@@ -49,6 +50,7 @@ import { SeletorPresenca } from './seletor-presenca';
     MenuModule,
     SkeletonModule,
     TagModule,
+    ChevronRight,
     EllipsisV,
     AjustePresenca,
     ChamarTime,
@@ -75,6 +77,7 @@ export class EventoPage {
   /** Parâmetro da rota (withComponentInputBinding). */
   readonly eventoId = input.required<string>();
 
+  protected readonly timeId = this.timeAtual.timeId;
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
   protected readonly ehTesouraria = this.timeAtual.ehTesouraria;
   protected readonly esportes = this.timeAtual.esportes;
@@ -113,6 +116,12 @@ export class EventoPage {
       const assist = g.assistenciaId ? nomes.get(g.assistenciaId) : undefined;
       return assist ? `${autor} (${assist})` : autor;
     });
+  });
+
+  /** Escalação só em eventos esportivos não cancelados (DIRETRIZES 2.9). */
+  protected readonly temEscalacao = computed(() => {
+    const e = this.evento();
+    return !!e && e.status !== 'cancelado' && !TIPOS_EVENTO_ABERTOS.includes(e.tipo);
   });
 
   protected readonly esporte = computed(() => {
