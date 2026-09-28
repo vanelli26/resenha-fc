@@ -63,6 +63,8 @@ export class SessaoService {
     const uid = this.auth.usuario()?.uid;
     if (!uid) return;
     this._carregandoTimes.set(true);
+    // Preenche o sinal adminGeral (botão e menu "Gerenciar times"); leitura em cache, em paralelo.
+    void this.ehAdminGeral().catch(() => undefined);
     try {
       // Mesmo filtro que a regra de collection group exige (uid == request.auth.uid).
       const acessos = await getDocs(
