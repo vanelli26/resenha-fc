@@ -18,10 +18,11 @@ import {
 } from '../../shared/rotulos';
 import { AtletaForm } from './atleta-form';
 import { AtletasService, DadosAtleta } from './data/atletas.service';
+import { ElencoAbas } from './elenco-abas';
 
 @Component({
   selector: 'app-elenco-page',
-  imports: [ButtonModule, DialogModule, SkeletonModule, TagModule, AtletaForm, FotoPessoa],
+  imports: [ButtonModule, DialogModule, SkeletonModule, TagModule, AtletaForm, ElencoAbas, FotoPessoa],
   templateUrl: './elenco-page.html',
   styleUrl: './elenco-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,62 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TimeAtualService } from '../../core/time/time-atual.service';
+import { AbaSecao, AbasSecao } from '../../shared/abas-secao';
 
 /** Alternância entre as telas do financeiro da gestão (Cobranças | Caixa | Minhas), mantendo o período da URL. */
 @Component({
   selector: 'app-financeiro-abas',
-  imports: [RouterLink, RouterLinkActive],
-  template: `
-    <nav class="abas" aria-label="Financeiro">
-      <a class="abas__item" [routerLink]="base().concat('cobrancas')" queryParamsHandling="preserve" routerLinkActive="abas__item--ativa" ariaCurrentWhenActive="page">
-        Cobranças
-      </a>
-      <a class="abas__item" [routerLink]="base().concat('caixa')" queryParamsHandling="preserve" routerLinkActive="abas__item--ativa" ariaCurrentWhenActive="page">
-        Caixa
-      </a>
-      @if (temAtleta()) {
-        <a class="abas__item" [routerLink]="base().concat('minhas')" routerLinkActive="abas__item--ativa" ariaCurrentWhenActive="page">
-          Minhas
-        </a>
-      }
-    </nav>
-  `,
-  styles: `
-    .abas {
-      display: grid;
-      grid-auto-columns: 1fr;
-      grid-auto-flow: column;
-      gap: 0.25rem;
-      margin-bottom: 1rem;
-      padding: 0.25rem;
-      border-radius: var(--p-border-radius-lg);
-      background: var(--p-content-background);
-      border: 1px solid var(--p-content-border-color);
-    }
-    .abas__item {
-      display: grid;
-      place-items: center;
-      min-height: 2.5rem;
-      border-radius: var(--p-border-radius-md);
-      color: var(--p-text-muted-color);
-      text-decoration: none;
-      font-weight: 600;
-
-      &:focus-visible {
-        outline: 2px solid var(--p-primary-color);
-        outline-offset: -2px;
-      }
-    }
-    .abas__item--ativa {
-      background: var(--p-primary-color);
-      color: var(--p-primary-contrast-color);
-    }
-  `,
+  imports: [AbasSecao],
+  template: `<app-abas-secao rotulo="Financeiro" [abas]="abas()" />`,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FinanceiroAbas {
   private readonly timeAtual = inject(TimeAtualService);
-  protected readonly base = computed(() => ['/t', this.timeAtual.timeId(), 'financeiro']);
-  /** Quem gere e também joga vê as próprias cobranças na terceira aba. */
-  protected readonly temAtleta = computed(() => !!this.timeAtual.acesso()?.atletaId);
+
+  protected readonly abas = computed<AbaSecao[]>(() => {
+    const base = ['/t', this.timeAtual.timeId(), 'financeiro'];
+    return [
+      { rotulo: 'Cobranças', link: [...base, 'cobrancas'], manterParametros: true },
+      { rotulo: 'Caixa', link: [...base, 'caixa'], manterParametros: true },
+      // Quem gere e também joga vê as próprias cobranças na terceira aba.
+      ...(this.timeAtual.acesso()?.atletaId ? [{ rotulo: 'Minhas', link: [...base, 'minhas'] }] : []),
+    ];
+  });
 }

@@ -108,9 +108,15 @@ Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fo
 
 Por evento: formação e posicionamento de atletas com presença `vou` (titulares e reservas). Sorteio equilibrado de times para jogos internos é fase posterior.
 
-### 2.10 Campeonatos
+### 2.10 Estatísticas e campeonatos
 
-Por time: nome, temporada, status. Partidas são eventos com `campeonatoId`. Estatísticas por atleta (gols, assistências, amarelos, vermelhos) lançadas pela diretoria.
+**Artilharia e assistências** (Elenco › Artilharia, `/t/:timeId/elenco/artilharia`, visível a todos do time):
+- **Automático**: soma dos gols lançados ao encerrar os eventos `realizado` do ano (2.7). Gol contra conta no placar, não na artilharia. Leitura: 1 consulta dos eventos realizados no ano (índice `status + data`) + 1 leitura da subcoleção `gols` de cada evento, a cada abertura da tela.
+- **Ajuste manual** (diretoria): toca num atleta (ou "Lançar números") e digita o **total** de gols e assistências no ano, ex.: jogos de antes do app. Grava só a diferença sobre o automático em `ajustesEstatistica` (inteiro de −999 a 999); exibido = automático + ajuste, nunca negativo, com a marca "ajustado". "Usar automático" zera o ajuste (sem exclusão).
+- Ranking por gols ou por assistências, navegação por ano (‹ 2026 ›, `?ano=AAAA`); empate divide a posição.
+- Cartões (amarelo/vermelho) fora por enquanto (decisão de 27/09/2026).
+
+**Campeonatos** (entrega 4b, a especificar no detalhe): por time, nome, temporada, status. Partidas são eventos com `campeonatoId`; artilharia do campeonato no mesmo modelo (automático + ajuste com escopo do campeonato).
 
 ### 2.11 Entrada de novos membros (convite)
 
@@ -202,11 +208,13 @@ times/{timeId}/recados/{id}/comentarios/{id}
 times/{timeId}/patrocinadores/{id}
   nome, logo (data URL | null), link?, ordem, criadoEm
 
-times/{timeId}/campeonatos/{campeonatoId}
-  nome, temporada, status
+times/{timeId}/ajustesEstatistica/{escopo}_{atletaId}   // correção manual da artilharia (2.10)
+  atletaId, escopo                       // escopo = ano "AAAA" (campeonato na 4b)
+  gols, assistencias                     // diferença sobre o automático, −999..999
+  atualizadoPor, atualizadoEm
 
-times/{timeId}/campeonatos/{campeonatoId}/estatisticas/{atletaId}
-  gols, assistencias, amarelos, vermelhos
+times/{timeId}/campeonatos/{campeonatoId}   // 4b
+  nome, temporada, status
 ```
 
 ### 3.1 Posições por esporte
@@ -245,7 +253,8 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
-| `eventos`, `campeonatos`, `estatisticas`, `escalacao` | acesso ao time | diretoria |
+| `eventos`, `campeonatos`, `escalacao` | acesso ao time | diretoria |
+| `ajustesEstatistica` | acesso ao time | diretoria (id = `{escopo}_{atletaId}`, atleta existente, valores −999..999); sem exclusão |
 | `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; qualquer membro muda `qtdCurtidas` ±1 junto com a própria curtida; exclui autor ou diretoria |
 | `recados/{id}/curtidas/{uid}` | acesso ao time | a própria pessoa, junto com o contador do post |
 | `recados/{id}/comentarios` | acesso ao time | qualquer membro cria (autor = ele); sem edição; exclui autor, autor do post ou diretoria |
@@ -287,7 +296,7 @@ src/app/
   shared/      componentes/pipes genéricos, constantes, utilitários (dinheiro, datas)
   features/    uma pasta por área; `data/` guarda os services do Firestore/Storage da área
     agenda/ auth/ convites/ elenco/ financeiro/ gestao/ inicio/ membros/ mural/
-    patrocinadores/ solicitacoes/ time/ (layout e rotas do time) times/ (admin)
+    estatisticas/ patrocinadores/ solicitacoes/ time/ (layout e rotas do time) times/ (admin)
   models/      interfaces e union types do domínio (seção 3)
 ```
 
@@ -345,7 +354,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 
 **Estilos** — CSS próprio, mobile-first, só tokens do tema. Classes globais em `styles.scss`: `.cartao`, `.cartao-link` (+ `__seta`), `.selo-alerta`, `.formulario`, `.campo` (+ `__dica`, `__erro`), `.acoes`, `.lista`, `.texto-suave`, `.dica`, `.cabecalho-secao`, `.visualmente-oculto`. Classes locais em BEM (`bloco__elemento--modificador`). Sem `::ng-deep`; para estilizar componente PrimeNG, usar inputs dele (`inputStyle`, `styleClass`).
 
-**Utilitários de `shared/`** — `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`.
+**Utilitários de `shared/`** — `dinheiro` (centavos ↔ reais, `ReaisPipe`), `competencia` (referências e períodos: mês, semestre, ano), `imagem` (redução de fotos), `compartilhar` (WhatsApp, copiar), `rotulos`, `erros`, `avisos`; componentes `voltar`, `foto-pessoa`, `escudo`, `logo`, `abas-secao` (abas internas por rota: Financeiro, Elenco). Navegação ‹ período › em `financeiro/navegador-periodo` (mês, semestre ou ano).
 
 **Nomes** — domínio e código em pt-BR (classes, métodos, signals); sufixos só para tipo de arquivo (`-page`, `.service`, `.model`, `.routes`). Signals booleanos como estado (`carregando`, `salvando`, `processando`), ações como verbos (`salvar`, `excluir`).
 
@@ -375,7 +384,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 - **Fase 1 — Times, acessos e elenco**: cadastro de times (adminGeral), acessos e papéis, atletas, convites e solicitações, tela "Meus times".
 - **Fase 2 — Financeiro**: configuração financeira do time, geração de cobranças (mensal, semestral), baixa/estorno, lançamentos, despesas recorrentes, painel do caixa, visão "Minhas cobranças".
 - **Fase 3 — Agenda e mural**: eventos, presença, encerramento de evento, cobrança de avulsos, mural.
-- **Fase 4 — Escalação e campeonatos**: campinho com escalação por evento, campeonatos, estatísticas, artilharia.
+- **Fase 4 — Estatísticas, campeonatos e escalação**: 4a artilharia e assistências (automático + ajuste); 4b campeonatos; 4c campinho com escalação por evento (formação por esporte + vagas).
 - **Fase 5 — Evoluções** (cada item exige decisão): PWA, notificações push, comprovante de pagamento (Storage já disponível), automação agendada (Functions), sorteio equilibrado de times.
 
 ---
@@ -436,6 +445,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Escudo do time passa para o Storage (substitui a decisão de data URL no documento): 512px, nome com data/hora (URL nova a cada troca, sem cache velho), anterior apagado. Storage: só adminGeral envia/apaga, qualquer logado lê. Firestore Rules aceitam só URL do bucket do projeto na pasta do próprio time (ou data URL antigo). Logos de apoiadores continuam em data URL. |
 | 27/09/2026 | Revisão de código: padrões registrados em 6.2. Avisos e confirmação centralizados (`shared/avisos.ts`: `Avisos`, `executar`, `confirmacaoPadrao`); WhatsApp/copiar em `shared/compartilhar.ts`; tela do evento dividida (`lista-presenca`, `ajuste-presenca`, `chamar-time`, `lista-pessoas`); gravação da configuração financeira num só método do service; estilos repetidos (`.dica`, `.cartao-link`, `.selo-alerta`) no global. Lista de presença não volta à primeira aba a cada resposta recebida. `PROMPT-INICIAL.md` (Fase 0) removido; README reescrito. Sem mudança de regra de negócio. |
 | 27/09/2026 | Correção: `qtdCurtidas` faltava nos campos permitidos do post (toda curtida era negada); criação de post não pode trazer o contador. |
+| 27/09/2026 | Fase 4 em três entregas: 4a estatísticas → 4b campeonatos → 4c escalação (formação por esporte + vagas tocáveis com quem disse Vou). Artilharia e assistências **automáticas** a partir dos gols dos eventos, com **ajuste manual** da diretoria (coleção `ajustesEstatistica`, guarda a diferença). Cartões fora por enquanto. Artilharia como aba interna do Elenco (sem 6ª aba no rodapé); Campeonatos irão para a Agenda. Substitui `campeonatos/{id}/estatisticas` lançadas à mão. |
 
 ---
 

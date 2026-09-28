@@ -1,0 +1,81 @@
+<app-elenco-abas />
+
+<div class="topo">
+  <app-navegador-periodo [periodo]="escopo()" (mudou)="irParaAno($event)" />
+  <div class="topo__linha">
+    <p-selectbutton
+      [options]="opcoesMetrica"
+      optionLabel="label"
+      optionValue="value"
+      [allowEmpty]="false"
+      [ngModel]="metrica()"
+      (ngModelChange)="metrica.set($event)"
+      size="small"
+      ariaLabel="Ranking por"
+    />
+    @if (ehDiretoria()) {
+      <p-button label="Lançar números" size="small" [outlined]="true" (onClick)="abrirAjuste(null)" />
+    }
+  </div>
+  @if (automatico(); as a) {
+    <small class="texto-suave">
+      {{ a.jogos }} {{ a.jogos === 1 ? 'jogo encerrado' : 'jogos encerrados' }} · {{ a.golsPro }} gols a favor
+    </small>
+  }
+</div>
+
+@if (carregando() && !automatico()) {
+  <div class="lista">
+    <p-skeleton height="3.5rem" />
+    <p-skeleton height="3.5rem" />
+    <p-skeleton height="3.5rem" />
+  </div>
+} @else {
+  <ol class="lista ranking">
+    @for (linha of linhas(); track linha.atleta.id) {
+      <li>
+        <button
+          type="button"
+          class="cartao linha"
+          [class.linha--lider]="linha.posicao === 1"
+          [disabled]="!ehDiretoria()"
+          (click)="abrirAjuste(linha.atleta.id)"
+        >
+          <span class="linha__posicao">{{ linha.posicao }}º</span>
+          <app-foto-pessoa [src]="linha.atleta.fotoUrl" [nome]="linha.atleta.apelido || linha.atleta.nome" />
+          <span class="linha__nome">
+            <strong>{{ linha.atleta.apelido || linha.atleta.nome }}</strong>
+            @if (linha.ajustado) {
+              <small class="texto-suave">ajustado</small>
+            }
+          </span>
+          <span class="linha__numeros">
+            <span class="linha__principal">{{ metrica() === 'gols' ? linha.gols : linha.assistencias }}</span>
+            <small class="texto-suave">
+              {{ metrica() === 'gols' ? linha.assistencias + ' assist.' : linha.gols + ' gols' }}
+            </small>
+          </span>
+        </button>
+      </li>
+    } @empty {
+      <li class="texto-suave">
+        Nenhum {{ metrica() === 'gols' ? 'gol' : 'assistência' }} em {{ escopo() }}. Os números vêm dos gols lançados ao encerrar
+        os eventos.
+      </li>
+    }
+  </ol>
+}
+
+<p-dialog header="Números no ano" [(visible)]="dialogAberto" [modal]="true" [style]="{ width: 'min(26rem, 100vw - 2rem)' }">
+  @if (dialogAberto()) {
+    <app-ajuste-artilharia
+      [atletas]="opcoesAtleta()"
+      [automatico]="automaticoPorAtleta()"
+      [atuais]="totais()"
+      [atletaInicial]="atletaEmAjuste()"
+      [salvando]="salvando()"
+      (salvar)="salvarAjuste($event)"
+      (cancelar)="dialogAberto.set(false)"
+    />
+  }
+</p-dialog>

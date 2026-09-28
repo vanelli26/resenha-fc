@@ -86,6 +86,10 @@ rules_version = '2';
 //   autorFotoUrl? (https) · criadoEm (= request.time). Sem edição; exclui o autor, o autor do post ou a diretoria.
 //   Curtidas e comentários de um post que está sendo excluído (no mesmo lote) podem ser apagados.
 //
+// times/{timeId}/ajustesEstatistica/{escopo}_{atletaId}   (correção manual da artilharia)
+//   atletaId (atleta existente) · escopo: ano 'AAAA' · gols, assistencias: int −999..999 (diferença sobre o automático)
+//   atualizadoPor (= request.auth.uid) · atualizadoEm (= request.time). Só a diretoria; sem exclusão (zero = automático).
+//
 // Demais coleções (campeonatos...) entram nas próximas fases e ficam negadas.
 // ===============================================================
 
@@ -495,6 +499,19 @@ service cloud.firestore {
         && data.atualizadoEm == request.time;
     }
 
+    function isValidAjusteEstatistica(data, timeId, ajusteId) {
+      return data.keys().hasOnly(['atletaId', 'escopo', 'gols', 'assistencias', 'atualizadoPor', 'atualizadoEm'])
+        && data.keys().hasAll(['atletaId', 'escopo', 'gols', 'assistencias', 'atualizadoPor', 'atualizadoEm'])
+        && data.escopo is string && data.escopo.matches('^[0-9]{4}$')
+        && data.atletaId is string && data.atletaId.size() >= 1 && data.atletaId.size() <= 40
+        && ajusteId == data.escopo + '_' + data.atletaId
+        && exists(/databases/$(database)/documents/times/$(timeId)/atletas/$(data.atletaId))
+        && data.gols is int && data.gols >= -999 && data.gols <= 999
+        && data.assistencias is int && data.assistencias >= -999 && data.assistencias <= 999
+        && data.atualizadoPor == request.auth.uid
+        && data.atualizadoEm == request.time;
+    }
+
     function diretoriaNoEvento(timeId, eventoId) {
       return podeGerir(timeId)
         && existsAfter(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId));
@@ -818,6 +835,16 @@ service cloud.firestore {
 
           allow delete: if podeGerir(timeId);
         }
+      }
+
+      // Ajuste manual da artilharia (DIRETRIZES 2.10): todos do time leem; só a diretoria grava; sem exclusão.
+      match /ajustesEstatistica/{ajusteId} {
+        allow read: if temAcesso(timeId) || isAdminGeral();
+
+        allow create, update: if podeGerir(timeId)
+          && isValidAjusteEstatistica(request.resource.data, timeId, ajusteId);
+
+        allow delete: if false;
       }
 
       // Apoiadores (faixa do mural): todos do time leem; só a diretoria mantém.

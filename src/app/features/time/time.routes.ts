@@ -29,6 +29,11 @@ export const TIME_ROUTES: Routes = [
         title: 'Elenco · ResenhaFC',
         loadComponent: () => import('../elenco/elenco-page').then((m) => m.ElencoPage),
       },
+      {
+        path: 'elenco/artilharia',
+        title: 'Artilharia · ResenhaFC',
+        loadComponent: () => import('../estatisticas/artilharia-page').then((m) => m.ArtilhariaPage),
+      },
 
       // Financeiro: diretoria consulta, tesouraria opera (DIRETRIZES 2.3).
       { path: 'financeiro', pathMatch: 'full', redirectTo: 'financeiro/cobrancas' },

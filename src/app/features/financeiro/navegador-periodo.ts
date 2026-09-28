@@ -2,20 +2,22 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { ChevronLeft } from '@primeicons/angular/chevron-left';
 import { ChevronRight } from '@primeicons/angular/chevron-right';
 import {
+  ehReferenciaAnual,
   ehReferenciaSemestral,
+  referenciaAnual,
   referenciaMensal,
   referenciaSemestral,
   rotuloReferencia,
   somarPeriodos,
 } from '../../shared/competencia';
 
-/** Barra ‹ período › do financeiro: mês (`AAAA-MM`) ou semestre (`AAAA-S1`/`S2`); emite o novo período. */
+/** Barra ‹ período ›: mês (`AAAA-MM`), semestre (`AAAA-S1`/`S2`) ou ano (`AAAA`); emite o novo período. */
 @Component({
   selector: 'app-navegador-periodo',
   imports: [ChevronLeft, ChevronRight],
   template: `
-    <nav class="navegador" [attr.aria-label]="semestral() ? 'Semestre' : 'Mês'">
-      <button type="button" class="navegador__seta" [attr.aria-label]="semestral() ? 'Semestre anterior' : 'Mês anterior'" (click)="ir(-1)">
+    <nav class="navegador" [attr.aria-label]="unidade().nome">
+      <button type="button" class="navegador__seta" [attr.aria-label]="unidade().anterior" (click)="ir(-1)">
         <svg data-p-icon="chevron-left" [size]="18" aria-hidden="true"></svg>
       </button>
       <div class="navegador__centro">
@@ -24,7 +26,7 @@ import {
           <button type="button" class="navegador__hoje" (click)="mudou.emit(atual())">Voltar para hoje</button>
         }
       </div>
-      <button type="button" class="navegador__seta" [attr.aria-label]="semestral() ? 'Próximo semestre' : 'Próximo mês'" (click)="ir(1)">
+      <button type="button" class="navegador__seta" [attr.aria-label]="unidade().proximo" (click)="ir(1)">
         <svg data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
       </button>
     </nav>
@@ -83,11 +85,16 @@ export class NavegadorPeriodo {
   readonly periodo = input.required<string>();
   readonly mudou = output<string>();
 
-  protected readonly semestral = computed(() => ehReferenciaSemestral(this.periodo()));
-  /** Período de hoje, do mesmo tipo (mês ou semestre) do que está na tela. */
-  protected readonly atual = computed(() =>
-    this.semestral() ? referenciaSemestral(new Date()) : referenciaMensal(new Date()),
-  );
+  protected readonly unidade = computed(() => {
+    const p = this.periodo();
+    if (ehReferenciaAnual(p)) return { nome: 'Ano', anterior: 'Ano anterior', proximo: 'Próximo ano', hoje: referenciaAnual };
+    if (ehReferenciaSemestral(p)) {
+      return { nome: 'Semestre', anterior: 'Semestre anterior', proximo: 'Próximo semestre', hoje: referenciaSemestral };
+    }
+    return { nome: 'Mês', anterior: 'Mês anterior', proximo: 'Próximo mês', hoje: referenciaMensal };
+  });
+  /** Período de hoje, do mesmo tipo (mês, semestre ou ano) do que está na tela. */
+  protected readonly atual = computed(() => this.unidade().hoje(new Date()));
   protected readonly rotulo = computed(() => rotuloReferencia(this.periodo()));
   protected readonly ehAtual = computed(() => this.periodo() === this.atual());
 

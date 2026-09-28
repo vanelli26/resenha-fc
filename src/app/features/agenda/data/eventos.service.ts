@@ -116,6 +116,20 @@ export class EventosService {
     return snap.docs.map(comId);
   }
 
+  /** Realizados com data em [inicio, fim), para estatísticas. Índice composto status + data. */
+  async listarRealizadosEntre(timeId: string, inicio: Date, fim: Date): Promise<ComId<Evento>[]> {
+    const snap = await getDocs(
+      query(
+        this.colecao(timeId),
+        where('status', '==', 'realizado'),
+        where('data', '>=', Timestamp.fromDate(inicio)),
+        where('data', '<', Timestamp.fromDate(fim)),
+        orderBy('data'),
+      ),
+    );
+    return snap.docs.map(comId);
+  }
+
   async obter(timeId: string, eventoId: string): Promise<ComId<Evento> | null> {
     const snap = await getDoc(doc(this.colecao(timeId), eventoId));
     const dados = snap.data();

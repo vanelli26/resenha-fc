@@ -1,4 +1,5 @@
 // Referências de competência das cobranças (DIRETRIZES 2.4): mensal `AAAA-MM`, semestral `AAAA-S1`/`AAAA-S2`.
+// Estatísticas navegam por ano (`AAAA`).
 
 const MESES = [
   'Janeiro',
@@ -17,6 +18,7 @@ const MESES = [
 
 const RE_MENSAL = /^(\d{4})-(\d{2})$/;
 const RE_SEMESTRAL = /^(\d{4})-S([12])$/;
+const RE_ANUAL = /^\d{4}$/;
 
 export function referenciaMensal(data: Date): string {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
@@ -24,6 +26,10 @@ export function referenciaMensal(data: Date): string {
 
 export function referenciaSemestral(data: Date): string {
   return `${data.getFullYear()}-S${data.getMonth() < 6 ? 1 : 2}`;
+}
+
+export function referenciaAnual(data: Date): string {
+  return String(data.getFullYear());
 }
 
 /** Referências mensais ao redor de hoje (mais recentes primeiro): `antes` meses atrás até `depois` à frente. */
@@ -87,24 +93,34 @@ export function ehReferenciaMensal(valor: string | undefined): valor is string {
   return !!valor && RE_MENSAL.test(valor) && Number(valor.slice(5)) >= 1 && Number(valor.slice(5)) <= 12;
 }
 
+/** `AAAA` (ano). */
+export function ehReferenciaAnual(valor: string | undefined): boolean {
+  return !!valor && RE_ANUAL.test(valor);
+}
+
 /** `AAAA-S1` ou `AAAA-S2`. */
 export function ehReferenciaSemestral(valor: string | undefined): valor is string {
   return !!valor && RE_SEMESTRAL.test(valor);
 }
 
 /**
- * Período de navegação do financeiro: mês (`AAAA-MM`) ou semestre (`AAAA-S1`/`AAAA-S2`).
- * `somarPeriodos` anda no mesmo tipo: ("2026-12", 1) → "2027-01"; ("2026-S2", 1) → "2027-S1".
+ * Período de navegação: mês (`AAAA-MM`), semestre (`AAAA-S1`/`AAAA-S2`) ou ano (`AAAA`).
+ * `somarPeriodos` anda no mesmo tipo: ("2026-12", 1) → "2027-01"; ("2026-S2", 1) → "2027-S1"; ("2026", -1) → "2025".
  */
 export function somarPeriodos(periodo: string, quantidade: number): string {
+  if (ehReferenciaAnual(periodo)) return String(Number(periodo) + quantidade);
   const { inicio } = intervaloDoPeriodo(periodo);
   const meses = ehReferenciaSemestral(periodo) ? quantidade * 6 : quantidade;
   const data = new Date(inicio.getFullYear(), inicio.getMonth() + meses, 1);
   return ehReferenciaSemestral(periodo) ? referenciaSemestral(data) : referenciaMensal(data);
 }
 
-/** Intervalo [início, fim) do mês ou semestre (datas locais). */
+/** Intervalo [início, fim) do mês, semestre ou ano (datas locais). */
 export function intervaloDoPeriodo(periodo: string): { inicio: Date; fim: Date } {
+  if (ehReferenciaAnual(periodo)) {
+    const ano = Number(periodo);
+    return { inicio: new Date(ano, 0, 1), fim: new Date(ano + 1, 0, 1) };
+  }
   const semestral = RE_SEMESTRAL.exec(periodo);
   if (semestral) {
     const ano = Number(semestral[1]);
