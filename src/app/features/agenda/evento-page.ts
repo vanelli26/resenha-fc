@@ -20,15 +20,19 @@ import { DialogModule } from 'primeng/dialog';
 import { MenuModule } from 'primeng/menu';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
+import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
 import { Campeonato } from '../../models/campeonato.model';
+import { Escalacao, escalacaoAberta, ocupacaoDaEscalacao } from '../../models/escalacao.model';
 import { Evento, Gol, Presenca, RespostaPresenca, TIPOS_EVENTO_ABERTOS } from '../../models/evento.model';
 import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { ROTULO_ESPORTE, ROTULO_STATUS_EVENTO, ROTULO_TIPO_EVENTO } from '../../shared/rotulos';
 import { Voltar } from '../../shared/voltar';
 import { CampeonatosService } from '../campeonatos/data/campeonatos.service';
+import { Campinhos, TimeEscalado, timesDaEscalacao } from '../escalacao/campinhos';
+import { EscalacaoService } from '../escalacao/data/escalacao.service';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { DadosEvento, EventosService, participa, podeResponder } from './data/eventos.service';
 import { CobrancaAvulsos } from '../financeiro/cobranca-avulsos';
@@ -53,6 +57,7 @@ import { SeletorPresenca } from './seletor-presenca';
     ChevronRight,
     EllipsisV,
     AjustePresenca,
+    Campinhos,
     ChamarTime,
     CobrancaAvulsos,
     EncerrarEvento,
@@ -68,9 +73,11 @@ import { SeletorPresenca } from './seletor-presenca';
 })
 export class EventoPage {
   private readonly timeAtual = inject(TimeAtualService);
+  private readonly auth = inject(AuthService);
   private readonly eventosService = inject(EventosService);
   private readonly atletasService = inject(AtletasService);
   private readonly campeonatosService = inject(CampeonatosService);
+  private readonly escalacaoService = inject(EscalacaoService);
   private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
 
@@ -124,6 +131,27 @@ export class EventoPage {
   protected readonly temEscalacao = computed(() => {
     const e = this.evento();
     return !!e && e.status !== 'cancelado' && !TIPOS_EVENTO_ABERTOS.includes(e.tipo);
+  });
+
+  /** Escalação em tempo real (listener): aparece no evento conforme a diretoria monta. */
+  protected readonly escalacao = signal<Escalacao | null>(null);
+  protected readonly timesEscalacao = computed<TimeEscalado[]>(() => {
+    const esc = this.escalacao();
+    if (!esc) return [];
+    const porId = new Map(this.cadastros().map((a) => [a.id, a]));
+    return timesDaEscalacao(esc.formacao, ocupacaoDaEscalacao(esc), esc.nomes ?? null, porId);
+  });
+  /** Disse Vou, escalação aberta e ainda fora do campinho: convite para escolher a posição. */
+  protected readonly podeEscolherPosicao = computed(() => {
+    const eu = this.meuAtleta()?.id;
+    const esc = this.escalacao();
+    return (
+      !!eu &&
+      this.evento()?.status === 'agendado' &&
+      this.minhaResposta() === 'vou' &&
+      escalacaoAberta(esc) &&
+      ![...ocupacaoDaEscalacao(esc).values()].includes(eu)
+    );
   });
 
   protected readonly esporte = computed(() => {
@@ -194,15 +222,17 @@ export class EventoPage {
     ];
   });
 
-  private pararDeOuvir: (() => void) | null = null;
+  /** Listeners abertos (presenças e escalação). */
+  private pararDeOuvir: (() => void)[] = [];
 
   constructor() {
     effect(() => {
       const timeId = this.timeAtual.timeId();
       const eventoId = this.eventoId();
       untracked(() => {
-        this.pararDeOuvir?.();
+        this.pararListeners();
         this.evento.set(null);
+        this.escalacao.set(null);
         this.presencas.set([]);
         this.gols.set([]);
         this.campeonato.set(null);
@@ -211,18 +241,19 @@ export class EventoPage {
         if (timeId) void this.carregar(timeId, eventoId);
       });
     });
-    inject(DestroyRef).onDestroy(() => this.pararDeOuvir?.());
+    inject(DestroyRef).onDestroy(() => this.pararListeners());
   }
 
   protected async responder(resposta: RespostaPresenca): Promise<void> {
     const timeId = this.timeAtual.timeId();
     const e = this.evento();
     const eu = this.meuAtleta();
-    if (!timeId || !e || !eu) return;
+    const uid = this.auth.usuario()?.uid;
+    if (!timeId || !e || !eu || !uid) return;
     this.respondendo.set(resposta);
     try {
-      // O listener atualiza as listas.
-      await this.eventosService.responder(timeId, e.id, eu.id, resposta);
+      // Os listeners atualizam as listas e a escalação.
+      await this.eventosService.responder(timeId, e.id, eu.id, resposta, uid);
     } catch (err) {
       this.avisos.erro('Não foi possível responder', err);
     } finally {
@@ -351,6 +382,11 @@ export class EventoPage {
     }
   }
 
+  private pararListeners(): void {
+    this.pararDeOuvir.forEach((parar) => parar());
+    this.pararDeOuvir = [];
+  }
+
   private async carregar(timeId: string, eventoId: string): Promise<void> {
     try {
       const [evento, cadastros] = await Promise.all([
@@ -366,12 +402,24 @@ export class EventoPage {
       this.cadastros.set(cadastros);
       if (evento.status === 'realizado') void this.carregarGols(timeId, eventoId);
       void this.carregarCampeonato(timeId, evento);
-      this.pararDeOuvir = this.eventosService.ouvirPresencas(
-        timeId,
-        eventoId,
-        (presencas) => this.presencas.set(presencas),
-        (err) => this.avisos.erro('Erro ao carregar presenças', err),
+      this.pararDeOuvir.push(
+        this.eventosService.ouvirPresencas(
+          timeId,
+          eventoId,
+          (presencas) => this.presencas.set(presencas),
+          (err) => this.avisos.erro('Erro ao carregar presenças', err),
+        ),
       );
+      if (this.temEscalacao()) {
+        this.pararDeOuvir.push(
+          this.escalacaoService.ouvir(
+            timeId,
+            eventoId,
+            (escalacao) => this.escalacao.set(escalacao),
+            (err) => this.avisos.erro('Erro ao carregar a escalação', err),
+          ),
+        );
+      }
     } catch (err) {
       this.avisos.erro('Erro ao carregar o evento', err);
     }

@@ -4,8 +4,15 @@
   margin-bottom: 1rem;
 }
 
-.filtros__visao {
+.filtros__visao,
+.filtros__forma {
   justify-self: start;
+}
+
+.baixa__formas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
 }
 
 .resumo {

@@ -1,7 +1,7 @@
 import { StatusAtleta, TipoVinculo } from '../models/atleta.model';
 import { StatusCampeonato } from '../models/campeonato.model';
 import { RespostaPresenca, StatusEvento, TipoEvento } from '../models/evento.model';
-import { TipoCobranca } from '../models/financeiro.model';
+import { FormaPagamento, TipoCobranca } from '../models/financeiro.model';
 import { Periodicidade } from '../models/modalidade.model';
 import { PapelTime } from '../models/papel.model';
 import { Esporte, Posicao } from '../models/posicao.model';
@@ -60,6 +60,15 @@ export const ROTULO_TIPO_COBRANCA: Record<TipoCobranca, string> = {
   mensal: 'Mensalidade',
   semestral: 'Semestralidade',
   avulso: 'Avulso',
+};
+
+export const ROTULO_FORMA_PAGAMENTO: Record<FormaPagamento, string> = {
+  pix: 'Pix',
+  dinheiro: 'Dinheiro',
+  cartao: 'Cartão',
+  campo: 'No campo',
+  outro: 'Outro',
+  nao_informada: 'Não informada',
 };
 
 export const ROTULO_COR: Record<CorTime, string> = {

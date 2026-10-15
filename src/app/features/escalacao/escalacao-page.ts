@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Copy } from '@primeicons/angular/copy';
 import { Whatsapp } from '@primeicons/angular/whatsapp';
@@ -6,13 +16,23 @@ import { ConfirmationService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { Atleta } from '../../models/atleta.model';
-import { Escalacao, FORMACOES_POR_ESPORTE } from '../../models/escalacao.model';
+import {
+  Escalacao,
+  FORMACOES_POR_ESPORTE,
+  MAX_NOME_TIME_ESCALACAO,
+  NOMES_TIMES_PADRAO,
+  chaveDaVaga,
+  escalacaoAberta,
+  ocupacaoDaEscalacao,
+  vagaDaChave,
+} from '../../models/escalacao.model';
 import { Evento, Presenca, TIPOS_EVENTO_ABERTOS } from '../../models/evento.model';
 import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import { abrirWhatsApp, copiarTexto } from '../../shared/compartilhar';
@@ -21,9 +41,10 @@ import { EventosService, participa } from '../agenda/data/eventos.service';
 import { ListaPessoas } from '../agenda/lista-pessoas';
 import { ordenarPorNome } from '../agenda/lista-presenca';
 import { AtletasService } from '../elenco/data/atletas.service';
-import { Campinho, VagaCampinho } from './campinho';
+import { VagaCampinho } from './campinho';
+import { Campinhos, TimeEscalado, VagaTocada, timesDaEscalacao } from './campinhos';
 import { EscalacaoService } from './data/escalacao.service';
-import { jogadoresNaFormacao, vagasDaFormacao } from './formacoes';
+import { jogadoresNaFormacao } from './formacoes';
 
 interface GrupoCandidatos {
   titulo: string;
@@ -31,8 +52,10 @@ interface GrupoCandidatos {
 }
 
 /**
- * Escalação do evento (DIRETRIZES 2.9): formação do esporte + vagas no campinho. Todos veem; a diretoria monta
- * tocando nas vagas. Reservas = quem vai (ou foi, se realizado) e não está no campinho.
+ * Escalação do evento (DIRETRIZES 2.9): formação do esporte + vagas no campinho, um time ou dois (jogo entre nós),
+ * em tempo real. Todos veem; a diretoria monta tocando nas vagas e fecha/abre; aberta, quem disse "Vou" toca numa
+ * vaga livre para jogar nela.
+ * Reservas = quem vai (ou foi, se realizado) e não está no campinho.
  */
 @Component({
   selector: 'app-escalacao-page',
@@ -43,9 +66,10 @@ interface GrupoCandidatos {
     ButtonModule,
     ConfirmDialogModule,
     DialogModule,
+    InputTextModule,
     SelectButtonModule,
     SkeletonModule,
-    Campinho,
+    Campinhos,
     ListaPessoas,
     Voltar,
   ],
@@ -68,18 +92,32 @@ export class EscalacaoPage {
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
   protected readonly evento = signal<ComId<Evento> | null>(null);
   protected readonly naoEncontrado = signal(false);
+  /** Primeira leitura da escalação chegou (evita piscar "não montada"). */
+  protected readonly carregada = signal(false);
   private readonly cadastros = signal<ComId<Atleta>[]>([]);
   private readonly presencas = signal<ComId<Presenca>[]>([]);
   protected readonly salva = signal<Escalacao | null>(null);
   protected readonly salvando = signal(false);
   protected readonly limpando = signal(false);
+  /** Jogador gravando a própria vaga (campinho bloqueado até terminar). */
+  protected readonly escolhendoVaga = signal(false);
+  /** Diretoria fechando/abrindo para os jogadores. */
+  protected readonly alternandoFechada = signal(false);
+  protected readonly aberta = computed(() => escalacaoAberta(this.salva()));
 
-  // Edição (diretoria): formação e vaga → atletaId, gravados só ao salvar.
+  // Edição (diretoria): formação, times e chave da vaga → atletaId, gravados só ao salvar.
   protected readonly editando = signal(false);
   protected readonly formacaoEmEdicao = signal('');
-  private readonly ocupantes = signal<ReadonlyMap<number, string>>(new Map());
-  /** Vaga com o seletor de atleta aberto. */
-  protected readonly vagaEscolhendo = signal<number | null>(null);
+  /** Dois times: nomes; null = um time. */
+  protected readonly nomesEmEdicao = signal<[string, string] | null>(null);
+  private readonly ocupantes = signal<ReadonlyMap<string, string>>(new Map());
+  /** Chave da vaga com o seletor de atleta aberto. */
+  protected readonly vagaEscolhendo = signal<string | null>(null);
+  protected readonly maxNome = MAX_NOME_TIME_ESCALACAO;
+  protected readonly opcoesTimes = [
+    { label: '1 time', value: false },
+    { label: '2 times', value: true },
+  ];
 
   protected readonly caminhoEvento = computed(() => `agenda/${this.eventoId()}`);
   protected readonly permiteEscalacao = computed(() => {
@@ -90,21 +128,49 @@ export class EscalacaoPage {
     const e = this.evento();
     return (e ? FORMACOES_POR_ESPORTE[e.esporte] : []).map((f) => ({ label: f, value: f }));
   });
-  protected readonly formacao = computed(() => (this.editando() ? this.formacaoEmEdicao() : this.salva()?.formacao ?? ''));
+  private readonly meuAtletaId = computed(() => this.timeAtual.acesso()?.atletaId ?? null);
+  /** Sem adversário = jogo entre nós: escalação nova começa com dois times. */
+  private readonly semAdversario = computed(() => !this.evento()?.adversario?.trim());
+
+  /** Jogador confirmado (disse Vou), evento agendado e escalação aberta: escolhe a própria vaga. */
+  protected readonly podeSeEscalar = computed(() => {
+    const e = this.evento();
+    const eu = this.meuAtletaId();
+    return (
+      !!e &&
+      !!eu &&
+      this.permiteEscalacao() &&
+      e.status === 'agendado' &&
+      !this.editando() &&
+      this.aberta() &&
+      this.presencas().some((p) => p.id === eu && p.resposta === 'vou')
+    );
+  });
+
+  /** Sem escalação salva, o jogador começa na formação padrão do esporte. */
+  protected readonly formacao = computed(() => {
+    if (this.editando()) return this.formacaoEmEdicao();
+    const e = this.evento();
+    return this.salva()?.formacao ?? (e && this.podeSeEscalar() ? FORMACOES_POR_ESPORTE[e.esporte][0] : '');
+  });
+
+  /** Nomes dos dois times em exibição (null = um time). Sem escalação salva, segue o padrão do evento. */
+  private readonly nomes = computed<readonly [string, string] | null>(() => {
+    if (this.editando()) return this.nomesEmEdicao();
+    const salva = this.salva();
+    if (salva) return salva.nomes ?? null;
+    return this.semAdversario() ? NOMES_TIMES_PADRAO : null;
+  });
 
   private readonly porId = computed(() => new Map(this.cadastros().map((a) => [a.id, a])));
-  /** Vaga → atletaId em exibição (rascunho na edição; gravado fora dela). */
-  private readonly ocupacao = computed<ReadonlyMap<number, string>>(() =>
-    this.editando() ? this.ocupantes() : new Map((this.salva()?.titulares ?? []).map((t) => [t.vaga, t.atletaId])),
+  /** Chave da vaga → atletaId em exibição (rascunho na edição; gravado fora dela). */
+  private readonly ocupacao = computed<ReadonlyMap<string, string>>(() =>
+    this.editando() ? this.ocupantes() : ocupacaoDaEscalacao(this.salva()),
   );
 
-  protected readonly vagas = computed<VagaCampinho[]>(() => {
-    const f = this.formacao();
-    if (!f) return [];
-    const ocupacao = this.ocupacao();
-    const porId = this.porId();
-    return vagasDaFormacao(f).map((v) => ({ ...v, atleta: porId.get(ocupacao.get(v.indice) ?? '') ?? null }));
-  });
+  protected readonly times = computed<TimeEscalado[]>(() =>
+    timesDaEscalacao(this.formacao(), this.ocupacao(), this.nomes(), this.porId()),
+  );
 
   /** Quem vai: realizado = compareceu; senão, respondeu "Vou". */
   private readonly idsVao = computed(() => {
@@ -135,18 +201,24 @@ export class EscalacaoPage {
     ].filter((g) => g.pessoas.length > 0);
   });
 
+  private pararDeOuvir: (() => void) | null = null;
+
   constructor() {
     effect(() => {
       const timeId = this.timeAtual.timeId();
       const eventoId = this.eventoId();
       untracked(() => {
+        this.pararDeOuvir?.();
+        this.pararDeOuvir = null;
         this.evento.set(null);
         this.salva.set(null);
+        this.carregada.set(false);
         this.editando.set(false);
         this.naoEncontrado.set(false);
         if (timeId) void this.carregar(timeId, eventoId);
       });
     });
+    inject(DestroyRef).onDestroy(() => this.pararDeOuvir?.());
   }
 
   protected editar(): void {
@@ -154,7 +226,9 @@ export class EscalacaoPage {
     if (!e) return;
     const salva = this.salva();
     this.formacaoEmEdicao.set(salva?.formacao ?? FORMACOES_POR_ESPORTE[e.esporte][0]);
-    this.ocupantes.set(new Map((salva?.titulares ?? []).map((t) => [t.vaga, t.atletaId])));
+    const nomes = this.nomes();
+    this.nomesEmEdicao.set(nomes ? [nomes[0], nomes[1]] : null);
+    this.ocupantes.set(ocupacaoDaEscalacao(salva));
     this.editando.set(true);
   }
 
@@ -162,7 +236,22 @@ export class EscalacaoPage {
   protected trocarFormacao(formacao: string): void {
     const total = jogadoresNaFormacao(formacao);
     this.formacaoEmEdicao.set(formacao);
-    this.ocupantes.update((atual) => new Map([...atual].filter(([vaga]) => vaga < total)));
+    this.ocupantes.update((atual) => new Map([...atual].filter(([chave]) => vagaDaChave(chave).vaga < total)));
+  }
+
+  /** Um time ↔ dois times. Voltar a um time manda o segundo para os reservas. */
+  protected definirDoisTimes(dois: boolean): void {
+    this.nomesEmEdicao.set(dois ? [...NOMES_TIMES_PADRAO] : null);
+    if (!dois) this.ocupantes.update((atual) => new Map([...atual].filter(([chave]) => vagaDaChave(chave).lado === 'a')));
+  }
+
+  protected renomear(indice: 0 | 1, nome: string): void {
+    this.nomesEmEdicao.update((n) => {
+      if (!n) return n;
+      const novo: [string, string] = [n[0], n[1]];
+      novo[indice] = nome;
+      return novo;
+    });
   }
 
   protected escolher(atletaId: string | null): void {
@@ -189,19 +278,66 @@ export class EscalacaoPage {
     const uid = this.auth.usuario()?.uid;
     const e = this.evento();
     if (!timeId || !uid || !e) return;
-    const formacao = this.formacaoEmEdicao();
-    const titulares = [...this.ocupantes()]
-      .sort(([a], [b]) => a - b)
-      .map(([vaga, atletaId]) => ({ atletaId, vaga }));
+    const n = this.nomesEmEdicao();
+    const nomes: [string, string] | null = n ? [n[0].trim(), n[1].trim()] : null;
+    if (nomes && (!nomes[0] || !nomes[1])) {
+      this.avisos.atencao('Dê um nome para cada time.');
+      return;
+    }
+    // Mantém fechada se já estava; escalação nova ou do formato antigo fica aberta para os jogadores.
+    const dados = { formacao: this.formacaoEmEdicao(), ocupacao: this.ocupantes(), fechada: !this.aberta(), nomes };
     const ok = await this.avisos.executar(
       this.salvando,
-      () => this.service.salvar(timeId, e.id, formacao, titulares, uid),
+      () => this.service.salvar(timeId, e.id, dados, uid),
       'Escalação salva',
       'Não foi possível salvar',
     );
-    if (!ok) return;
-    this.editando.set(false);
-    this.salva.set(await this.service.obter(timeId, e.id));
+    // O listener traz a versão gravada.
+    if (ok) this.editando.set(false);
+  }
+
+  /** Campinho: na edição (diretoria) abre o seletor; fora dela, o jogador entra na vaga livre ou sai da sua. */
+  protected tocarVaga(tocada: VagaTocada): void {
+    const vaga = chaveDaVaga(tocada.lado, tocada.vaga);
+    if (this.editando()) {
+      this.vagaEscolhendo.set(vaga);
+      return;
+    }
+    const eu = this.meuAtletaId();
+    if (!this.podeSeEscalar() || !eu) return;
+    const ocupante = this.ocupacao().get(vaga);
+    if (ocupante && ocupante !== eu) {
+      this.avisos.atencao('Essa vaga já tem dono. Escolha uma livre.', 'Vaga ocupada');
+      return;
+    }
+    void this.escolherVaga(ocupante === eu ? null : vaga);
+  }
+
+  protected async alternarFechada(): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const uid = this.auth.usuario()?.uid;
+    const e = this.evento();
+    if (!timeId || !uid || !e) return;
+    const fechar = this.aberta();
+    await this.avisos.executar(
+      this.alternandoFechada,
+      () => this.service.definirFechada(timeId, e.id, fechar, uid),
+      fechar ? 'Escalação fechada' : 'Escalação aberta para quem vai',
+    );
+  }
+
+  private async escolherVaga(vaga: string | null): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const uid = this.auth.usuario()?.uid;
+    const e = this.evento();
+    const eu = this.meuAtletaId();
+    if (!timeId || !uid || !e || !eu) return;
+    await this.avisos.executar(
+      this.escolhendoVaga,
+      () => this.service.escolherVaga(timeId, e.id, { esporte: e.esporte, doisTimes: this.semAdversario() }, eu, vaga, uid),
+      null,
+      'Não foi possível escolher a vaga',
+    );
   }
 
   protected limpar(): void {
@@ -215,9 +351,7 @@ export class EscalacaoPage {
         rotulo: 'Limpar',
         aoConfirmar: async () => {
           const ok = await this.avisos.executar(this.limpando, () => this.service.limpar(timeId, e.id), 'Escalação apagada');
-          if (!ok) return;
-          this.editando.set(false);
-          this.salva.set(null);
+          if (ok) this.editando.set(false);
         },
       }),
     );
@@ -228,10 +362,9 @@ export class EscalacaoPage {
     const e = this.evento();
     if (!e) return '';
     const nome = (v: VagaCampinho) => (v.atleta ? v.atleta.apelido || v.atleta.nome : '—');
+    const vagas = this.times().flatMap((t) => t.vagas);
     const linhas = ['Goleiro', 'Defesa', 'Meio', 'Ataque'].flatMap((rotulo) => {
-      const nomes = this.vagas()
-        .filter((v) => v.rotulo === rotulo)
-        .map(nome);
+      const nomes = vagas.filter((v) => v.rotulo === rotulo).map(nome);
       return nomes.length ? [`${rotulo === 'Goleiro' ? '🧤 ' : ''}${rotulo}: ${nomes.join(', ')}`] : [];
     });
     const reservas = this.reservas().map((a) => a.apelido || a.nome);
@@ -253,11 +386,10 @@ export class EscalacaoPage {
 
   private async carregar(timeId: string, eventoId: string): Promise<void> {
     try {
-      const [evento, cadastros, presencas, escalacao] = await Promise.all([
+      const [evento, cadastros, presencas] = await Promise.all([
         this.eventosService.obter(timeId, eventoId),
         this.atletasService.listar(timeId),
         this.eventosService.listarPresencas(timeId, eventoId),
-        this.service.obter(timeId, eventoId),
       ]);
       if (this.timeAtual.timeId() !== timeId || this.eventoId() !== eventoId) return;
       if (!evento) {
@@ -267,7 +399,16 @@ export class EscalacaoPage {
       this.evento.set(evento);
       this.cadastros.set(cadastros);
       this.presencas.set(presencas);
-      this.salva.set(escalacao);
+      // Tempo real: jogadores e diretoria montando ao mesmo tempo.
+      this.pararDeOuvir = this.service.ouvir(
+        timeId,
+        eventoId,
+        (escalacao) => {
+          this.salva.set(escalacao);
+          this.carregada.set(true);
+        },
+        (err) => this.avisos.erro('Erro ao carregar a escalação', err),
+      );
     } catch (e) {
       this.avisos.erro('Erro ao carregar a escalação', e);
     }

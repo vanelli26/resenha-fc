@@ -2,10 +2,19 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { ComId } from '../../core/firebase/conversor';
 import { Atleta } from '../../models/atleta.model';
 import { FotoPessoa } from '../../shared/foto-pessoa';
-import { Vaga } from './formacoes';
+import { Vaga, vagasDaFormacao } from './formacoes';
 
 export interface VagaCampinho extends Vaga {
   atleta: ComId<Atleta> | null;
+}
+
+/** Vagas da formação com quem ocupa cada uma (vaga → atletaId de um time). */
+export function vagasComAtletas(
+  formacao: string,
+  ocupacao: ReadonlyMap<number, string>,
+  porId: ReadonlyMap<string, ComId<Atleta>>,
+): VagaCampinho[] {
+  return vagasDaFormacao(formacao).map((v) => ({ ...v, atleta: porId.get(ocupacao.get(v.indice) ?? '') ?? null }));
 }
 
 /** Campinho com as vagas da formação (ataque no topo). Com `editavel`, cada vaga é um botão que emite `tocar`. */

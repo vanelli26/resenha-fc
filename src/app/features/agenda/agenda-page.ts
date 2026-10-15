@@ -106,12 +106,13 @@ export class AgendaPage {
   protected async responder(item: ItemAgenda, resposta: RespostaPresenca): Promise<void> {
     const timeId = this.timeAtual.timeId();
     const atleta = this.meuAtleta();
-    if (!timeId || !atleta) return;
+    const uid = this.auth.usuario()?.uid;
+    if (!timeId || !atleta || !uid) return;
     const anterior = this.respostas();
     this.respostas.set(new Map(anterior).set(item.evento.id, resposta));
     this.respondendo.set({ eventoId: item.evento.id, resposta });
     try {
-      await this.eventosService.responder(timeId, item.evento.id, atleta.id, resposta);
+      await this.eventosService.responder(timeId, item.evento.id, atleta.id, resposta, uid);
     } catch (e) {
       this.respostas.set(anterior);
       this.avisos.erro('Não foi possível responder', e);

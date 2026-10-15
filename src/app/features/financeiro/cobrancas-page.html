@@ -21,6 +21,17 @@
   @if (visaoAtual() !== 'aberto') {
     <app-navegador-periodo [periodo]="periodoAtual()" (mudou)="irParaPeriodo($event)" />
   }
+  @if (visaoAtual() !== 'aberto') {
+    <p-select
+      class="filtros__forma"
+      [options]="opcoesForma"
+      optionLabel="label"
+      optionValue="value"
+      [ngModel]="formaFiltro()"
+      (ngModelChange)="formaFiltro.set($event)"
+      ariaLabel="Forma de pagamento"
+    />
+  }
   <input
     pInputText
     class="filtros__busca"
@@ -33,17 +44,28 @@
 </div>
 
 <div class="resumo">
-  <div class="cartao resumo__item">
-    <small class="texto-suave">A receber</small>
-    <strong>{{ resumo().aReceber | reais }}</strong>
-    @if (resumo().atrasadas) {
-      <small class="resumo__alerta">{{ resumo().atrasadas }} atrasada(s)</small>
-    }
-  </div>
-  <div class="cartao resumo__item">
-    <small class="texto-suave">Recebido</small>
-    <strong>{{ resumo().recebido | reais }}</strong>
-  </div>
+  @if (formaAtiva(); as forma) {
+    <div class="cartao resumo__item">
+      <small class="texto-suave">Pagamentos</small>
+      <strong>{{ resumo().pagamentos }}</strong>
+    </div>
+    <div class="cartao resumo__item">
+      <small class="texto-suave">Recebido · {{ rotuloForma[forma] }}</small>
+      <strong>{{ resumo().recebido | reais }}</strong>
+    </div>
+  } @else {
+    <div class="cartao resumo__item">
+      <small class="texto-suave">A receber</small>
+      <strong>{{ resumo().aReceber | reais }}</strong>
+      @if (resumo().atrasadas) {
+        <small class="resumo__alerta">{{ resumo().atrasadas }} atrasada(s)</small>
+      }
+    </div>
+    <div class="cartao resumo__item">
+      <small class="texto-suave">Recebido</small>
+      <strong>{{ resumo().recebido | reais }}</strong>
+    </div>
+  }
 </div>
 
 @if (carregando() && lista().length === 0) {
@@ -124,9 +146,24 @@
         <span>Data do pagamento</span>
         <input pInputText type="date" name="dataPagamento" required [ngModel]="dataPagamento()" (ngModelChange)="dataPagamento.set($event)" />
       </label>
+      <div class="campo">
+        <span id="forma-baixa">Forma de pagamento</span>
+        <div class="baixa__formas" role="group" aria-labelledby="forma-baixa">
+          @for (f of formasDaBaixa; track f) {
+            <p-button
+              type="button"
+              size="small"
+              [label]="rotuloForma[f]"
+              [outlined]="formaDaBaixa() !== f"
+              (onClick)="escolherForma(f)"
+            />
+          }
+        </div>
+      </div>
       <label class="campo">
         <span>Observação (opcional)</span>
-        <input pInputText name="observacao" maxlength="200" placeholder="Ex.: Pix, dinheiro" [ngModel]="observacao()" (ngModelChange)="observacao.set($event)" />
+        <input pInputText name="observacao" maxlength="200" placeholder="Ex.: Pix, dinheiro, no campo" [ngModel]="observacao()" (ngModelChange)="observacao.set($event)" />
+        <small class="campo__dica">A forma escolhida entra aqui; dá para completar (ex.: "Pix · pago pelo pai").</small>
       </label>
       <p class="texto-suave baixa__dica">A receita entra no caixa na data do pagamento.</p>
       <div class="acoes">

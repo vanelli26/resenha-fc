@@ -10,6 +10,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   startAfter,
@@ -22,6 +23,7 @@ import { ComId, comId, conversor } from '../../../core/firebase/conversor';
 import { FIRESTORE } from '../../../core/firebase/firestore.token';
 import { Atleta, vinculoDe } from '../../../models/atleta.model';
 import { Evento, Gol, Presenca, RespostaPresenca, TIPOS_EVENTO_ABERTOS, TipoEvento } from '../../../models/evento.model';
+import { Escalacao } from '../../../models/escalacao.model';
 import { Esporte } from '../../../models/posicao.model';
 
 const MAX_PROXIMOS = 30;
@@ -239,13 +241,41 @@ export class EventosService {
     return respostas;
   }
 
-  async responder(timeId: string, eventoId: string, atletaId: string, resposta: RespostaPresenca): Promise<void> {
+  /**
+   * Própria resposta. Talvez/Não vou também tira a pessoa da escalação, se estiver nela (DIRETRIZES 2.9), na mesma
+   * transação. `uid` = quem grava (atualizadoPor da escalação).
+   */
+  async responder(
+    timeId: string,
+    eventoId: string,
+    atletaId: string,
+    resposta: RespostaPresenca,
+    uid: string,
+  ): Promise<void> {
+    const presencaRef = doc(this.presencas(timeId, eventoId), atletaId);
     // merge: preserva `compareceu` quando a diretoria já marcou (3b).
-    await setDoc(
-      doc(this.presencas(timeId, eventoId), atletaId),
-      { resposta, atualizadoEm: serverTimestamp() },
-      { merge: true },
-    );
+    const presenca = { resposta, atualizadoEm: serverTimestamp() };
+    if (resposta === 'vou') {
+      await setDoc(presencaRef, presenca, { merge: true });
+      return;
+    }
+    const escalacaoRef = doc(
+      this.firestore,
+      'times',
+      timeId,
+      'eventos',
+      eventoId,
+      'escalacao',
+      'principal',
+    ).withConverter(conversor<Escalacao>());
+    await runTransaction(this.firestore, async (tx) => {
+      const vagas = (await tx.get(escalacaoRef)).data()?.vagas ?? {};
+      const minha = Object.entries(vagas).find(([, id]) => id === atletaId)?.[0];
+      if (minha !== undefined) {
+        tx.update(escalacaoRef, { [`vagas.${minha}`]: deleteField(), atualizadoPor: uid, atualizadoEm: serverTimestamp() });
+      }
+      tx.set(presencaRef, presenca, { merge: true });
+    });
   }
 
   /** Presenças do evento em tempo real (DIRETRIZES 7). Retorna a função que encerra o listener. */

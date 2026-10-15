@@ -88,10 +88,25 @@
   }
 
   @if (temEscalacao()) {
-    <a class="cartao-link escalacao" [routerLink]="['/t', timeId(), 'agenda', e.id, 'escalacao']">
-      <span>⚽ <strong>Escalação</strong></span>
-      <svg class="cartao-link__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
-    </a>
+    <section class="escalacao">
+      <a class="cartao-link escalacao__link" [routerLink]="['/t', timeId(), 'agenda', e.id, 'escalacao']">
+        <span>
+          ⚽ <strong>Escalação</strong>
+          @if (escalacao(); as esc) {
+            <span class="texto-suave">· {{ esc.formacao }}</span>
+          }
+        </span>
+        @if (podeEscolherPosicao()) {
+          <span class="escalacao__vazia escalacao__vazia--convite">Escolher posição</span>
+        } @else if (!escalacao()) {
+          <span class="texto-suave escalacao__vazia">{{ ehDiretoria() ? 'Montar' : 'Ainda não montada' }}</span>
+        }
+        <svg class="cartao-link__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+      </a>
+      @if (timesEscalacao().length > 0) {
+        <app-campinhos [times]="timesEscalacao()" />
+      }
+    </section>
   }
 
   <section class="presencas">

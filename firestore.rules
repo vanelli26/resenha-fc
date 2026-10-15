@@ -96,8 +96,10 @@ rules_version = '2';
 //   Só a diretoria; sem exclusão.
 //
 // times/{timeId}/eventos/{eventoId}/escalacao/principal
-//   formacao (da lista do esporte do evento) · titulares: list 0..11 de {atletaId, vaga: int 0..10}
-//   atualizadoPor (= request.auth.uid) · atualizadoEm (= request.time). Só diretoria; fora de confraternização/outro.
+//   formacao (da lista do esporte do evento) · vagas: map "0".."10" → atletaId (≤ total da formação) · fechada: bool
+//   nomes? [a, b] (1..30): dois times (jogo entre nós), vagas do segundo com chave "b0".."b10"; mesma formação.
+//   Diretoria: tudo. Aberta: quem disse "Vou" (evento agendado) entra numa vaga livre ou sai da própria.
+//   atualizadoPor (= request.auth.uid) · atualizadoEm (= request.time). Fora de confraternização/outro.
 //
 // pedidosTime/{slug}   (pedido de time novo, DIRETRIZES 2.12)
 //   nome (1..60) · cor (lista) · solicitanteUid (= auth) · solicitanteNome · solicitanteEmail (= token.email)
@@ -585,41 +587,117 @@ service cloud.firestore {
         && data.criadoEm is timestamp;
     }
 
-    // Escalação (DIRETRIZES 2.9): formação da lista do esporte do evento; titulares ≤ 11, um por vaga (0 = goleiro).
-    function isValidTitular(t) {
-      return t is map && t.keys().hasOnly(['atletaId', 'vaga']) && t.keys().hasAll(['atletaId', 'vaga'])
-        && t.atletaId is string && t.atletaId.size() >= 1 && t.atletaId.size() <= 40
-        && t.vaga is int && t.vaga >= 0 && t.vaga <= 10;
-    }
-
-    function titularesValidos(l) {
-      return l is list && l.size() <= 11
-        && (l.size() < 1 || isValidTitular(l[0]))
-        && (l.size() < 2 || isValidTitular(l[1]))
-        && (l.size() < 3 || isValidTitular(l[2]))
-        && (l.size() < 4 || isValidTitular(l[3]))
-        && (l.size() < 5 || isValidTitular(l[4]))
-        && (l.size() < 6 || isValidTitular(l[5]))
-        && (l.size() < 7 || isValidTitular(l[6]))
-        && (l.size() < 8 || isValidTitular(l[7]))
-        && (l.size() < 9 || isValidTitular(l[8]))
-        && (l.size() < 10 || isValidTitular(l[9]))
-        && (l.size() < 11 || isValidTitular(l[10]));
-    }
-
-    function isValidEscalacao(data, evento) {
-      let formacoes = {
+    // Escalação (DIRETRIZES 2.9): formação da lista do esporte do evento; vagas = mapa vaga → atletaId
+    // ("0" = goleiro; "b…" = segundo time), no máximo o total da formação por time; fechada = só a diretoria mexe.
+    function formacoesPorEsporte() {
+      return {
         'futsal': ['2-2', '1-2-1', '3-1'],
         'society': ['2-3-1', '3-2-1', '2-2-2'],
         'campo': ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '5-3-2']
       };
-      return data.keys().hasOnly(['formacao', 'titulares', 'atualizadoPor', 'atualizadoEm'])
-        && data.keys().hasAll(['formacao', 'titulares', 'atualizadoPor', 'atualizadoEm'])
+    }
+
+    // Jogadores em campo (goleiro + linhas) por formação.
+    function totalDaFormacao(f) {
+      return {
+        '2-2': 5, '1-2-1': 5, '3-1': 5,
+        '2-3-1': 7, '3-2-1': 7, '2-2-2': 7,
+        '4-4-2': 11, '4-3-3': 11, '3-5-2': 11, '4-2-3-1': 11, '5-3-2': 11
+      }[f];
+    }
+
+    // Chave da vaga: "0".."10" (primeiro time) e, com dois times, "b0".."b10" (segundo time).
+    function vagaValida(ks, vs, i, total, dois) {
+      return ks.size() <= i
+        || (ks[i].matches(dois ? '^b?([0-9]|10)$' : '^([0-9]|10)$')
+          && int(ks[i].replace('^b', '')) < total
+          && vs[i] is string && vs[i].size() >= 1 && vs[i].size() <= 40);
+    }
+
+    function listaDeVagasValida(ks, vs, total, dois) {
+      return vagaValida(ks, vs, 0, total, dois) && vagaValida(ks, vs, 1, total, dois) && vagaValida(ks, vs, 2, total, dois)
+        && vagaValida(ks, vs, 3, total, dois) && vagaValida(ks, vs, 4, total, dois) && vagaValida(ks, vs, 5, total, dois)
+        && vagaValida(ks, vs, 6, total, dois) && vagaValida(ks, vs, 7, total, dois) && vagaValida(ks, vs, 8, total, dois)
+        && vagaValida(ks, vs, 9, total, dois) && vagaValida(ks, vs, 10, total, dois) && vagaValida(ks, vs, 11, total, dois)
+        && vagaValida(ks, vs, 12, total, dois) && vagaValida(ks, vs, 13, total, dois) && vagaValida(ks, vs, 14, total, dois)
+        && vagaValida(ks, vs, 15, total, dois) && vagaValida(ks, vs, 16, total, dois) && vagaValida(ks, vs, 17, total, dois)
+        && vagaValida(ks, vs, 18, total, dois) && vagaValida(ks, vs, 19, total, dois) && vagaValida(ks, vs, 20, total, dois)
+        && vagaValida(ks, vs, 21, total, dois);
+    }
+
+    function vagasValidas(v, total, dois) {
+      return v is map && v.size() <= (dois ? total * 2 : total) && listaDeVagasValida(v.keys(), v.values(), total, dois);
+    }
+
+    // Dois times (jogo entre nós): nomes editáveis, 1..30 caracteres.
+    function nomesValidos(n) {
+      return n is list && n.size() == 2
+        && n[0] is string && n[0].size() >= 1 && n[0].size() <= 30
+        && n[1] is string && n[1].size() >= 1 && n[1].size() <= 30;
+    }
+
+    function isValidEscalacao(data, evento) {
+      return data.keys().hasOnly(['formacao', 'vagas', 'fechada', 'nomes', 'atualizadoPor', 'atualizadoEm'])
+        && data.keys().hasAll(['formacao', 'vagas', 'fechada', 'atualizadoPor', 'atualizadoEm'])
         && !(evento.tipo in ['confraternizacao', 'outro'])
-        && data.formacao in formacoes[evento.esporte]
-        && titularesValidos(data.titulares)
+        && data.formacao in formacoesPorEsporte()[evento.esporte]
+        && data.fechada is bool
+        && (!('nomes' in data) || nomesValidos(data.nomes))
+        && vagasValidas(data.vagas, totalDaFormacao(data.formacao), 'nomes' in data)
         && data.atualizadoPor == request.auth.uid
         && data.atualizadoEm == request.time;
+    }
+
+    // Jogador que se escala: atleta do próprio acesso, disse "Vou" e o evento está agendado.
+    function jogadorConfirmado(timeId, eventoId, evento) {
+      let atletaId = get(acessoPath(timeId)).data.atletaId;
+      let presenca = /databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId)/presencas/$(atletaId);
+      return temAcesso(timeId)
+        && atletaId is string
+        && evento.status == 'agendado'
+        && exists(presenca)
+        && get(presenca).data.get('resposta', '') == 'vou';
+    }
+
+    // Uma vaga no máximo muda de dono: se entrou alguém, é o jogador; se saiu alguém, era o jogador.
+    function vagaPropria(k, antes, depois, d, eu) {
+      return (!(k in d.addedKeys()) || depois[k] == eu) && (!(k in d.removedKeys()) || antes[k] == eu);
+    }
+
+    // Jogador só entra numa vaga livre e/ou sai da própria; não mexe em ninguém mais.
+    function mudancaPropria(antes, depois, eu) {
+      let d = depois.diff(antes);
+      return d.changedKeys().size() == 0
+        && d.addedKeys().size() <= 1
+        && d.removedKeys().size() <= 1
+        && (d.addedKeys().size() == 0 || d.removedKeys().size() == 1 || !(eu in antes.values()))
+        && vagaPropria('0', antes, depois, d, eu) && vagaPropria('1', antes, depois, d, eu)
+        && vagaPropria('2', antes, depois, d, eu) && vagaPropria('3', antes, depois, d, eu)
+        && vagaPropria('4', antes, depois, d, eu) && vagaPropria('5', antes, depois, d, eu)
+        && vagaPropria('6', antes, depois, d, eu) && vagaPropria('7', antes, depois, d, eu)
+        && vagaPropria('8', antes, depois, d, eu) && vagaPropria('9', antes, depois, d, eu)
+        && vagaPropria('10', antes, depois, d, eu) && vagaPropria('b0', antes, depois, d, eu)
+        && vagaPropria('b1', antes, depois, d, eu) && vagaPropria('b2', antes, depois, d, eu)
+        && vagaPropria('b3', antes, depois, d, eu) && vagaPropria('b4', antes, depois, d, eu)
+        && vagaPropria('b5', antes, depois, d, eu) && vagaPropria('b6', antes, depois, d, eu)
+        && vagaPropria('b7', antes, depois, d, eu) && vagaPropria('b8', antes, depois, d, eu)
+        && vagaPropria('b9', antes, depois, d, eu) && vagaPropria('b10', antes, depois, d, eu);
+    }
+
+    // Sair da própria vaga (ao responder Talvez/Não vou): sem exigir "Vou" nem escalação aberta; evento agendado.
+    function saidaPropria(timeId, evento) {
+      let eu = get(acessoPath(timeId)).data.atletaId;
+      return temAcesso(timeId)
+        && eu is string
+        && evento.status == 'agendado'
+        && 'vagas' in resource.data
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vagas', 'atualizadoPor', 'atualizadoEm'])
+        && request.resource.data.vagas.diff(resource.data.vagas).addedKeys().size() == 0
+        && mudancaPropria(resource.data.vagas, request.resource.data.vagas, eu);
+    }
+
+    function eventoDaEscalacao(timeId, eventoId) {
+      return get(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId)).data;
     }
 
     function diretoriaNoEvento(timeId, eventoId) {
@@ -969,14 +1047,30 @@ service cloud.firestore {
           allow delete: if false;
         }
 
-        // Escalação: um documento só ("principal"); todos do time leem; a diretoria monta e limpa.
+        // Escalação: um documento só ("principal"); todos do time leem; a diretoria monta, fecha e limpa.
+        // Aberta: quem disse "Vou" entra numa vaga livre ou sai da própria (o primeiro cria com a formação padrão).
+        // Sempre: cada um pode sair da própria vaga (ao responder Talvez/Não vou).
         match /escalacao/{escalacaoId} {
           allow read: if temAcesso(timeId);
 
-          allow create, update: if podeGerir(timeId)
-            && escalacaoId == 'principal'
-            && isValidEscalacao(request.resource.data,
-              get(/databases/$(database)/documents/times/$(timeId)/eventos/$(eventoId)).data);
+          allow create: if escalacaoId == 'principal'
+            && isValidEscalacao(request.resource.data, eventoDaEscalacao(timeId, eventoId))
+            && (podeGerir(timeId)
+              || (jogadorConfirmado(timeId, eventoId, eventoDaEscalacao(timeId, eventoId))
+                && request.resource.data.formacao == formacoesPorEsporte()[eventoDaEscalacao(timeId, eventoId).esporte][0]
+                && request.resource.data.fechada == false
+                && request.resource.data.get('nomes', ['Time A', 'Time B']) == ['Time A', 'Time B']
+                && request.resource.data.vagas.size() == 1
+                && request.resource.data.vagas.values()[0] == get(acessoPath(timeId)).data.atletaId));
+
+          allow update: if escalacaoId == 'principal'
+            && isValidEscalacao(request.resource.data, eventoDaEscalacao(timeId, eventoId))
+            && (podeGerir(timeId)
+              || (jogadorConfirmado(timeId, eventoId, eventoDaEscalacao(timeId, eventoId))
+                && resource.data.get('fechada', true) == false
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vagas', 'atualizadoPor', 'atualizadoEm'])
+                && mudancaPropria(resource.data.vagas, request.resource.data.vagas, get(acessoPath(timeId)).data.atletaId))
+              || saidaPropria(timeId, eventoDaEscalacao(timeId, eventoId)));
 
           allow delete: if podeGerir(timeId);
         }

@@ -106,8 +106,23 @@
 }
 
 .escalacao {
+  display: grid;
+  gap: 0.75rem;
   margin-top: 1rem;
+}
+.escalacao__link {
   padding: 0.75rem 1rem;
+}
+.escalacao__vazia {
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+.escalacao__vazia--convite {
+  color: var(--p-primary-color);
+  font-weight: 600;
+}
+.escalacao__vazia + .cartao-link__seta {
+  margin-left: 0;
 }
 
 .presencas {

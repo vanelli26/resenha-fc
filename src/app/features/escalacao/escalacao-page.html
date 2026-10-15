@@ -6,7 +6,7 @@
       Escalação
       <small class="texto-suave">{{ e.titulo }}</small>
     </h2>
-    @if (ehDiretoria() && permiteEscalacao() && !editando()) {
+    @if (ehDiretoria() && permiteEscalacao() && !editando() && carregada()) {
       <p-button [label]="salva() ? 'Editar' : 'Montar'" size="small" (onClick)="editar()" />
     }
   </div>
@@ -25,40 +25,127 @@
         size="small"
         ariaLabel="Formação"
       />
-      <small class="texto-suave">Toque numa vaga para escolher quem joga nela.</small>
+      <p-selectbutton
+        [options]="opcoesTimes"
+        optionLabel="label"
+        optionValue="value"
+        [allowEmpty]="false"
+        [ngModel]="nomesEmEdicao() !== null"
+        (ngModelChange)="definirDoisTimes($event)"
+        size="small"
+        ariaLabel="Quantos times"
+      />
     </div>
-    <app-campinho [vagas]="vagas()" [editavel]="true" (tocar)="vagaEscolhendo.set($event)" />
+    @if (nomesEmEdicao(); as n) {
+      <div class="nomes">
+        <label class="campo">
+          <span>Primeiro time</span>
+          <input pInputText [maxlength]="maxNome" [ngModel]="n[0]" (ngModelChange)="renomear(0, $event)" />
+        </label>
+        <label class="campo">
+          <span>Segundo time</span>
+          <input pInputText [maxlength]="maxNome" [ngModel]="n[1]" (ngModelChange)="renomear(1, $event)" />
+        </label>
+      </div>
+    }
+    <p class="dica">Toque numa vaga para escolher quem joga nela.</p>
+    <app-campinhos [times]="times()" [editavel]="true" (tocar)="tocarVaga($event)" />
     <div class="acoes barra">
       @if (salva()) {
-        <p-button label="Limpar" [text]="true" severity="danger" [loading]="limpando()" [disabled]="salvando() || limpando()" (onClick)="limpar()" />
+        <p-button
+          label="Limpar"
+          [text]="true"
+          severity="danger"
+          [loading]="limpando()"
+          [disabled]="salvando() || limpando()"
+          (onClick)="limpar()"
+        />
       }
-      <p-button label="Cancelar" [text]="true" [disabled]="salvando() || limpando()" (onClick)="editando.set(false)" />
-      <p-button label="Salvar" [loading]="salvando()" [disabled]="limpando()" (onClick)="salvar()" />
+      <p-button
+        label="Cancelar"
+        [text]="true"
+        [disabled]="salvando() || limpando()"
+        (onClick)="editando.set(false)"
+      />
+      <p-button
+        label="Salvar"
+        [loading]="salvando()"
+        [disabled]="limpando()"
+        (onClick)="salvar()"
+      />
     </div>
-  } @else if (salva(); as s) {
+  } @else if (!carregada()) {
+    <p-skeleton height="24rem" />
+  } @else if (salva() || podeSeEscalar()) {
     <div class="resumo">
-      <small class="texto-suave">Formação {{ s.formacao }}</small>
-      <div class="resumo__compartilhar">
-        <p-button size="small" severity="success" ariaLabel="Enviar escalação no WhatsApp" (onClick)="enviarWhatsApp()">
-          <svg data-p-icon="whatsapp" [size]="16" aria-hidden="true"></svg>
-          <span>Enviar</span>
-        </p-button>
-        <p-button size="small" [outlined]="true" severity="secondary" ariaLabel="Copiar escalação" (onClick)="copiar()">
-          <svg data-p-icon="copy" [size]="16" aria-hidden="true"></svg>
-        </p-button>
-      </div>
+      <small class="texto-suave">
+        Formação {{ formacao() }}
+        @if (e.status === 'agendado') {
+          · {{ aberta() ? 'aberta para quem vai' : 'fechada pela diretoria' }}
+        }
+      </small>
+      @if (salva()) {
+        <div class="resumo__compartilhar">
+          <p-button
+            size="small"
+            severity="success"
+            ariaLabel="Enviar escalação no WhatsApp"
+            (onClick)="enviarWhatsApp()"
+          >
+            <svg data-p-icon="whatsapp" [size]="16" aria-hidden="true"></svg>
+            <span>Enviar</span>
+          </p-button>
+          <p-button
+            size="small"
+            [outlined]="true"
+            severity="secondary"
+            ariaLabel="Copiar escalação"
+            (onClick)="copiar()"
+          >
+            <svg data-p-icon="copy" [size]="16" aria-hidden="true"></svg>
+          </p-button>
+        </div>
+      }
     </div>
-    <app-campinho [vagas]="vagas()" />
+    @if (podeSeEscalar()) {
+      <p class="dica">Toque numa vaga livre para jogar nela. Para sair, toque em você.</p>
+    }
+    <app-campinhos
+      [times]="times()"
+      [editavel]="podeSeEscalar() && !escolhendoVaga()"
+      (tocar)="tocarVaga($event)"
+    />
+    @if (ehDiretoria() && salva() && e.status === 'agendado') {
+      <div class="acoes barra">
+        <p-button
+          [label]="aberta() ? 'Fechar para os jogadores' : 'Abrir para quem vai'"
+          size="small"
+          [outlined]="true"
+          severity="secondary"
+          [loading]="alternandoFechada()"
+          (onClick)="alternarFechada()"
+        />
+      </div>
+    }
   } @else {
     <p class="cartao texto-suave">
       A escalação ainda não foi montada.
-      {{ ehDiretoria() ? 'Toque em Montar para escolher a formação e quem joga.' : '' }}
+      {{
+        ehDiretoria()
+          ? 'Toque em Montar para escolher a formação e quem joga.'
+          : 'Quem disser Vou pode escolher a posição.'
+      }}
     </p>
   }
 
   @if (permiteEscalacao() && (salva() || editando())) {
     <section class="reservas">
-      <h3>Reservas <small class="texto-suave">({{ e.status === 'realizado' ? 'foram' : 'disseram Vou' }} e não estão no campo)</small></h3>
+      <h3>
+        Reservas
+        <small class="texto-suave"
+          >({{ e.status === 'realizado' ? 'foram' : 'disseram Vou' }} e não estão no campo)</small
+        >
+      </h3>
       <app-lista-pessoas [pessoas]="reservas()" />
     </section>
   }
@@ -78,7 +165,12 @@
         </section>
       }
       <div class="acoes">
-        <p-button label="Deixar vaga livre" [text]="true" severity="secondary" (onClick)="escolher(null)" />
+        <p-button
+          label="Deixar vaga livre"
+          [text]="true"
+          severity="secondary"
+          (onClick)="escolher(null)"
+        />
       </div>
     </div>
   </p-dialog>

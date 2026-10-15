@@ -66,6 +66,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Estorno: cobrança volta a `pendente` e o lançamento `cob_{cobrancaId}` é removido, na mesma escrita em lote.
 - Cancelar: `pendente` → `cancelado` (sai do "a receber"); reabrir: `cancelado` → `pendente`. Não mexem no caixa. Cobrança nunca é excluída.
 - Baixa pede a data do pagamento (padrão hoje) e observação opcional (ex.: Pix); a receita entra no caixa nessa data.
+- **Forma de pagamento** (não gravada): deduzida do texto da observação (`formaDaObservacao`): Pix, Dinheiro, Cartão, **No campo** (pago direto no campo; "campo"/"campinho" tem prioridade), Outro ou Não informada (sem observação). Na baixa, botões Pix / Dinheiro / Cartão / No campo escrevem o rótulo na observação (texto sempre igual), que pode ser completada. Em Cobranças (por mês/semestre), o filtro "Forma" mostra só as pagas daquela forma, com quantidade e total recebido; ex.: "No campo" do mês = valor a descontar do aluguel.
 
 ### 2.6 Lançamentos (caixa)
 
@@ -106,13 +107,18 @@ Feed de **postagens** por time (coleção `recados`), estilo Instagram: 1 a 4 fo
 
 ### 2.9 Escalação
 
-Por evento esportivo (não em confraternização/outro; não em cancelado), tela própria `/t/:timeId/agenda/:eventoId/escalacao`, com atalho "⚽ Escalação" no evento. Todos do time veem; a diretoria monta.
+Por evento esportivo (não em confraternização/outro; não em cancelado), tela própria `/t/:timeId/agenda/:eventoId/escalacao`, com atalho "⚽ Escalação" no evento. Todos do time veem; a diretoria monta; com a escalação **aberta**, os jogadores confirmados escolhem a própria vaga.
 
 - **Formação** da lista fechada do esporte do evento (goleiro implícito): futsal `2-2`, `1-2-1`, `3-1`; society `2-3-1`, `3-2-1`, `2-2-2`; campo `4-4-2`, `4-3-3`, `3-5-2`, `4-2-3-1`, `5-3-2`. Alteração exige decisão (constante `FORMACOES_POR_ESPORTE` e Rules).
+- **Um ou dois times**: contra adversário, um time; **jogo entre nós**, dois times com a **mesma formação** e nomes editáveis (começam "Time A" e "Time B", até 30 caracteres). A diretoria escolhe no Editar ("1 time" / "2 times"); voltar a um time manda o segundo para os reservas. Escalação nova (inclusive a criada pelo primeiro jogador) começa com dois times quando o evento não tem adversário. Cada pessoa fica em um só time. Celular: um campinho abaixo do outro, com nome e contagem (ex.: 5/7); a partir de 768px, lado a lado (`escalacao/campinhos`).
 - **Campinho** com as vagas (goleiro, defesa, meio, ataque). A diretoria toca numa vaga e escolhe quem joga: primeiro quem vai, depois talvez, depois o resto do elenco; escolher quem já está em outra vaga troca os dois de lugar. Trocar de formação mantém quem cabe pelo número da vaga.
+- **Jogadores se escalando**: quem disse **Vou**, com o evento `agendado` e a escalação aberta, toca numa vaga **livre** para jogar nela (sai da anterior) ou toca em si para sair. Não tira ninguém nem muda a formação. Sem escalação, o primeiro jogador a cria com a formação padrão do esporte (a primeira da lista). Dois tocando a mesma vaga ao mesmo tempo: o segundo recebe "vaga acabou de ser ocupada" (transação).
+- **Mudou a resposta**: quem estava na escalação e responde Talvez ou Não vou sai da vaga automaticamente (mesma transação da resposta; vale também com a escalação fechada).
+- **Fechar/abrir** (diretoria): fechada, só a diretoria mexe. Escalação nova nasce aberta; salvar mantém a situação. Evento encerrado bloqueia os jogadores. A diretoria continua montando tudo pelo Editar (o rascunho dela sobrescreve ao salvar).
 - **Reservas** não são gravadas: quem disse Vou (evento realizado: quem compareceu) e não está no campinho.
 - "Enviar" (WhatsApp) ou copiar a escalação em texto para o grupo. "Limpar" apaga a escalação.
-- Leitura: evento, elenco, presenças (leitura única, sem listener) e a escalação. Sorteio equilibrado de times para jogos internos é fase posterior.
+- **Na tela do evento**: o cartão "⚽ Escalação" mostra a formação e o campinho (só leitura), em tempo real (listener no documento `escalacao/principal`), conforme a diretoria monta; tocar abre a tela de montagem. Sem escalação: "Montar" (diretoria) ou "Ainda não montada".
+- Leitura da tela de montagem: evento, elenco, presenças (leitura única) e a escalação em tempo real (listener). Sorteio equilibrado de times para jogos internos é fase posterior.
 
 ### 2.10 Estatísticas e campeonatos
 
@@ -220,8 +226,11 @@ times/{timeId}/eventos/{eventoId}/gols/{NN}   // NN = "01".."99" (ordem)
 
 times/{timeId}/eventos/{eventoId}/escalacao/principal
   formacao                               // da lista do esporte do evento (2.9)
-  titulares: [{ atletaId, vaga }]        // até 11; vaga 0 = goleiro, depois da defesa ao ataque
+  vagas: { "0": atletaId, "b0": ... }    // "0".."10" = primeiro time ("0" goleiro, da defesa ao ataque); "b0".."b10" = segundo
+  nomes?: [a, b]                         // dois times (jogo entre nós), mesma formação; ausente = um time
+  fechada: bool                          // true = só a diretoria mexe
   atualizadoPor, atualizadoEm
+  // formato antigo: titulares [{ atletaId, vaga }], sem vagas/fechada (lido; regravado pela diretoria)
 
 times/{timeId}/recados/{id}              // postagem do mural
   texto, fotos?: [{ url, caminho, largura, altura }] (1..4), titulo? (antigos)
@@ -283,7 +292,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
 | `lancamentos` | tesouraria/diretoria | tesouraria; `cob_*` só junto com a baixa/estorno da cobrança e não editável |
 | `eventos` | acesso ao time | diretoria (`campeonatoId` só no tipo campeonato e de campeonato existente) |
-| `eventos/{id}/escalacao/principal` | acesso ao time | diretoria; formação da lista do esporte do evento, até 11 titulares, fora de confraternização/outro; pode apagar |
+| `eventos/{id}/escalacao/principal` | acesso ao time | diretoria: tudo (formação da lista do esporte do evento, um ou dois times com nomes até 30, vagas até o total da formação por time, fechar/abrir, apagar), fora de confraternização/outro; aberta: quem disse Vou (evento agendado, atleta do próprio acesso) só entra numa vaga livre e/ou sai da própria, e cria com a formação padrão se não houver; qualquer membro sai da própria vaga (evento agendado), inclusive com a escalação fechada |
 | `campeonatos` | acesso ao time | diretoria; sem exclusão |
 | `ajustesEstatistica` | acesso ao time | diretoria (id = `{escopo}_{atletaId}`, atleta existente, escopo ano ou campeonato existente, valores −999..999); sem exclusão |
 | `recados` | acesso ao time | qualquer membro cria (autor = ele, sem fixar); autor edita só `texto`; diretoria só `fixado`; qualquer membro muda `qtdCurtidas` ±1 junto com a própria curtida; exclui autor ou diretoria |
@@ -409,7 +418,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 ## 7. Firestore — consultas e índices
 
 - Toda listagem com limite/paginação quando puder crescer (lançamentos, cobranças, recados).
-- Listeners em tempo real só onde agrega valor: presença de evento aberto, feed do mural e comentários abertos. Resto: leitura única.
+- Listeners em tempo real só onde agrega valor: presença e escalação do evento aberto, feed do mural e comentários abertos. Resto: leitura única.
 - Totais do caixa e contagens via `getAggregateFromServer` (`sum`, `count`).
 - Índices compostos declarados em `firestore.indexes.json` no mesmo trabalho da consulta que os exige.
 
@@ -503,6 +512,11 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 27/09/2026 | Entrega B adiantada a pedido: quem cria o time escolhe o escudo. Diretoria edita nome, cor e escudo em Gestão › Dados do time (Rules do time e do Storage liberadas para a diretoria); "Criar time" abre essa tela. Seletor de escudo e gravação com escudo (envio antes, desfaz se falhar, apaga o anterior) reutilizados pelo admin. |
 | 27/09/2026 | Entrega C: adminGeral sem passe livre. Rules e Storage: `podeGerir`/`podeFinanceiro` sem admin, leituras das subcoleções só para membros, `usuarios` só o próprio; admin lê só `times/{id}` (lista) e `pedidosTime`. Time novo só por pedido aprovado (admin não cria nem edita). App: sem entrar em times de que não é membro, "Meus times" só com os próprios, Gerenciar times = pedidos + lista somente leitura, "Adicionar membro" pela lista de usuários removido (entrada só por convite). Substitui as decisões anteriores que davam ao admin os poderes de diretoria e tesouraria. |
 | 30/09/2026 | Login no iPhone falhava ("missing initial state"): o app em `web.app` fazia login por `firebaseapp.com`, e o Safari isola o armazenamento entre domínios. `authDomain` passa a ser o domínio em que o app está aberto (`web.app` ou `firebaseapp.com` do projeto; em desenvolvimento, o da config). Exige `https://resenhafc-2f357.web.app/__/auth/handler` nos URIs de redirecionamento do cliente OAuth (Google Cloud, feito pelo usuário). Domínio próprio futuro entra na mesma lista. |
+| 30/09/2026 | Escalação exibida na tela do evento (campinho só leitura com a formação), em tempo real por listener no documento da escalação, parado ao sair da tela; montagem continua na tela própria. |
+| 30/09/2026 | Jogadores montam a escalação: quem disse Vou escolhe vaga livre ou sai da sua, com a escalação aberta e o evento agendado; a diretoria fecha/abre e continua podendo tudo. Sem escalação, o primeiro jogador cria com a formação padrão do esporte. Modelo passa de `titulares` (lista) para `vagas` (mapa vaga → atletaId), para as Rules conferirem que cada jogador só mexeu na própria vaga e escolhas simultâneas não se sobrescreverem (transação); formato antigo segue lido. Tela de escalação em tempo real. |
+| 30/09/2026 | Escalação com **dois times** para jogo entre nós: a diretoria escolhe 1 ou 2 times, mesma formação, nomes editáveis (Time A / Time B). Vagas do segundo time no mesmo mapa com prefixo `b` (um documento, um listener; Rules garantem uma pessoa em um só time). Padrão de dois times quando o evento não tem adversário. Exibição: um abaixo do outro no celular, lado a lado no navegador. |
+| 30/09/2026 | Responder Talvez ou Não vou tira a pessoa da escalação na mesma transação da resposta (Rules permitem sair da própria vaga sem exigir Vou nem escalação aberta). Texto da escalação no WhatsApp continua no formato de lista por posição. |
+| 15/10/2026 | Forma de pagamento sem campo novo (escolha do usuário): deduzida do texto da observação, com botões na baixa que padronizam o texto. Filtro e total por forma em Cobranças, para descontar do aluguel o que os atletas pagaram direto no campo (forma "No campo", acrescentada às escolhidas: Pix, Dinheiro, Cartão, Outro). Pagas antes, sem observação, ficam como "Não informada". |
 
 ---
 

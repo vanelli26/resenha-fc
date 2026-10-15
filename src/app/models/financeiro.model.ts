@@ -25,6 +25,29 @@ export interface Cobranca {
   observacao?: string;
 }
 
+/**
+ * Forma do pagamento, deduzida do texto da observação da baixa (não é gravada; DIRETRIZES 2.5). "campo" = pago
+ * direto no campo (descontado do aluguel), tem prioridade sobre as demais.
+ */
+export const FORMAS_PAGAMENTO = ['pix', 'dinheiro', 'cartao', 'campo', 'outro', 'nao_informada'] as const;
+export type FormaPagamento = (typeof FORMAS_PAGAMENTO)[number];
+
+/** Formas com botão na baixa: o toque escreve o rótulo na observação. */
+export const FORMAS_DA_BAIXA: readonly FormaPagamento[] = ['pix', 'dinheiro', 'cartao', 'campo'];
+
+export function formaDaObservacao(observacao: string | undefined): FormaPagamento {
+  const texto = (observacao ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (!texto.trim()) return 'nao_informada';
+  if (/campo|campinho/.test(texto)) return 'campo';
+  if (/pix/.test(texto)) return 'pix';
+  if (/dinheiro|especie/.test(texto)) return 'dinheiro';
+  if (/cartao|debito|credito/.test(texto)) return 'cartao';
+  return 'outro';
+}
+
 export const TIPOS_LANCAMENTO = ['receita', 'despesa'] as const;
 export type TipoLancamento = (typeof TIPOS_LANCAMENTO)[number];
 

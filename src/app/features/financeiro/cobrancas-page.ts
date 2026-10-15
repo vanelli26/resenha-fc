@@ -7,12 +7,19 @@ import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AuthService } from '../../core/auth/auth.service';
 import { ComId } from '../../core/firebase/conversor';
 import { TimeAtualService } from '../../core/time/time-atual.service';
-import { Cobranca } from '../../models/financeiro.model';
+import {
+  Cobranca,
+  FORMAS_DA_BAIXA,
+  FORMAS_PAGAMENTO,
+  FormaPagamento,
+  formaDaObservacao,
+} from '../../models/financeiro.model';
 import { Avisos, confirmacaoPadrao } from '../../shared/avisos';
 import {
   deDataInput,
@@ -24,6 +31,7 @@ import {
   referenciaSemestral,
 } from '../../shared/competencia';
 import { ReaisPipe } from '../../shared/dinheiro';
+import { ROTULO_FORMA_PAGAMENTO } from '../../shared/rotulos';
 import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
 import { FinanceiroAbas } from './financeiro-abas';
 import { NavegadorPeriodo } from './navegador-periodo';
@@ -51,6 +59,7 @@ interface CobrancaVisao {
     ConfirmDialogModule,
     DialogModule,
     InputTextModule,
+    SelectModule,
     SelectButtonModule,
     SkeletonModule,
     ReaisPipe,
@@ -110,6 +119,18 @@ export class CobrancasPage {
   private readonly filtro = computed(() => (this.visaoAtual() === 'aberto' ? 'aberto' : this.periodoAtual()));
   protected readonly busca = signal('');
 
+  /**
+   * Filtro das pagas pela forma (deduzida da observação): ex.: total pago direto no campo, a descontar do aluguel.
+   * Não vale na visão "Em aberto" (só pendentes).
+   */
+  protected readonly formaFiltro = signal<FormaPagamento | null>(null);
+  protected readonly formaAtiva = computed(() => (this.visaoAtual() === 'aberto' ? null : this.formaFiltro()));
+  protected readonly rotuloForma = ROTULO_FORMA_PAGAMENTO;
+  protected readonly opcoesForma = [
+    { label: 'Todas as formas', value: null },
+    ...FORMAS_PAGAMENTO.map((f) => ({ label: ROTULO_FORMA_PAGAMENTO[f], value: f })),
+  ];
+
   private readonly cobrancas = signal<ComId<Cobranca>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
@@ -119,8 +140,10 @@ export class CobrancasPage {
   protected readonly lista = computed<CobrancaVisao[]>(() => {
     const hoje = new Date();
     const termo = this.busca().trim().toLocaleLowerCase('pt-BR');
+    const forma = this.formaAtiva();
     return this.cobrancas()
       .filter((c) => !termo || c.atletaNome.toLocaleLowerCase('pt-BR').includes(termo))
+      .filter((c) => !forma || (c.status === 'pago' && formaDaObservacao(c.observacao) === forma))
       .map((c) => ({
         cobranca: c,
         situacao: situacaoDaCobranca(c, hoje),
@@ -138,18 +161,25 @@ export class CobrancasPage {
     let aReceber = 0;
     let recebido = 0;
     let atrasadas = 0;
+    let pagamentos = 0;
     for (const { cobranca, situacao } of this.lista()) {
-      if (situacao === 'pago') recebido += cobranca.valorCentavos;
+      if (situacao === 'pago') {
+        recebido += cobranca.valorCentavos;
+        pagamentos++;
+      }
       if (situacao === 'pendente' || situacao === 'atrasado') aReceber += cobranca.valorCentavos;
       if (situacao === 'atrasado') atrasadas++;
     }
-    return { aReceber, recebido, atrasadas };
+    return { aReceber, recebido, atrasadas, pagamentos };
   });
 
   // Diálogo de baixa.
   protected readonly emBaixa = signal<ComId<Cobranca> | null>(null);
   protected readonly dataPagamento = signal('');
   protected readonly observacao = signal('');
+  protected readonly formasDaBaixa = FORMAS_DA_BAIXA;
+  /** Forma que a observação digitada indica (marca o botão correspondente). */
+  protected readonly formaDaBaixa = computed(() => formaDaObservacao(this.observacao()));
   protected readonly baixaAberta = computed(() => this.emBaixa() !== null);
 
   constructor() {
@@ -185,6 +215,11 @@ export class CobrancasPage {
     this.dataPagamento.set(paraDataInput(new Date()));
     this.observacao.set('');
     this.emBaixa.set(cobranca);
+  }
+
+  /** Botão da forma: escreve o rótulo na observação (texto igual sempre, para o filtro); dá para completar depois. */
+  protected escolherForma(forma: FormaPagamento): void {
+    this.observacao.set(ROTULO_FORMA_PAGAMENTO[forma]);
   }
 
   protected fecharBaixa(visivel: boolean): void {
