@@ -17,6 +17,12 @@ export class ModoTemaService {
       this.document.documentElement.classList.toggle(CLASSE_ESCURO, escuro);
       this.salvarPreferencia(escuro);
     });
+    // Impressão/PDF sempre no tema claro (fundo branco, texto escuro), sem mudar a preferência.
+    const janela = this.document.defaultView;
+    janela?.addEventListener('beforeprint', () => this.document.documentElement.classList.remove(CLASSE_ESCURO));
+    janela?.addEventListener('afterprint', () =>
+      this.document.documentElement.classList.toggle(CLASSE_ESCURO, this._escuro()),
+    );
   }
 
   alternar(): void {

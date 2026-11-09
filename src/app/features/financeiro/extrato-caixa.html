@@ -1,0 +1,104 @@
+@let r = relatorio();
+<header class="extrato__cabecalho">
+  <div>
+    <h1>Extrato do caixa</h1>
+    <p class="extrato__time">{{ timeNome() }}</p>
+  </div>
+  <dl class="extrato__dados">
+    <dt>Período</dt>
+    <dd>{{ inicio() | date: 'dd/MM/yyyy' }} a {{ fim() | date: 'dd/MM/yyyy' }}</dd>
+    <dt>Filtros</dt>
+    <dd>{{ filtros() }}</dd>
+    <dt>Emitido em</dt>
+    <dd>{{ emitidoEm() | date: 'dd/MM/yyyy HH:mm' }}</dd>
+  </dl>
+</header>
+
+<table class="extrato__resumo">
+  <tbody>
+    <tr>
+      <th scope="col">Saldo anterior</th>
+      <th scope="col">Entradas</th>
+      <th scope="col">Saídas</th>
+      <th scope="col">{{ rotuloSaldoFinal() }}</th>
+    </tr>
+    <tr>
+      <td>{{ r.saldoAnterior | reais }}</td>
+      <td>{{ r.entradas | reais }}</td>
+      <td>{{ r.saidas | reais }}</td>
+      <td><strong>{{ r.saldoFinal | reais }}</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="extrato__tabela">
+  <thead>
+    <tr>
+      <th scope="col" class="col-data">Data</th>
+      <th scope="col">Descrição</th>
+      <th scope="col" class="col-forma">Forma</th>
+      <th scope="col" class="col-valor">Entrada</th>
+      <th scope="col" class="col-valor">Saída</th>
+      <th scope="col" class="col-valor">Saldo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="linha-saldo">
+      <td>{{ inicio() | date: 'dd/MM/yyyy' }}</td>
+      <td colspan="4">Saldo anterior</td>
+      <td class="col-valor">{{ r.saldoAnterior | reais }}</td>
+    </tr>
+    @for (dia of r.dias; track dia.chave) {
+      @for (m of dia.movimentos; track m.id) {
+        <tr>
+          <td>{{ m.data | date: 'dd/MM/yyyy' }}</td>
+          <td>
+            {{ m.descricao }}
+            <span class="extrato__categoria">{{ m.categoria }}</span>
+          </td>
+          <td>{{ rotuloOrigem[m.origem] }}</td>
+          <td class="col-valor">
+            @if (m.tipo === 'receita') {
+              {{ m.valorCentavos | reais }}
+            }
+          </td>
+          <td class="col-valor">
+            @if (m.tipo === 'despesa') {
+              {{ m.valorCentavos | reais }}
+            }
+          </td>
+          <td class="col-valor">{{ m.saldo | reais }}</td>
+        </tr>
+      }
+      <tr class="linha-dia">
+        <td colspan="3">Saldo do dia {{ dia.data | date: 'dd/MM/yyyy' }}</td>
+        <td class="col-valor">{{ dia.entradas > 0 ? (dia.entradas | reais) : '' }}</td>
+        <td class="col-valor">{{ dia.saidas > 0 ? (dia.saidas | reais) : '' }}</td>
+        <td class="col-valor">{{ dia.saldo | reais }}</td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="6" class="extrato__vazio">Nenhum lançamento no período.</td>
+      </tr>
+    }
+    <tr class="linha-total">
+      <td colspan="3">Total do período ({{ r.quantidade }} {{ r.quantidade === 1 ? 'lançamento' : 'lançamentos' }})</td>
+      <td class="col-valor">{{ r.entradas | reais }}</td>
+      <td class="col-valor">{{ r.saidas | reais }}</td>
+      <td class="col-valor">{{ r.entradas - r.saidas | reais }}</td>
+    </tr>
+    <tr class="linha-saldo">
+      <td>{{ fim() | date: 'dd/MM/yyyy' }}</td>
+      <td colspan="4">{{ rotuloSaldoFinal() }}</td>
+      <td class="col-valor">{{ r.saldoFinal | reais }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<footer class="extrato__rodape">
+  @if (filtrado()) {
+    <p>Entradas e saídas mostram só o filtro escolhido; a coluna Saldo e os saldos consideram todo o caixa.</p>
+  }
+  <p>Data = data do pagamento (baixa da cobrança) ou do lançamento. Forma deduzida da observação da baixa.</p>
+  <p>Gerado pelo ResenhaFC.</p>
+</footer>

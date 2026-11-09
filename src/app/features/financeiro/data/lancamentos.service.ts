@@ -22,7 +22,7 @@ import { Lancamento, TipoLancamento } from '../../../models/financeiro.model';
 import { DespesaRecorrente } from '../../../models/time.model';
 
 /** Um mês raramente passa de algumas dezenas; o teto só protege contra dado inesperado. */
-const MAX_POR_PERIODO = 500;
+export const MAX_POR_PERIODO = 500;
 
 /** Campos editáveis de um lançamento manual (ou de uma recorrente já lançada). */
 export interface DadosLancamento {
@@ -48,7 +48,7 @@ export function ehLancamentoDeBaixa(lancamentoId: string): boolean {
 export class LancamentosService {
   private readonly firestore = inject(FIRESTORE);
 
-  /** Lançamentos com data em [inicio, fim), mais recentes primeiro. */
+  /** Lançamentos com data em [inicio, fim), mais recentes primeiro (até MAX_POR_PERIODO). */
   async listarDoPeriodo(timeId: string, inicio: Date, fim: Date): Promise<ComId<Lancamento>[]> {
     const snap = await getDocs(
       query(
@@ -67,13 +67,16 @@ export class LancamentosService {
    * `sum` com filtro exige o índice composto (tipo, valorCentavos) em firestore.indexes.json.
    */
   async saldo(timeId: string): Promise<number> {
-    const somar = async (tipo: TipoLancamento) => {
-      const snap = await getAggregateFromServer(query(this.colecao(timeId), where('tipo', '==', tipo)), {
-        total: sum('valorCentavos'),
-      });
-      return snap.data().total ?? 0;
-    };
-    const [receitas, despesas] = await Promise.all([somar('receita'), somar('despesa')]);
+    const [receitas, despesas] = await Promise.all([this.somar(timeId, 'receita'), this.somar(timeId, 'despesa')]);
+    return receitas - despesas;
+  }
+
+  /** Saldo de tudo lançado antes de `data` (saldo anterior do relatório). Índice (tipo, data, valorCentavos). */
+  async saldoAntesDe(timeId: string, data: Date): Promise<number> {
+    const [receitas, despesas] = await Promise.all([
+      this.somar(timeId, 'receita', data),
+      this.somar(timeId, 'despesa', data),
+    ]);
     return receitas - despesas;
   }
 
@@ -112,6 +115,12 @@ export class LancamentosService {
       criadoPor: uid,
       criadoEm: serverTimestamp(),
     });
+  }
+
+  private async somar(timeId: string, tipo: TipoLancamento, antesDe?: Date): Promise<number> {
+    const filtros = [where('tipo', '==', tipo), ...(antesDe ? [where('data', '<', Timestamp.fromDate(antesDe))] : [])];
+    const snap = await getAggregateFromServer(query(this.colecao(timeId), ...filtros), { total: sum('valorCentavos') });
+    return snap.data().total ?? 0;
   }
 
   private colecao(timeId: string) {

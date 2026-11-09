@@ -1,0 +1,142 @@
+// Só aparece na impressão (classe .so-impressao na tela); medidas em pt para o papel.
+:host {
+  color: var(--p-text-color);
+  font-size: 9pt;
+  line-height: 1.35;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.extrato__cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 6pt;
+  margin-bottom: 8pt;
+  border-bottom: 1.5pt solid var(--p-text-color);
+
+  h1 {
+    margin: 0;
+    font-size: 15pt;
+  }
+}
+
+.extrato__time {
+  margin: 2pt 0 0;
+  font-size: 11pt;
+  font-weight: 600;
+}
+
+.extrato__dados {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 1pt 8pt;
+  margin: 0;
+  text-align: right;
+
+  dt {
+    color: var(--p-text-muted-color);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.extrato__resumo {
+  margin-bottom: 10pt;
+  border: 0.75pt solid var(--p-surface-400);
+
+  th,
+  td {
+    width: 25%;
+    padding: 3pt 6pt;
+    text-align: right;
+  }
+
+  th {
+    font-weight: 400;
+    color: var(--p-text-muted-color);
+    background: var(--p-surface-100);
+  }
+
+  td {
+    font-size: 10pt;
+  }
+}
+
+.extrato__tabela {
+  th,
+  td {
+    padding: 3pt 4pt;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 0.5pt solid var(--p-surface-300);
+  }
+
+  thead th {
+    font-weight: 600;
+    background: var(--p-surface-200);
+    border-bottom: 1pt solid var(--p-text-color);
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+}
+
+.col-data {
+  width: 13%;
+}
+
+.col-forma {
+  width: 14%;
+}
+
+.extrato__tabela .col-valor {
+  width: 13%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.extrato__categoria {
+  display: block;
+  font-size: 8pt;
+  color: var(--p-text-muted-color);
+}
+
+.linha-dia td {
+  font-weight: 600;
+  background: var(--p-surface-100);
+}
+
+.linha-saldo td {
+  font-weight: 700;
+}
+
+.linha-total td {
+  font-weight: 700;
+  border-top: 1pt solid var(--p-text-color);
+}
+
+.extrato__vazio {
+  text-align: center;
+  color: var(--p-text-muted-color);
+}
+
+.extrato__rodape {
+  margin-top: 10pt;
+  font-size: 7.5pt;
+  color: var(--p-text-muted-color);
+
+  p {
+    margin: 0 0 2pt;
+  }
+}

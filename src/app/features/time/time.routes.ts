@@ -66,6 +66,12 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../financeiro/caixa-page').then((m) => m.CaixaPage),
       },
       {
+        path: 'financeiro/relatorio',
+        canActivate: [gestaoGuard],
+        title: 'Relatório do caixa · ResenhaFC',
+        loadComponent: () => import('../financeiro/relatorio-caixa-page').then((m) => m.RelatorioCaixaPage),
+      },
+      {
         // Qualquer membro com atleta vinculado; a tela trata quem não tem.
         path: 'financeiro/minhas',
         title: 'Minhas cobranças · ResenhaFC',

@@ -1,0 +1,168 @@
+// Bloco, não inline: o Chrome não divide entre páginas o conteúdo de um elemento inline
+// (na impressão, jogava tudo para a 2ª folha e cortava o resto).
+:host {
+  display: block;
+}
+
+.positivo {
+  color: var(--p-green-500);
+}
+
+.negativo {
+  color: var(--p-red-400);
+}
+
+.filtros {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.filtros__datas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+
+  input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.filtros__atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.resumo__item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  min-width: 0;
+
+  strong {
+    font-size: 1.0625rem;
+    overflow-wrap: anywhere;
+  }
+}
+
+.dica {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.atencao {
+  color: var(--p-orange-400);
+}
+
+.titulo-lista,
+.total h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.linha-tempo {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.dia {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.dia__cabecalho strong {
+  text-transform: capitalize;
+}
+
+.dia__movimentos {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.movimento {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.movimento__icone {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.movimento__texto {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+  overflow-wrap: anywhere;
+}
+
+.movimento__valor {
+  white-space: nowrap;
+}
+
+.dia__rodape {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--p-content-border-color);
+
+  span + span {
+    margin-left: 0.5rem;
+  }
+}
+
+.total__linhas {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem;
+  margin: 0;
+
+  dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+.total__final {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--p-content-border-color);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .filtros {
+    grid-template-columns: auto 1fr;
+    align-items: end;
+  }
+
+  .resumo {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

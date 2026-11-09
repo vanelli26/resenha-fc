@@ -165,3 +165,31 @@ body::before {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+// Impressão (ex.: relatório do caixa em PDF): só o conteúdo, sem navegação nem fundo do app.
+.so-impressao {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: none;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .nao-imprimir {
+    display: none !important;
+  }
+
+  .so-impressao {
+    display: block;
+  }
+}

@@ -1,12 +1,12 @@
 @if (time(); as t) {
-  <header class="cabecalho">
+  <header class="cabecalho nao-imprimir">
     <app-escudo [src]="t.escudo ?? ''" [nome]="t.nome" />
     <h1 class="cabecalho__nome">{{ t.nome }}</h1>
   </header>
 
   <!-- Uma aba só não precisa de navegação. No celular vira barra inferior. -->
   @if (abas().length > 1) {
-    <nav class="abas" aria-label="Seções do time">
+    <nav class="abas nao-imprimir" aria-label="Seções do time">
       @for (aba of abas(); track aba.caminho) {
         <a
           class="abas__item"

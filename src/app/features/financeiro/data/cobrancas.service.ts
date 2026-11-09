@@ -104,6 +104,21 @@ export class CobrancasService {
     return snap.data().count;
   }
 
+  /**
+   * Cobranças pagas em [inicio, fim) (só as pagas têm `pagoEm`; o estorno apaga o campo). Usadas pelo
+   * relatório do caixa para saber a forma de pagamento de cada receita de baixa. Índice simples de `pagoEm`.
+   */
+  async listarPagasNoPeriodo(timeId: string, inicio: Date, fim: Date): Promise<ComId<Cobranca>[]> {
+    const snap = await getDocs(
+      query(
+        this.colecao(timeId),
+        where('pagoEm', '>=', Timestamp.fromDate(inicio)),
+        where('pagoEm', '<', Timestamp.fromDate(fim)),
+      ),
+    );
+    return snap.docs.map(comId);
+  }
+
   /** Pendentes de qualquer competência (inclui as atrasadas). */
   async listarEmAberto(timeId: string): Promise<ComId<Cobranca>[]> {
     const snap = await getDocs(query(this.colecao(timeId), where('status', '==', 'pendente'), limit(MAX_EM_ABERTO)));

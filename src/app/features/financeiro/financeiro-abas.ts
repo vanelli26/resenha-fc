@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { TimeAtualService } from '../../core/time/time-atual.service';
 import { AbaSecao, AbasSecao } from '../../shared/abas-secao';
 
-/** Alternância entre as telas do financeiro da gestão (Cobranças | Caixa | Minhas), mantendo o período da URL. */
+/** Alternância entre as telas do financeiro da gestão (Cobranças | Caixa | Relatório | Minhas), mantendo o período da URL. */
 @Component({
   selector: 'app-financeiro-abas',
   imports: [AbasSecao],
@@ -17,6 +17,8 @@ export class FinanceiroAbas {
     return [
       { rotulo: 'Cobranças', link: [...base, 'cobrancas'], manterParametros: true },
       { rotulo: 'Caixa', link: [...base, 'caixa'], manterParametros: true },
+      // Período próprio (?de=&ate=): não herda o mês das outras abas.
+      { rotulo: 'Relatório', link: [...base, 'relatorio'] },
       // Quem gere e também joga vê as próprias cobranças na terceira aba.
       ...(this.timeAtual.acesso()?.atletaId ? [{ rotulo: 'Minhas', link: [...base, 'minhas'] }] : []),
     ];

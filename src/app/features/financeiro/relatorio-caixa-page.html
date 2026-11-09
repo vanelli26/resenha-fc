@@ -1,0 +1,174 @@
+<!-- Tela: linha do tempo em cartões. Papel/PDF: extrato bancário (app-extrato-caixa). -->
+<div class="nao-imprimir">
+<app-financeiro-abas />
+
+<div class="cabecalho-secao">
+  <h2>Relatório do caixa</h2>
+  <p-button
+    label="Imprimir / PDF"
+    size="small"
+    [outlined]="true"
+    [disabled]="!relatorio()"
+    (onClick)="imprimir()"
+  />
+</div>
+
+<section class="cartao filtros" aria-label="Filtros">
+  <div class="filtros__datas">
+    <label class="campo">
+      <span>De</span>
+      <input #campoDe pInputText type="date" [value]="inicio()" (change)="mudarPeriodo(campoDe.value, fim())" />
+    </label>
+    <label class="campo">
+      <span>Até</span>
+      <input #campoAte pInputText type="date" [value]="fim()" (change)="mudarPeriodo(inicio(), campoAte.value)" />
+    </label>
+  </div>
+  <div class="filtros__atalhos">
+    <p-button label="Este mês" size="small" [text]="true" (onClick)="esteMes()" />
+    <p-button label="Mês passado" size="small" [text]="true" (onClick)="mesPassado()" />
+    <p-button label="Este ano" size="small" [text]="true" (onClick)="esteAno()" />
+  </div>
+  <p-selectbutton
+    [options]="opcoesTipo"
+    optionLabel="label"
+    optionValue="value"
+    [allowEmpty]="false"
+    [ngModel]="tipo()"
+    (ngModelChange)="tipo.set($event)"
+    ariaLabel="Tipo"
+  />
+  <p-select
+    [options]="opcoesOrigem"
+    optionLabel="label"
+    optionValue="value"
+    [ngModel]="origem()"
+    (ngModelChange)="origem.set($event)"
+    [fluid]="true"
+    ariaLabel="Forma de pagamento"
+  />
+</section>
+
+@if (periodoInvalido()) {
+  <p class="texto-suave">A data inicial é depois da final.</p>
+} @else if (carregando() && !relatorio()) {
+  <div class="resumo">
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+    <p-skeleton height="4.5rem" />
+  </div>
+  <div class="lista">
+    <p-skeleton height="6rem" />
+    <p-skeleton height="6rem" />
+  </div>
+} @else {
+  @let r = relatorio();
+  @if (r) {
+    <div class="resumo">
+      <div class="cartao resumo__item">
+        <small class="texto-suave">Saldo anterior</small>
+        <strong [class.negativo]="r.saldoAnterior < 0">{{ r.saldoAnterior | reais }}</strong>
+        <small class="texto-suave">antes de {{ inicio() | date: 'dd/MM/yyyy' }}</small>
+      </div>
+      <div class="cartao resumo__item">
+        <small class="texto-suave">Entradas</small>
+        <strong class="positivo">{{ r.entradas | reais }}</strong>
+      </div>
+      <div class="cartao resumo__item">
+        <small class="texto-suave">Saídas</small>
+        <strong class="negativo">{{ r.saidas | reais }}</strong>
+      </div>
+      <div class="cartao resumo__item">
+        <small class="texto-suave">{{ ateHoje() ? 'Saldo atual' : 'Saldo em ' + (fim() | date: 'dd/MM/yyyy') }}</small>
+        <strong [class.negativo]="r.saldoFinal < 0">{{ r.saldoFinal | reais }}</strong>
+      </div>
+    </div>
+
+    @if (filtrado()) {
+      <p class="texto-suave dica">Entradas e saídas mostram só o filtro escolhido; os saldos consideram todo o caixa.</p>
+    }
+    @if (noLimite()) {
+      <p class="dica atencao">O período passou de {{ limite }} lançamentos e pode estar incompleto. Escolha um período menor.</p>
+    }
+
+    <h3 class="titulo-lista">Linha do tempo</h3>
+    <ol class="linha-tempo">
+      @for (dia of r.dias; track dia.chave) {
+        <li class="cartao dia">
+          <header class="dia__cabecalho">
+            <strong>{{ dia.data | date: "EEEE, dd/MM/yyyy" }}</strong>
+          </header>
+          <ul class="dia__movimentos">
+            @for (m of dia.movimentos; track m.id) {
+              <li class="movimento">
+                <span class="movimento__icone" [class.positivo]="m.tipo === 'receita'" [class.negativo]="m.tipo === 'despesa'">
+                  @if (m.tipo === 'receita') {
+                    <svg data-p-icon="arrow-up" [size]="14" aria-hidden="true"></svg>
+                  } @else {
+                    <svg data-p-icon="arrow-down" [size]="14" aria-hidden="true"></svg>
+                  }
+                </span>
+                <span class="movimento__texto">
+                  <span>{{ m.descricao }}</span>
+                  <small class="texto-suave">{{ m.categoria }} · {{ rotuloOrigem[m.origem] }}</small>
+                </span>
+                <strong class="movimento__valor" [class.positivo]="m.tipo === 'receita'" [class.negativo]="m.tipo === 'despesa'">
+                  {{ m.tipo === 'receita' ? '+' : '−' }} {{ m.valorCentavos | reais }}
+                </strong>
+              </li>
+            }
+          </ul>
+          <footer class="dia__rodape">
+            <small class="texto-suave">
+              @if (dia.entradas > 0) {
+                <span class="positivo">+ {{ dia.entradas | reais }}</span>
+              }
+              @if (dia.saidas > 0) {
+                <span class="negativo">− {{ dia.saidas | reais }}</span>
+              }
+            </small>
+            <small>Saldo do dia <strong [class.negativo]="dia.saldo < 0">{{ dia.saldo | reais }}</strong></small>
+          </footer>
+        </li>
+      } @empty {
+        <li class="texto-suave">Nenhum lançamento no período.</li>
+      }
+    </ol>
+
+    @if (r.dias.length > 0) {
+      <section class="cartao total" aria-label="Totais do período">
+        <h3>Total do período</h3>
+        <dl class="total__linhas">
+          <dt>Saldo anterior</dt>
+          <dd [class.negativo]="r.saldoAnterior < 0">{{ r.saldoAnterior | reais }}</dd>
+          <dt>Lançamentos</dt>
+          <dd>{{ r.quantidade }}</dd>
+          <dt>Entradas</dt>
+          <dd class="positivo">+ {{ r.entradas | reais }}</dd>
+          <dt>Saídas</dt>
+          <dd class="negativo">− {{ r.saidas | reais }}</dd>
+          <dt>Resultado</dt>
+          <dd [class.negativo]="r.entradas - r.saidas < 0">{{ r.entradas - r.saidas | reais }}</dd>
+          <dt class="total__final">{{ ateHoje() ? 'Saldo atual' : 'Saldo final' }}</dt>
+          <dd class="total__final" [class.negativo]="r.saldoFinal < 0">{{ r.saldoFinal | reais }}</dd>
+        </dl>
+      </section>
+    }
+  }
+}
+</div>
+
+@if (relatorio(); as r) {
+  <app-extrato-caixa
+    class="so-impressao"
+    [relatorio]="r"
+    [timeNome]="timeNome()"
+    [inicio]="inicio()"
+    [fim]="fim()"
+    [filtros]="descricaoFiltro()"
+    [filtrado]="filtrado()"
+    [emitidoEm]="emitidoEm()"
+    [rotuloSaldoFinal]="ateHoje() ? 'Saldo atual' : 'Saldo final'"
+  />
+}

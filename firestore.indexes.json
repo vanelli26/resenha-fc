@@ -15,6 +15,24 @@
       ]
     },
     {
+      "collectionGroup": "lancamentos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tipo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "valorCentavos",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "cobrancas",
       "queryScope": "COLLECTION",
       "fields": [

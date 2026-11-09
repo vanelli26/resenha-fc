@@ -1,4 +1,4 @@
-<header class="topo">
+<header class="topo nao-imprimir">
   <div class="topo__interno">
     <a class="topo__marca" routerLink="/" aria-label="ResenhaFC, início">
       <app-logo [compactoNoCelular]="true" />
@@ -61,7 +61,7 @@
 
 <main class="conteudo">
   @if (atualizacao.disponivel()) {
-    <div class="cartao atualizacao" role="status">
+    <div class="cartao atualizacao nao-imprimir" role="status">
       <span>Nova versão do ResenhaFC disponível.</span>
       <p-button
         [label]="atualizacao.atualizando() ? 'Atualizando…' : 'Atualizar'"
