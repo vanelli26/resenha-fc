@@ -54,8 +54,13 @@
           }
           @if (ehDiretoria()) {
             <p-button label="Editar" size="small" [text]="true" (onClick)="abrir(atleta)" />
-          } @else if (atleta.id === meuAtletaId()) {
-            <p-button label="Meus dados" size="small" [text]="true" (onClick)="abrir(atleta)" />
+          } @else {
+            @if (sohPlano()) {
+              <p-button label="Plano" size="small" [text]="true" (onClick)="planoEmEdicao.set(atleta)" />
+            }
+            @if (atleta.id === meuAtletaId()) {
+              <p-button label="Meus dados" size="small" [text]="true" (onClick)="abrir(atleta)" />
+            }
           }
         </div>
       </li>
@@ -87,6 +92,24 @@
       [salvando]="salvando()"
       (salvar)="salvar($event)"
       (cancelar)="dialogAberto.set(false)"
+    />
+  }
+</p-dialog>
+
+<p-dialog
+  header="Plano de cobrança"
+  [visible]="planoEmEdicao() !== null"
+  (visibleChange)="$event || planoEmEdicao.set(null)"
+  [modal]="true"
+  [style]="{ width: 'min(26rem, 100vw - 2rem)' }"
+>
+  @if (planoEmEdicao(); as atleta) {
+    <app-plano-atleta-form
+      [atleta]="atleta"
+      [opcoesModalidade]="opcoesModalidade()"
+      [salvando]="salvandoPlano()"
+      (salvar)="salvarPlano($event)"
+      (cancelar)="planoEmEdicao.set(null)"
     />
   }
 </p-dialog>

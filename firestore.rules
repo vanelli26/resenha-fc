@@ -32,7 +32,7 @@ rules_version = '2';
 //
 // times/{timeId}/atletas/{atletaId}
 //   nome (1..100) · apelido (0..40) · telefone? (1..20) · fotoUrl? (https) · uid: string | null
-//   modalidade: id de um plano do time | 'isento' (conferida só quando muda)
+//   modalidade: id de um plano do time | 'isento' (conferida só quando muda; diretoria, ou tesouraria só este campo)
 //   posicoes: { campo?: list 0..10, society?: list 0..6, futsal?: list 0..5 } das posições fixas de cada esporte
 //             (formato antigo, ainda aceito: list 0..6 das posições de society)
 //   numeroCamisa?: int 0..999 · status: 'ativo' | 'afastado' | 'inativo'
@@ -171,6 +171,12 @@ service cloud.firestore {
         && resource.data.uid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['nome', 'apelido', 'telefone', 'posicoes', 'numeroCamisa', 'fotoUrl', 'atualizadoEm']);
+    }
+
+    // Tesouraria define o plano de cobrança do cadastro (modalidade), e nada mais (DIRETRIZES 2.4).
+    function ehTesourariaNoPlano(timeId) {
+      return podeFinanceiro(timeId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['modalidade', 'atualizadoEm']);
     }
 
     function nomeDoTime(timeId) {
@@ -939,7 +945,7 @@ service cloud.firestore {
         allow update: if isValidAtleta(request.resource.data)
           && inalterados(['criadoEm'])
           && (inalterados(['vinculo']) || vinculoComConta(request.resource.data))
-          && (podeGerir(timeId) || ehProprioAtleta(timeId, atletaId))
+          && (podeGerir(timeId) || ehProprioAtleta(timeId, atletaId) || ehTesourariaNoPlano(timeId))
           && (inalterados(['modalidade']) || modalidadeHabilitada(timeId, request.resource.data.modalidade));
 
         // Atleta sai do elenco via status 'inativo' (histórico financeiro depende dele).

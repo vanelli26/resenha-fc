@@ -36,7 +36,7 @@ Uma pessoa que joga nos dois times tem **um atleta em cada time**, ambos ligados
 |---|---|---|
 | `adminGeral` | global | aprovar ou reprovar pedidos de time novo e ver a lista de times (nome, escudo, endereço). **Não** entra nos times nem vê elenco, agenda, mural, caixa ou cobranças; para isso precisa ser membro, como qualquer pessoa (2.12) |
 | `diretoria` | por time | elenco, convites, aprovar entradas, agenda, presença, escalação, mural, campeonatos |
-| `tesouraria` | por time | configuração financeira, cobranças, baixas, lançamentos, relatórios do caixa |
+| `tesouraria` | por time | configuração financeira, plano de cobrança de cada cadastro (só a modalidade, no Elenco › Plano), cobranças, baixas, lançamentos, relatórios do caixa |
 | `jogador` | por time | ver mural, agenda, elenco e campeonatos do time; confirmar a própria presença; ver as próprias cobranças |
 
 Uma pessoa pode acumular papéis (ex.: `["jogador", "tesouraria"]`). O caixa do time (saldo, lançamentos, relatórios) é visível apenas para `diretoria` e `tesouraria`; `jogador` nunca vê o caixa. A diretoria poderá tornar público algum valor específico (ex.: custo de um evento), mas isso é funcionalidade futura, ainda não especificada.
@@ -53,7 +53,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 | (`isento`) | — | nunca gera cobrança; sempre disponível, não é um plano |
 
 - Vencimentos únicos por periodicidade na configuração (dia do mês; dia e mês de cada semestre); avulso vence na data do jogo.
-- Um cadastro só recebe plano existente no time (Rules conferem quando a modalidade muda). Plano em uso não pode ser removido (bloqueio na UI).
+- Quem define o plano: diretoria (no Editar) ou tesouraria (botão **Plano** no Elenco, só esse campo; vale para atletas sem conta). Um cadastro só recebe plano existente no time (Rules conferem quando a modalidade muda). Plano em uso não pode ser removido (bloqueio na UI).
 - Migração do formato antigo (valores fixos `mensal`/`semestral`/`avulso`): cada modalidade ativa vira um plano com id igual ao nome (`mensal` → "Mensalidade", `semestral` → "Semestralidade", `avulso` → "Avulso"), então cadastros antigos seguem apontando para o plano certo. O app converte ao carregar e grava no formato novo na primeira alteração da configuração.
 
 ### 2.5 Cobrança
@@ -67,6 +67,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Cancelar: `pendente` → `cancelado` (sai do "a receber"); reabrir: `cancelado` → `pendente`. Não mexem no caixa. Cobrança nunca é excluída.
 - Baixa pede a data do pagamento (padrão hoje) e observação opcional (ex.: Pix); a receita entra no caixa nessa data.
 - **Forma de pagamento** (não gravada): deduzida do texto da observação (`formaDaObservacao`): Pix, Dinheiro, Cartão, **No campo** (pago direto no campo; "campo"/"campinho" tem prioridade), Outro ou Não informada (sem observação). Na baixa, botões Pix / Dinheiro / Cartão / No campo escrevem o rótulo na observação (texto sempre igual), que pode ser completada. Em Cobranças (por mês/semestre), o filtro "Forma" mostra só as pagas daquela forma, com quantidade e total recebido; ex.: "No campo" do mês = valor a descontar do aluguel.
+- **Cobrar pelo WhatsApp** (tesouraria, em Cobranças): cobrança pendente de quem tem telefone válido no cadastro (com ou sem conta) mostra o botão **WhatsApp**, que abre a conversa da pessoa (`wa.me/55…`; sem DDI, assume Brasil) com a mensagem pronta: time, todas as pendentes dela carregadas na tela (plano, competência, valor, vencimento, "em atraso"), total quando há mais de uma e o link de Minhas cobranças. Nada é gravado (sem registro de "cobrança enviada"); telefones lidos do cadastro uma vez por time (`shared/compartilhar.numeroWhatsApp`, `financeiro/mensagem-cobranca`).
 
 ### 2.6 Lançamentos (caixa)
 
@@ -287,7 +288,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 | `pedidosTime/{slug}` | quem pediu / adminGeral | cria: qualquer logado, para si, `pendente`, endereço livre (sem time nem pedido); decide (`pendente` → `aprovado`/`reprovado`): adminGeral; apaga: quem pediu (pendente ou reprovado) ou adminGeral |
 | `times/{timeId}` | quem tem acesso ao time; adminGeral (só este documento, para a lista) | cria: quem tem pedido aprovado (nome e cor do pedido, junto com o próprio acesso); diretoria: nome, cor, escudo, esportes; tesouraria: só `financeiro`, validado |
 | `acessos/{uid}` | o próprio; diretoria; tesouraria | diretoria do time (qualquer papel); o fundador cria o próprio (`diretoria` + `tesouraria`) no lote que cria o time do pedido aprovado |
-| `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (modalidade, status e `vinculo` só a diretoria) (sincronizada da foto do Google ao abrir o elenco) |
+| `atletas` | acesso ao time | diretoria (sem exclusão: sair do elenco = status `inativo`); tesouraria só `modalidade` (+ `atualizadoEm`); o jogador vinculado edita no próprio atleta só nome, apelido, telefone, posições, camisa e `fotoUrl` (modalidade, status e `vinculo` só a diretoria) (sincronizada da foto do Google ao abrir o elenco) |
 | `convites` | leitura por código para usuário logado (só `get`); `list` só diretoria | diretoria cria; atualização só para desativar |
 | `solicitacoes/{uid}` | o próprio; diretoria | criar: o próprio, com convite ativo e não expirado, status `pendente`; atualizar (só `status`, de `pendente` para `aprovada`/`recusada`) e excluir: diretoria |
 | `cobrancas` | tesouraria/diretoria: todas; jogador: só `atletaId == acesso.atletaId` | tesouraria: cria só `pendente`; depois só transições de status (baixa, estorno, cancelar, reabrir); nunca exclui |
@@ -317,7 +318,7 @@ O atleta guarda as posições por esporte. Atletas antigos têm uma lista simple
 - **Baixa / estorno**: seção 2.5.
 - **Lançar despesa recorrente**: seção 2.6.
 - **Encerrar evento** (diretoria): placar e gols, status `realizado`; presença inicial = quem disse Vou, ajustada depois (2.7).
-- **Meus times** (jogador): consulta collection group `acessos` com `where('uid', '==', meuUid)` (o doc de acesso guarda também o campo `uid`; regra de collection group permite ler quando `resource.data.uid == request.auth.uid`) e, por time, conta as cobranças pendentes do meu atleta e mostra o próximo evento agendado.
+- **Meus times** (jogador): consulta collection group `acessos` com `where('uid', '==', meuUid)` (o doc de acesso guarda também o campo `uid`; regra de collection group permite ler quando `resource.data.uid == request.auth.uid`) e, por time, mostra o próximo evento agendado; o selo "N cobranças pendentes" do meu atleta só aparece nos times em que tenho `diretoria` ou `tesouraria` (quem é só jogador vê as próprias em Minhas cobranças).
 
 Lotes do Firestore têm limite de 500 operações; dividir quando necessário.
 
@@ -519,6 +520,9 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 30/09/2026 | Responder Talvez ou Não vou tira a pessoa da escalação na mesma transação da resposta (Rules permitem sair da própria vaga sem exigir Vou nem escalação aberta). Texto da escalação no WhatsApp continua no formato de lista por posição. |
 | 15/10/2026 | Forma de pagamento sem campo novo (escolha do usuário): deduzida do texto da observação, com botões na baixa que padronizam o texto. Filtro e total por forma em Cobranças, para descontar do aluguel o que os atletas pagaram direto no campo (forma "No campo", acrescentada às escolhidas: Pix, Dinheiro, Cartão, Outro). Pagas antes, sem observação, ficam como "Não informada". |
 | 09/11/2026 | Relatório analítico do caixa como aba do Financeiro (2.6): período pela data do pagamento, filtros de tipo e forma, saldo anterior/atual, linha do tempo diária com saldo e total. Forma deduzida das cobranças pagas no período (sem campo novo no lançamento); saldos sempre do caixa inteiro. Índice novo `lancamentos (tipo, data, valorCentavos)` para o saldo anterior. |
+| 10/11/2026 | Selo de cobranças pendentes em "Meus times" só para quem tem `diretoria` ou `tesouraria` no time (pedido do usuário: confundia quem é só jogador). Texto explícito ("N cobranças pendentes"). Jogador continua vendo as próprias em Minhas cobranças; sem contagem para ele (menos leituras). |
+| 10/11/2026 | Tesouraria define o plano de cobrança (modalidade) dos cadastros, inclusive de atletas sem conta, pelo botão "Plano" no Elenco (diretoria segue no Editar completo). Rules: tesouraria altera só `modalidade` e `atualizadoEm`, com plano existente no time. Sócios e colaboradores (Gestão, diretoria) ficam como estavam. |
+| 11/11/2026 | Botão WhatsApp nas cobranças pendentes de quem tem celular cadastrado: mensagem pronta para a conversa da pessoa, com todos os dados das pendentes dela e o link do app. Sem registro de envio. |
 
 ---
 

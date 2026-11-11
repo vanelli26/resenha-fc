@@ -66,7 +66,10 @@ export class InicioPage {
       });
     });
     effect(() => {
-      const times = this.sessao.meusTimes().filter((t) => t.atletaId !== null);
+      // Selo só para quem gere o time (diretoria/tesouraria); quem é só jogador vê em Minhas cobranças.
+      const times = this.sessao
+        .meusTimes()
+        .filter((t) => t.atletaId !== null && t.papeis.some((p) => p === 'diretoria' || p === 'tesouraria'));
       untracked(() => void this.contarPendentes(times));
     });
     effect(() => {

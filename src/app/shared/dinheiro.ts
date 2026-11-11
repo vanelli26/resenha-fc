@@ -12,12 +12,17 @@ export function centavosParaReais(centavos: number): number {
   return centavos / 100;
 }
 
+/** Centavos → "R$ 50,00" (texto fora do template, ex.: mensagens). */
+export function formatarReais(centavos: number, locale: string): string {
+  return formatCurrency(centavos / 100, locale, 'R$', 'BRL');
+}
+
 /** `{{ cobranca.valorCentavos | reais }}` → "R$ 50,00". */
 @Pipe({ name: 'reais' })
 export class ReaisPipe implements PipeTransform {
   private readonly locale = inject(LOCALE_ID);
 
   transform(centavos: number): string {
-    return formatCurrency(centavos / 100, this.locale, 'R$', 'BRL');
+    return formatarReais(centavos, this.locale);
   }
 }

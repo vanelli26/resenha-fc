@@ -99,6 +99,9 @@
             <div class="cobranca__acoes">
               @switch (item.cobranca.status) {
                 @case ('pendente') {
+                  @if (item.whatsApp) {
+                    <p-button label="WhatsApp" size="small" [text]="true" severity="success" ariaLabel="Enviar cobrança pelo WhatsApp" (onClick)="enviarWhatsApp(item.cobranca)" />
+                  }
                   <p-button label="Cancelar" size="small" [loading]="emAndamento() === item.cobranca.id" [text]="true" severity="secondary" [disabled]="processando()" (onClick)="cancelar(item.cobranca)" />
                   <p-button label="Dar baixa" size="small" [disabled]="processando()" (onClick)="abrirBaixa(item.cobranca)" />
                 }

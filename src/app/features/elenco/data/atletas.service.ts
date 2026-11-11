@@ -76,6 +76,11 @@ export class AtletasService {
     });
   }
 
+  /** Tesouraria trocando só o plano de cobrança do cadastro (Rules: nenhum outro campo). */
+  async atualizarModalidade(timeId: string, atletaId: string, modalidade: Modalidade): Promise<void> {
+    await updateDoc(doc(this.colecao(timeId), atletaId), { modalidade, atualizadoEm: serverTimestamp() });
+  }
+
   /** Jogador sincronizando a própria foto (do Google) no atleta vinculado. null remove. */
   async atualizarFoto(timeId: string, atletaId: string, fotoUrl: string | null): Promise<void> {
     await updateDoc(doc(this.colecao(timeId), atletaId), {

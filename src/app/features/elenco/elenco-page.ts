@@ -7,6 +7,7 @@ import { ComId } from '../../core/firebase/conversor';
 import { AuthService } from '../../core/auth/auth.service';
 import { TimeAtualService, nomeDaModalidade } from '../../core/time/time-atual.service';
 import { Atleta, vinculoDe } from '../../models/atleta.model';
+import { Modalidade } from '../../models/modalidade.model';
 import { Avisos } from '../../shared/avisos';
 import { FotoPessoa } from '../../shared/foto-pessoa';
 import { esportesComPosicao } from '../../models/posicao.model';
@@ -17,12 +18,13 @@ import {
   ROTULO_VINCULO,
 } from '../../shared/rotulos';
 import { AtletaForm } from './atleta-form';
+import { PlanoAtletaForm } from './plano-atleta-form';
 import { AtletasService, DadosAtleta } from './data/atletas.service';
 import { ElencoAbas } from './elenco-abas';
 
 @Component({
   selector: 'app-elenco-page',
-  imports: [ButtonModule, DialogModule, SkeletonModule, TagModule, AtletaForm, ElencoAbas, FotoPessoa],
+  imports: [ButtonModule, DialogModule, SkeletonModule, TagModule, AtletaForm, ElencoAbas, FotoPessoa, PlanoAtletaForm],
   templateUrl: './elenco-page.html',
   styleUrl: './elenco-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,6 +36,8 @@ export class ElencoPage {
   private readonly avisos = inject(Avisos);
 
   protected readonly ehDiretoria = this.timeAtual.ehDiretoria;
+  /** Tesouraria sem diretoria: troca só o plano de cobrança (a diretoria já edita tudo). */
+  protected readonly sohPlano = computed(() => this.timeAtual.ehTesouraria() && !this.ehDiretoria());
   protected readonly opcoesModalidade = this.timeAtual.opcoesModalidade;
   protected readonly modalidadePadrao = this.timeAtual.modalidadePadrao;
   /** Nome do plano (ou Isento) de cada cadastro. */
@@ -97,10 +101,30 @@ export class ElencoPage {
       untracked(() => {
         this.cadastros.set([]);
         this.dialogAberto.set(false);
+        this.planoEmEdicao.set(null);
         this.mostrarInativos.set(false);
         if (timeId) void this.carregar();
       });
     });
+  }
+
+  // Diálogo de plano (tesouraria).
+  protected readonly planoEmEdicao = signal<ComId<Atleta> | null>(null);
+  protected readonly salvandoPlano = signal(false);
+
+  protected async salvarPlano(modalidade: Modalidade): Promise<void> {
+    const timeId = this.timeAtual.timeId();
+    const atleta = this.planoEmEdicao();
+    if (!timeId || !atleta) return;
+    const ok = await this.avisos.executar(
+      this.salvandoPlano,
+      () => this.atletasService.atualizarModalidade(timeId, atleta.id, modalidade),
+      'Plano atualizado',
+      'Não foi possível salvar',
+    );
+    if (!ok) return;
+    this.planoEmEdicao.set(null);
+    await this.carregar();
   }
 
   protected abrir(atleta: ComId<Atleta> | null): void {

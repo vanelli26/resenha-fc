@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, LOCALE_ID, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ConfirmationService } from 'primeng/api';
@@ -30,10 +30,13 @@ import {
   referenciaMensal,
   referenciaSemestral,
 } from '../../shared/competencia';
+import { abrirWhatsApp, numeroWhatsApp } from '../../shared/compartilhar';
 import { ReaisPipe } from '../../shared/dinheiro';
 import { ROTULO_FORMA_PAGAMENTO } from '../../shared/rotulos';
 import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
+import { AtletasService } from '../elenco/data/atletas.service';
 import { FinanceiroAbas } from './financeiro-abas';
+import { mensagemDeCobranca } from './mensagem-cobranca';
 import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
@@ -47,6 +50,8 @@ interface CobrancaVisao {
   situacao: SituacaoCobranca;
   vencimento: Date;
   rotulo: string;
+  /** Pendente de quem tem celular cadastrado: mostra "WhatsApp". */
+  whatsApp: boolean;
 }
 
 @Component({
@@ -79,6 +84,8 @@ export class CobrancasPage {
   private readonly avisos = inject(Avisos);
   private readonly confirmacao = inject(ConfirmationService);
   private readonly router = inject(Router);
+  private readonly atletasService = inject(AtletasService);
+  private readonly locale = inject(LOCALE_ID);
 
   // Período e visão ficam na URL (?periodo=AAAA-MM | AAAA-S1 & visao=aberto): voltar do celular e links funcionam.
   readonly periodo = input<string>();
@@ -134,6 +141,9 @@ export class CobrancasPage {
   private readonly cobrancas = signal<ComId<Cobranca>[]>([]);
   protected readonly carregando = signal(true);
   protected readonly processando = signal(false);
+  /** Número de WhatsApp (wa.me) e nome de cada cadastro com telefone válido, para cobrar direto. */
+  private readonly contatos = signal<ReadonlyMap<string, { numero: string; nome: string }>>(new Map());
+
   /** Cobrança com ação em andamento (carregando no botão dela). */
   protected readonly emAndamento = signal<string | null>(null);
 
@@ -149,6 +159,7 @@ export class CobrancasPage {
         situacao: situacaoDaCobranca(c, hoje),
         vencimento: c.vencimento.toDate(),
         rotulo: `${nomeDaCobranca(c)} · ${competenciaDaCobranca(c)}`,
+        whatsApp: c.status === 'pendente' && this.contatos().has(c.atletaId),
       }))
       .sort(
         (a, b) =>
@@ -191,6 +202,15 @@ export class CobrancasPage {
         this.cobrancas.set([]);
         this.emBaixa.set(null);
         if (timeId) void this.carregar(timeId, filtro);
+      });
+    });
+    // Telefones do cadastro: uma leitura por time, só para quem cobra.
+    effect(() => {
+      const timeId = this.timeAtual.timeId();
+      const cobra = this.ehTesouraria();
+      untracked(() => {
+        this.contatos.set(new Map());
+        if (timeId && cobra) void this.carregarContatos(timeId);
       });
     });
   }
@@ -290,6 +310,36 @@ export class CobrancasPage {
       }
     } finally {
       this.emAndamento.set(null);
+    }
+  }
+
+  /** Abre a conversa da pessoa com a cobrança tocada e as outras pendentes dela já carregadas na tela. */
+  protected enviarWhatsApp(cobranca: ComId<Cobranca>): void {
+    const contato = this.contatos().get(cobranca.atletaId);
+    const timeId = this.timeAtual.timeId();
+    if (!contato || !timeId) return;
+    const pendentes = this.cobrancas().filter((c) => c.atletaId === cobranca.atletaId && c.status === 'pendente');
+    const texto = mensagemDeCobranca({
+      timeNome: this.timeAtual.time()?.nome ?? '',
+      nome: contato.nome || cobranca.atletaNome,
+      cobrancas: pendentes.length > 0 ? pendentes : [cobranca],
+      link: `${location.origin}/t/${timeId}/financeiro/minhas`,
+      locale: this.locale,
+    });
+    abrirWhatsApp(texto, contato.numero);
+  }
+
+  private async carregarContatos(timeId: string): Promise<void> {
+    try {
+      const cadastros = await this.atletasService.listar(timeId);
+      const contatos = new Map<string, { numero: string; nome: string }>();
+      for (const a of cadastros) {
+        const numero = numeroWhatsApp(a.telefone);
+        if (numero) contatos.set(a.id, { numero, nome: a.apelido || a.nome });
+      }
+      if (this.timeAtual.timeId() === timeId) this.contatos.set(contatos);
+    } catch {
+      // Complemento: sem os telefones, só não aparece o botão do WhatsApp.
     }
   }
 
