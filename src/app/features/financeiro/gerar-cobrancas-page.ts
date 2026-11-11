@@ -24,6 +24,7 @@ import { ReaisPipe } from '../../shared/dinheiro';
 import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { CobrancasService, NovaCobranca } from './data/cobrancas.service';
+import { ChevronRight } from '@primeicons/angular/chevron-right';
 import { JogosParaCobrar } from './jogos-para-cobrar';
 
 /** Geração manual pela tesouraria. Planos avulsos saem dos jogos (Fase 3). */
@@ -39,7 +40,7 @@ interface Candidato {
 
 @Component({
   selector: 'app-gerar-cobrancas-page',
-  imports: [DatePipe, FormsModule, RouterLink, ButtonModule, CheckboxModule, SelectModule, SkeletonModule, ReaisPipe, Voltar, JogosParaCobrar],
+  imports: [DatePipe, FormsModule, RouterLink, ButtonModule, CheckboxModule, SelectModule, SkeletonModule, ReaisPipe, Voltar, JogosParaCobrar, ChevronRight],
   templateUrl: './gerar-cobrancas-page.html',
   styleUrl: './gerar-cobrancas-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -48,7 +48,7 @@ rules_version = '2';
 //
 // times/{timeId}/cobrancas/{atletaId}_{referencia}
 //   atletaId (1..40) · atletaNome (1..100) · tipo: 'mensal' | 'semestral' | 'avulso'
-//   referencia: AAAA-MM | AAAA-S1/S2 | eventoId (conforme o tipo) · valorCentavos: int > 0 · vencimento: timestamp
+//   referencia: AAAA-MM | AAAA-S1/S2 | eventoId ou rateio{código} (avulso) · valorCentavos: int > 0 · vencimento: timestamp
 //   planoNome? (1..40, nome do plano na geração) · status: 'pendente' | 'pago' | 'cancelado'
 //   pagoEm?: timestamp · baixadoPor?: uid · observacao? (0..200)
 //   Imutáveis após criar: tudo menos status/pagoEm/baixadoPor/observacao. Nunca excluída.

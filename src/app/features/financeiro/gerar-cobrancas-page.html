@@ -81,6 +81,14 @@
   </div>
 }
 
+<a class="cartao cartao-link rateio" [routerLink]="['/t', timeId(), 'financeiro', 'gerar', 'rateio']">
+  <span class="rateio__texto">
+    <strong>Cobrança rateada</strong>
+    <small class="texto-suave">Dividir uma despesa entre quem participou (ex.: janta).</small>
+  </span>
+  <svg class="cartao-link__seta" data-p-icon="chevron-right" [size]="18" aria-hidden="true"></svg>
+</a>
+
 @if (temAvulso()) {
   <app-jogos-para-cobrar />
 }

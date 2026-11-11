@@ -78,6 +78,12 @@ export const TIME_ROUTES: Routes = [
         loadComponent: () => import('../financeiro/minhas-cobrancas-page').then((m) => m.MinhasCobrancasPage),
       },
       {
+        path: 'financeiro/gerar/rateio',
+        canActivate: [tesourariaGuard],
+        title: 'Cobrança rateada · ResenhaFC',
+        loadComponent: () => import('../financeiro/rateio-page').then((m) => m.RateioPage),
+      },
+      {
         path: 'financeiro/gerar',
         canActivate: [tesourariaGuard],
         title: 'Gerar cobranças · ResenhaFC',

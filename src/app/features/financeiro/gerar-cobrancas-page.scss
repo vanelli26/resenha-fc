@@ -79,3 +79,13 @@
     bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }
 }
+
+.rateio {
+  margin-top: 1.5rem;
+}
+
+.rateio__texto {
+  flex: 1;
+  display: grid;
+  gap: 0.125rem;
+}

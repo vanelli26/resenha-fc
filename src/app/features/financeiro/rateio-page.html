@@ -1,0 +1,97 @@
+<app-voltar para="financeiro/gerar" rotulo="Gerar cobranças" />
+
+<div class="cabecalho-secao">
+  <h2>Cobrança rateada</h2>
+</div>
+<p class="texto-suave dica">Para dividir uma despesa entre quem participou (ex.: janta, uniforme, taxa de campeonato).</p>
+
+<form class="formulario" ngNoForm (submit)="$event.preventDefault(); gerar()">
+  <label class="campo">
+    <span>Descrição</span>
+    <input pInputText [formField]="formulario.descricao" placeholder="Ex.: Janta 08/11" autocomplete="off" />
+    @if (formulario.descricao().touched() && formulario.descricao().invalid()) {
+      <small class="campo__erro">{{ formulario.descricao().errors()[0].message }}</small>
+    }
+  </label>
+
+  <p-selectbutton [formField]="formulario.modo" [options]="opcoesModo" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabel="Como informar o valor" />
+
+  <div class="linha">
+    <label class="campo">
+      <span>{{ modelo().modo === 'total' ? 'Valor total' : 'Valor por pessoa' }}</span>
+      <p-inputnumber [formField]="formulario.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
+      @if (formulario.valor().touched() && formulario.valor().invalid()) {
+        <small class="campo__erro">{{ formulario.valor().errors()[0].message }}</small>
+      }
+    </label>
+    <label class="campo">
+      <span>Vencimento</span>
+      <input pInputText type="date" [formField]="formulario.vencimento" />
+      @if (formulario.vencimento().touched() && formulario.vencimento().invalid()) {
+        <small class="campo__erro">{{ formulario.vencimento().errors()[0].message }}</small>
+      }
+    </label>
+  </div>
+
+  <div class="cabecalho-lista">
+    <h3>Quem participou</h3>
+    <span class="cabecalho-lista__acoes">
+      <p-button label="Marcar todos" size="small" [text]="true" type="button" (onClick)="marcarTodos(true)" />
+      <p-button label="Limpar" size="small" [text]="true" severity="secondary" type="button" [disabled]="selecionados().size === 0" (onClick)="marcarTodos(false)" />
+    </span>
+  </div>
+  <input
+    pInputText
+    type="search"
+    placeholder="Buscar"
+    aria-label="Buscar no cadastro"
+    [ngModel]="busca()"
+    (ngModelChange)="busca.set($event)"
+    [ngModelOptions]="{ standalone: true }"
+  />
+
+  @if (carregando()) {
+    <div class="lista">
+      <p-skeleton height="3rem" />
+      <p-skeleton height="3rem" />
+      <p-skeleton height="3rem" />
+    </div>
+  } @else {
+    <ul class="pessoas">
+      @for (a of visiveis(); track a.id) {
+        <li class="pessoa">
+          <label class="pessoa__rotulo">
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="selecionados().has(a.id)"
+              (ngModelChange)="alternar(a.id, $event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            <span class="pessoa__nome">
+              {{ nome(a) }}
+              @if (vinculo(a) !== 'atleta') {
+                <small class="texto-suave">{{ rotuloVinculo[vinculo(a)] }}</small>
+              }
+            </span>
+          </label>
+          @if (valores().get(a.id); as valor) {
+            <small>{{ valor | reais }}</small>
+          }
+        </li>
+      } @empty {
+        <li class="pessoa texto-suave">Ninguém encontrado.</li>
+      }
+    </ul>
+  }
+
+  @if (valorInsuficiente()) {
+    <small class="campo__erro">O total precisa ser de pelo menos R$ 0,01 por pessoa.</small>
+  }
+
+  <div class="rodape">
+    <span>
+      <strong>{{ selecionados().size }}</strong> pessoa(s) · <strong>{{ total() | reais }}</strong>
+    </span>
+    <p-button label="Gerar" type="submit" [loading]="gerando()" [disabled]="selecionados().size === 0 || valorInsuficiente() || carregando()" />
+  </div>
+</form>

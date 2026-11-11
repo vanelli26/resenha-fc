@@ -37,9 +37,25 @@ export interface NovaCobranca {
   planoNome: string;
 }
 
-/** Competência legível: mês/semestre; avulso (referência = eventoId) mostra a data do jogo (= vencimento). */
+/**
+ * Cobrança rateada (despesa dividida, ex.: janta; DIRETRIZES 2.5): tipo `avulso` com referência
+ * `rateio` + código aleatório (só letras e números, como as Rules exigem para avulso), sem evento.
+ */
+const PREFIXO_RATEIO = 'rateio';
+
+export function ehRateio(referencia: string): boolean {
+  return referencia.startsWith(PREFIXO_RATEIO);
+}
+
+/** Referência nova de rateio: todos os selecionados recebem a mesma (IDs `{atletaId}_{referencia}`). */
+export function referenciaDeRateio(): string {
+  return PREFIXO_RATEIO + crypto.randomUUID().replace(/-/g, '').slice(0, 20);
+}
+
+/** Competência legível: mês/semestre; avulso de jogo (referência = eventoId) mostra a data do jogo (= vencimento). */
 export function competenciaDaCobranca(c: Pick<Cobranca, 'tipo' | 'referencia' | 'vencimento'>): string {
   if (c.tipo !== 'avulso') return rotuloReferencia(c.referencia);
+  if (ehRateio(c.referencia)) return 'rateio';
   const d = c.vencimento.toDate();
   return `jogo de ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }

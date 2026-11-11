@@ -1,0 +1,93 @@
+.dica {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.cabecalho-lista {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+.cabecalho-lista__acoes {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.pessoas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-border-radius-lg);
+  background: var(--p-content-background);
+  overflow: hidden;
+}
+
+.pessoa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 1rem;
+
+  & + & {
+    border-top: 1px solid var(--p-content-border-color);
+  }
+
+  &.texto-suave {
+    padding-block: 0.75rem;
+  }
+}
+
+.pessoa__rotulo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  cursor: pointer;
+}
+
+.pessoa__nome {
+  display: grid;
+  padding-block: 0.375rem;
+}
+
+// Resumo e ação fixos no rodapé da tela (celular) ou ao fim da lista (igual a Gerar cobranças).
+.rodape {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--p-border-radius-lg);
+  border: 1px solid var(--p-content-border-color);
+  background: var(--p-content-background);
+}
+
+@media (max-width: 767px) {
+  .rodape {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}

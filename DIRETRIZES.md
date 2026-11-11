@@ -50,6 +50,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 | `mensal` | `AAAA-MM` (ex.: `2026-10`) | tesouraria gera as cobranças do mês |
 | `semestral` | `AAAA-S1` (jan–jun) / `AAAA-S2` (jul–dez) | tesouraria gera as cobranças do semestre |
 | `avulso` | `eventoId` | tesouraria gera após o evento, para quem tem plano avulso e presença `compareceu` |
+| (rateio) | `rateio` + código | tesouraria divide uma despesa (ex.: janta) entre cadastros escolhidos; não é plano (2.5) |
 | (`isento`) | — | nunca gera cobrança; sempre disponível, não é um plano |
 
 - Vencimentos únicos por periodicidade na configuração (dia do mês; dia e mês de cada semestre); avulso vence na data do jogo.
@@ -67,6 +68,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Cancelar: `pendente` → `cancelado` (sai do "a receber"); reabrir: `cancelado` → `pendente`. Não mexem no caixa. Cobrança nunca é excluída.
 - Baixa pede a data do pagamento (padrão hoje) e observação opcional (ex.: Pix); a receita entra no caixa nessa data.
 - **Forma de pagamento** (não gravada): deduzida do texto da observação (`formaDaObservacao`): Pix, Dinheiro, Cartão, **No campo** (pago direto no campo; "campo"/"campinho" tem prioridade), Outro ou Não informada (sem observação). Na baixa, botões Pix / Dinheiro / Cartão / No campo escrevem o rótulo na observação (texto sempre igual), que pode ser completada. Em Cobranças (por mês/semestre), o filtro "Forma" mostra só as pagas daquela forma, com quantidade e total recebido; ex.: "No campo" do mês = valor a descontar do aluguel.
+- **Cobrança rateada** (tesouraria, Financeiro › Gerar cobranças › Cobrança rateada, `/t/:timeId/financeiro/gerar/rateio`): descrição (até 40, vira o nome da cobrança e a categoria da receita na baixa), valor **total a dividir** (igual entre os selecionados; centavos que sobram vão para os primeiros da lista, por nome) ou **por pessoa**, vencimento e quem participou (cadastro ativo: atletas, sócios e colaboradores, com ou sem conta). Grava cobranças `tipo: avulso` com a mesma referência `rateio` + 20 letras/números (sem evento; Rules já aceitam), exibidas como "{descrição} · rateio". Depois segue o fluxo normal (baixa, WhatsApp, Minhas cobranças).
 - **Cobrar pelo WhatsApp** (tesouraria, em Cobranças): cobrança pendente de quem tem telefone válido no cadastro (com ou sem conta) mostra o botão **WhatsApp**, que abre a conversa da pessoa (`wa.me/55…`; sem DDI, assume Brasil) com a mensagem pronta: time, todas as pendentes dela carregadas na tela (plano, competência, valor, vencimento, "em atraso"), total quando há mais de uma e o link de Minhas cobranças. Nada é gravado (sem registro de "cobrança enviada"); telefones lidos do cadastro uma vez por time (`shared/compartilhar.numeroWhatsApp`, `financeiro/mensagem-cobranca`).
 
 ### 2.6 Lançamentos (caixa)
@@ -205,7 +207,7 @@ times/{timeId}/solicitacoes/{uid}
 times/{timeId}/cobrancas/{atletaId_referencia}
   atletaId, atletaNome                   // nome desnormalizado para listagem
   tipo: "mensal" | "semestral" | "avulso"
-  referencia, valorCentavos, vencimento (Timestamp)
+  referencia, valorCentavos, vencimento (Timestamp)   // avulso: eventoId (jogo) ou rateio{código} (2.5)
   planoNome?                             // nome do plano na geração (ausente nas antigas)
   status: "pendente" | "pago" | "cancelado"
   pagoEm?, baixadoPor?, observacao?
@@ -523,6 +525,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 10/11/2026 | Selo de cobranças pendentes em "Meus times" só para quem tem `diretoria` ou `tesouraria` no time (pedido do usuário: confundia quem é só jogador). Texto explícito ("N cobranças pendentes"). Jogador continua vendo as próprias em Minhas cobranças; sem contagem para ele (menos leituras). |
 | 10/11/2026 | Tesouraria define o plano de cobrança (modalidade) dos cadastros, inclusive de atletas sem conta, pelo botão "Plano" no Elenco (diretoria segue no Editar completo). Rules: tesouraria altera só `modalidade` e `atualizadoEm`, com plano existente no time. Sócios e colaboradores (Gestão, diretoria) ficam como estavam. |
 | 11/11/2026 | Botão WhatsApp nas cobranças pendentes de quem tem celular cadastrado: mensagem pronta para a conversa da pessoa, com todos os dados das pendentes dela e o link do app. Sem registro de envio. |
+| 11/11/2026 | Cobrança rateada (ex.: janta): total dividido igualmente ou valor por pessoa, entre qualquer cadastro ativo escolhido pela tesouraria (decisão do usuário). Sem tipo novo nem mudança nas Rules: `tipo: avulso` com referência `rateio` + código aleatório e `planoNome` = descrição. |
 
 ---
 

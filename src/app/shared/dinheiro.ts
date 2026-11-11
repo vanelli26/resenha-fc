@@ -12,6 +12,17 @@ export function centavosParaReais(centavos: number): number {
   return centavos / 100;
 }
 
+/**
+ * Divide um total em `partes` valores inteiros que somam exatamente o total; os centavos que sobram
+ * vão, um a um, para as primeiras partes (ex.: 10000 em 3 → 3334, 3333, 3333).
+ */
+export function ratearCentavos(total: number, partes: number): number[] {
+  if (partes <= 0) return [];
+  const base = Math.floor(total / partes);
+  const sobra = total - base * partes;
+  return Array.from({ length: partes }, (_, i) => base + (i < sobra ? 1 : 0));
+}
+
 /** Centavos → "R$ 50,00" (texto fora do template, ex.: mensagens). */
 export function formatarReais(centavos: number, locale: string): string {
   return formatCurrency(centavos / 100, locale, 'R$', 'BRL');
