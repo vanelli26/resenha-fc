@@ -237,19 +237,20 @@ service cloud.firestore {
         && ehDia(d.diaVencimento);
     }
 
-    // Rules não têm laço: cada posição da lista (máx. 10) é validada explicitamente.
-    function despesasValidas(l) {
+    // Rules não têm laço: cada posição da lista (máx. 10) é verificada explicitamente.
+    // Item igual a um já gravado não é revalidado (cada validação custa ~200 do limite de 1000 expressões).
+    function despesasValidas(l, antigas) {
       return l is list && l.size() <= 10
-        && (l.size() < 1 || isValidDespesaRecorrente(l[0]))
-        && (l.size() < 2 || isValidDespesaRecorrente(l[1]))
-        && (l.size() < 3 || isValidDespesaRecorrente(l[2]))
-        && (l.size() < 4 || isValidDespesaRecorrente(l[3]))
-        && (l.size() < 5 || isValidDespesaRecorrente(l[4]))
-        && (l.size() < 6 || isValidDespesaRecorrente(l[5]))
-        && (l.size() < 7 || isValidDespesaRecorrente(l[6]))
-        && (l.size() < 8 || isValidDespesaRecorrente(l[7]))
-        && (l.size() < 9 || isValidDespesaRecorrente(l[8]))
-        && (l.size() < 10 || isValidDespesaRecorrente(l[9]));
+        && (l.size() < 1 || l[0] in antigas || isValidDespesaRecorrente(l[0]))
+        && (l.size() < 2 || l[1] in antigas || isValidDespesaRecorrente(l[1]))
+        && (l.size() < 3 || l[2] in antigas || isValidDespesaRecorrente(l[2]))
+        && (l.size() < 4 || l[3] in antigas || isValidDespesaRecorrente(l[3]))
+        && (l.size() < 5 || l[4] in antigas || isValidDespesaRecorrente(l[4]))
+        && (l.size() < 6 || l[5] in antigas || isValidDespesaRecorrente(l[5]))
+        && (l.size() < 7 || l[6] in antigas || isValidDespesaRecorrente(l[6]))
+        && (l.size() < 8 || l[7] in antigas || isValidDespesaRecorrente(l[7]))
+        && (l.size() < 9 || l[8] in antigas || isValidDespesaRecorrente(l[8]))
+        && (l.size() < 10 || l[9] in antigas || isValidDespesaRecorrente(l[9]));
     }
 
     function isValidPlano(p) {
@@ -262,19 +263,19 @@ service cloud.firestore {
         && ehCentavos(p.valorCentavos) && p.valorCentavos > 0;
     }
 
-    // Sem laço: cada posição da lista (máx. 10) é validada explicitamente.
-    function planosValidos(l) {
+    // Sem laço: cada posição da lista (máx. 10) é verificada explicitamente; item já gravado não é revalidado.
+    function planosValidos(l, antigos) {
       return l is list && l.size() <= 10
-        && (l.size() < 1 || isValidPlano(l[0]))
-        && (l.size() < 2 || isValidPlano(l[1]))
-        && (l.size() < 3 || isValidPlano(l[2]))
-        && (l.size() < 4 || isValidPlano(l[3]))
-        && (l.size() < 5 || isValidPlano(l[4]))
-        && (l.size() < 6 || isValidPlano(l[5]))
-        && (l.size() < 7 || isValidPlano(l[6]))
-        && (l.size() < 8 || isValidPlano(l[7]))
-        && (l.size() < 9 || isValidPlano(l[8]))
-        && (l.size() < 10 || isValidPlano(l[9]));
+        && (l.size() < 1 || l[0] in antigos || isValidPlano(l[0]))
+        && (l.size() < 2 || l[1] in antigos || isValidPlano(l[1]))
+        && (l.size() < 3 || l[2] in antigos || isValidPlano(l[2]))
+        && (l.size() < 4 || l[3] in antigos || isValidPlano(l[3]))
+        && (l.size() < 5 || l[4] in antigos || isValidPlano(l[4]))
+        && (l.size() < 6 || l[5] in antigos || isValidPlano(l[5]))
+        && (l.size() < 7 || l[6] in antigos || isValidPlano(l[6]))
+        && (l.size() < 8 || l[7] in antigos || isValidPlano(l[7]))
+        && (l.size() < 9 || l[8] in antigos || isValidPlano(l[8]))
+        && (l.size() < 10 || l[9] in antigos || isValidPlano(l[9]));
     }
 
     function planoNaLista(l, id) {
@@ -286,20 +287,23 @@ service cloud.firestore {
     }
 
     // Toda gravação da configuração usa o formato de planos (converte times antigos).
-    function isValidFinanceiro(f) {
+    // Só itens novos ou alterados são validados: validar tudo a cada gravação passava do limite de 1000
+    // expressões por requisição das Rules (salvar a mensagem de cobrança ou um 5º plano era negado).
+    function isValidFinanceiro(f, antigo) {
+      let v = f.vencimentos;
       return f is map
         && f.keys().hasAll(['planos', 'vencimentos', 'despesasRecorrentes'])
         && f.keys().hasOnly(['planos', 'vencimentos', 'despesasRecorrentes', 'chavePix', 'mensagemCobranca'])
         && textoOpcional(f, 'chavePix', 1, 77)
         && textoOpcional(f, 'mensagemCobranca', 1, 1000)
-        && planosValidos(f.planos)
-        && f.vencimentos is map
-        && f.vencimentos.keys().hasAll(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])
-        && f.vencimentos.keys().hasOnly(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])
-        && ehDia(f.vencimentos.diaMensal) && ehDia(f.vencimentos.diaSemestral)
-        && f.vencimentos.mesS1 is int && f.vencimentos.mesS1 >= 1 && f.vencimentos.mesS1 <= 6
-        && f.vencimentos.mesS2 is int && f.vencimentos.mesS2 >= 7 && f.vencimentos.mesS2 <= 12
-        && despesasValidas(f.despesasRecorrentes);
+        && planosValidos(f.planos, antigo.get('planos', []))
+        && despesasValidas(f.despesasRecorrentes, antigo.get('despesasRecorrentes', []))
+        && v is map
+        && v.keys().hasAll(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])
+        && v.keys().hasOnly(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])
+        && ehDia(v.diaMensal) && ehDia(v.diaSemestral)
+        && v.mesS1 is int && v.mesS1 >= 1 && v.mesS1 <= 6
+        && v.mesS2 is int && v.mesS2 >= 7 && v.mesS2 <= 12;
     }
 
     // Atleta só recebe plano existente no time (DIRETRIZES 2.4); isento sempre vale.
@@ -919,7 +923,7 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'cor', 'escudo', 'tema', 'esportes']))
           || (podeFinanceiro(timeId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['financeiro'])
-            && isValidFinanceiro(request.resource.data.financeiro))
+            && isValidFinanceiro(request.resource.data.financeiro, resource.data.financeiro))
         );
 
       allow delete: if false;

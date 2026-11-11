@@ -529,6 +529,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 11/11/2026 | Cobrança rateada (ex.: janta): total dividido igualmente ou valor por pessoa, entre qualquer cadastro ativo escolhido pela tesouraria (decisão do usuário). Sem tipo novo nem mudança nas Rules: `tipo: avulso` com referência `rateio` + código aleatório e `planoNome` = descrição. |
 | 11/11/2026 | Rateio com acompanhantes (decisão do usuário: as duas opções): contador de pessoas por selecionado nos modos total e por pessoa, e modo "Valor individual" com o valor digitado para cada um. Uma cobrança por cadastro (o acompanhante não tem cadastro). |
 | 11/11/2026 | Chave Pix e modelo da mensagem de cobrança do WhatsApp, editáveis pela tesouraria na Configuração financeira (`financeiro.chavePix` até 77, `financeiro.mensagemCobranca` até 1000, validados nas Rules). Campos fixos entre chaves; modelo padrão quando não personalizado. |
+| 11/11/2026 | Correção: salvar a configuração financeira era negado ("Você não tem permissão") ao passar do limite de 1000 expressões por requisição das Rules: cada plano ou despesa validado custa ~200, e tudo era revalidado a cada gravação (falhava com a mensagem de cobrança e a partir do 5º plano). Rules passam a validar só itens novos ou alterados (item igual a um já gravado é aceito), sem mudar o que é permitido. |
 
 ---
 
