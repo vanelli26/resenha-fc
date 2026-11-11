@@ -17,13 +17,15 @@
   <p-selectbutton [formField]="formulario.modo" [options]="opcoesModo" optionLabel="label" optionValue="value" [allowEmpty]="false" ariaLabel="Como informar o valor" />
 
   <div class="linha">
-    <label class="campo">
-      <span>{{ modelo().modo === 'total' ? 'Valor total' : 'Valor por pessoa' }}</span>
-      <p-inputnumber [formField]="formulario.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
-      @if (formulario.valor().touched() && formulario.valor().invalid()) {
-        <small class="campo__erro">{{ formulario.valor().errors()[0].message }}</small>
-      }
-    </label>
+    @if (modelo().modo !== 'individual') {
+      <label class="campo">
+        <span>{{ modelo().modo === 'total' ? 'Valor total' : 'Valor por pessoa' }}</span>
+        <p-inputnumber [formField]="formulario.valor" mode="currency" currency="BRL" locale="pt-BR" [fluid]="true" />
+        @if (formulario.valor().touched() && formulario.valor().invalid()) {
+          <small class="campo__erro">{{ formulario.valor().errors()[0].message }}</small>
+        }
+      </label>
+    }
     <label class="campo">
       <span>Vencimento</span>
       <input pInputText type="date" [formField]="formulario.vencimento" />
@@ -32,6 +34,17 @@
       }
     </label>
   </div>
+
+  <p class="texto-suave dica">
+    @switch (modelo().modo) {
+      @case ('individual') {
+        Digite o valor de cada pessoa marcada.
+      }
+      @default {
+        Levou acompanhante? Aumente o número de pessoas de quem foi marcado: ele paga a parte de cada uma.
+      }
+    }
+  </p>
 
   <div class="cabecalho-lista">
     <h3>Quem participou</h3>
@@ -74,8 +87,35 @@
               }
             </span>
           </label>
-          @if (valores().get(a.id); as valor) {
-            <small>{{ valor | reais }}</small>
+          @if (selecionados().has(a.id)) {
+            <span class="pessoa__valores">
+              @if (modelo().modo === 'individual') {
+                <p-inputnumber
+                  mode="currency"
+                  currency="BRL"
+                  locale="pt-BR"
+                  [ngModel]="individuais().get(a.id) ?? null"
+                  (ngModelChange)="definirIndividual(a.id, $event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [ariaLabel]="'Valor de ' + nome(a)"
+                  [inputStyle]="{ width: '7rem', textAlign: 'right' }"
+                />
+              } @else {
+                <p-inputnumber
+                  [showButtons]="true"
+                  buttonLayout="horizontal"
+                  [min]="1"
+                  [max]="maxPessoas"
+                  [ngModel]="pessoasDe(a.id)"
+                  (ngModelChange)="definirPessoas(a.id, $event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [ariaLabel]="'Pessoas de ' + nome(a)"
+                  [inputStyle]="{ width: '6.5rem', textAlign: 'center' }"
+                  [suffix]="pessoasDe(a.id) > 1 ? ' pessoas' : ' pessoa'"
+                />
+                <small class="pessoa__valor">{{ valores().get(a.id) ?? 0 | reais }}</small>
+              }
+            </span>
           }
         </li>
       } @empty {
@@ -85,12 +125,18 @@
   }
 
   @if (valorInsuficiente()) {
-    <small class="campo__erro">O total precisa ser de pelo menos R$ 0,01 por pessoa.</small>
+    <small class="campo__erro">
+      {{ modelo().modo === 'individual' ? 'Informe o valor de cada pessoa marcada.' : 'O total precisa ser de pelo menos R$ 0,01 por pessoa.' }}
+    </small>
   }
 
   <div class="rodape">
     <span>
-      <strong>{{ selecionados().size }}</strong> pessoa(s) · <strong>{{ total() | reais }}</strong>
+      <strong>{{ selecionados().size }}</strong> cobrança(s)
+      @if (modelo().modo !== 'individual' && qtdPessoas() > selecionados().size) {
+        · {{ qtdPessoas() }} pessoas
+      }
+      · <strong>{{ total() | reais }}</strong>
     </span>
     <p-button label="Gerar" type="submit" [loading]="gerando()" [disabled]="selecionados().size === 0 || valorInsuficiente() || carregando()" />
   </div>

@@ -19,7 +19,10 @@ import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { CobrancasService, NovaCobranca, referenciaDeRateio } from './data/cobrancas.service';
 
-type ModoValor = 'total' | 'pessoa';
+type ModoValor = 'total' | 'pessoa' | 'individual';
+
+/** Limite do contador de pessoas por selecionado (atleta + acompanhantes). */
+export const MAX_PESSOAS_POR_CADASTRO = 10;
 
 interface FormRateio {
   descricao: string;
@@ -60,7 +63,9 @@ export class RateioPage {
   protected readonly opcoesModo: { label: string; value: ModoValor }[] = [
     { label: 'Total a dividir', value: 'total' },
     { label: 'Valor por pessoa', value: 'pessoa' },
+    { label: 'Valor individual', value: 'individual' },
   ];
+  protected readonly maxPessoas = MAX_PESSOAS_POR_CADASTRO;
   protected readonly rotuloVinculo = ROTULO_VINCULO;
 
   protected readonly modelo = signal<FormRateio>({
@@ -73,7 +78,10 @@ export class RateioPage {
     required(p.descricao, { message: 'Informe a descrição (ex.: Janta 08/11).' });
     // Vai para planoNome da cobrança e categoria da receita (limite das Rules).
     maxLength(p.descricao, 40, { message: 'Máximo de 40 caracteres.' });
-    validate(p.valor, ({ value }) => ((value() ?? 0) > 0 ? undefined : { kind: 'valor', message: 'Informe o valor.' }));
+    // No modo individual o valor é digitado em cada pessoa.
+    validate(p.valor, ({ value, valueOf }) =>
+      valueOf(p.modo) === 'individual' || (value() ?? 0) > 0 ? undefined : { kind: 'valor', message: 'Informe o valor.' },
+    );
     required(p.vencimento, { message: 'Informe o vencimento.' });
   });
 
@@ -82,6 +90,10 @@ export class RateioPage {
   protected readonly gerando = signal(false);
   protected readonly busca = signal('');
   protected readonly selecionados = signal<ReadonlySet<string>>(new Set());
+  /** Pessoas por selecionado (ex.: 2 = atleta + acompanhante); ausente = 1. Modos total e por pessoa. */
+  protected readonly pessoas = signal<ReadonlyMap<string, number>>(new Map());
+  /** Valor digitado (reais) de cada selecionado no modo individual. */
+  protected readonly individuais = signal<ReadonlyMap<string, number>>(new Map());
 
   /** Cadastro ativo (atletas, sócios e colaboradores), por nome. */
   protected readonly ativos = computed(() =>
@@ -96,15 +108,35 @@ export class RateioPage {
       : this.ativos();
   });
 
-  /** Valor de cada selecionado, na ordem da lista (centavos que sobram do rateio vão para os primeiros). */
+  /** Total de pessoas (soma dos contadores dos selecionados). */
+  protected readonly qtdPessoas = computed(() =>
+    [...this.selecionados()].reduce((soma, id) => soma + this.pessoasDe(id), 0),
+  );
+
+  /**
+   * Valor de cada selecionado, na ordem da lista. Total: dividido por pessoa (quem levou acompanhante paga
+   * as cotas dele; centavos que sobram vão para as primeiras cotas). Por pessoa: valor × pessoas. Individual: o digitado.
+   */
   protected readonly valores = computed<ReadonlyMap<string, number>>(() => {
     const ids = this.ativos()
       .filter((a) => this.selecionados().has(a.id))
       .map((a) => a.id);
     const { modo, valor } = this.modelo();
     const centavos = reaisParaCentavos(valor);
-    const partes = modo === 'total' ? ratearCentavos(centavos, ids.length) : ids.map(() => centavos);
-    return new Map(ids.map((id, i) => [id, partes[i]]));
+    if (modo === 'individual') {
+      return new Map(ids.map((id) => [id, reaisParaCentavos(this.individuais().get(id) ?? 0)]));
+    }
+    if (modo === 'pessoa') return new Map(ids.map((id) => [id, centavos * this.pessoasDe(id)]));
+    const cotas = ratearCentavos(centavos, this.qtdPessoas());
+    let proxima = 0;
+    return new Map(
+      ids.map((id) => {
+        const qtd = this.pessoasDe(id);
+        const valorDele = cotas.slice(proxima, proxima + qtd).reduce((s, v) => s + v, 0);
+        proxima += qtd;
+        return [id, valorDele];
+      }),
+    );
   });
   protected readonly total = computed(() => [...this.valores().values()].reduce((s, v) => s + v, 0));
   /** Total menor que um centavo por pessoa: alguém ficaria com cobrança zerada. */
@@ -116,9 +148,24 @@ export class RateioPage {
       untracked(() => {
         this.cadastros.set([]);
         this.selecionados.set(new Set());
+        this.pessoas.set(new Map());
+        this.individuais.set(new Map());
         if (timeId) void this.carregar(timeId);
       });
     });
+  }
+
+  protected pessoasDe(atletaId: string): number {
+    return this.pessoas().get(atletaId) ?? 1;
+  }
+
+  protected definirPessoas(atletaId: string, qtd: number | null): void {
+    const valor = Math.min(Math.max(Math.round(qtd ?? 1), 1), MAX_PESSOAS_POR_CADASTRO);
+    this.pessoas.update((atual) => new Map(atual).set(atletaId, valor));
+  }
+
+  protected definirIndividual(atletaId: string, reais: number | null): void {
+    this.individuais.update((atual) => new Map(atual).set(atletaId, reais ?? 0));
   }
 
   protected nome(a: Atleta): string {
