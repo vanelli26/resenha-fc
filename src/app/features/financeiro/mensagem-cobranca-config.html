@@ -1,0 +1,44 @@
+<section class="mensagem">
+  <h3>Mensagem de cobrança (WhatsApp)</h3>
+  <p class="texto-suave dica">Usada pelo botão WhatsApp em Cobranças. Os campos entre chaves são preenchidos para cada pessoa.</p>
+
+  <form class="cartao formulario" (submit)="$event.preventDefault(); salvar()">
+    <label class="campo">
+      <span>Chave Pix</span>
+      <input pInputText [formField]="formulario.chavePix" placeholder="E-mail, celular, CPF/CNPJ ou chave aleatória" autocomplete="off" />
+      <small class="campo__dica">Vazia: as linhas com {{ '{' }}pix{{ '}' }} saem da mensagem.</small>
+      @if (formulario.chavePix().touched() && formulario.chavePix().invalid()) {
+        <small class="campo__erro">{{ formulario.chavePix().errors()[0].message }}</small>
+      }
+    </label>
+
+    <label class="campo">
+      <span>Modelo da mensagem</span>
+      <textarea pTextarea [formField]="formulario.mensagem" rows="10" [autoResize]="true"></textarea>
+      @if (formulario.mensagem().invalid()) {
+        <small class="campo__erro">{{ formulario.mensagem().errors()[0].message }}</small>
+      }
+    </label>
+
+    <div class="campos" role="group" aria-label="Inserir campo">
+      @for (c of campos; track c.campo) {
+        <p-button [label]="c.campo" size="small" [outlined]="true" severity="secondary" type="button" [ariaLabel]="'Inserir ' + c.descricao" (onClick)="inserir(c.campo)" />
+      }
+    </div>
+    <ul class="campos__legenda texto-suave">
+      @for (c of campos; track c.campo) {
+        <li><code>{{ c.campo }}</code> {{ c.descricao }}</li>
+      }
+    </ul>
+
+    <div class="previa">
+      <small class="texto-suave">Prévia (exemplo)</small>
+      <p class="previa__texto">{{ previa() }}</p>
+    </div>
+
+    <div class="acoes">
+      <p-button label="Restaurar padrão" [text]="true" severity="secondary" type="button" [disabled]="ehPadrao()" (onClick)="restaurarPadrao()" />
+      <p-button label="Salvar mensagem" type="submit" [loading]="salvando()" />
+    </div>
+  </form>
+</section>

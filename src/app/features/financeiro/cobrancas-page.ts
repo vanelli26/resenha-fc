@@ -36,7 +36,7 @@ import { ROTULO_FORMA_PAGAMENTO } from '../../shared/rotulos';
 import { CobrancasService, competenciaDaCobranca, nomeDaCobranca } from './data/cobrancas.service';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { FinanceiroAbas } from './financeiro-abas';
-import { mensagemDeCobranca } from './mensagem-cobranca';
+import { itemDaCobranca, mensagemDeCobranca } from './mensagem-cobranca';
 import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
@@ -319,12 +319,16 @@ export class CobrancasPage {
     const timeId = this.timeAtual.timeId();
     if (!contato || !timeId) return;
     const pendentes = this.cobrancas().filter((c) => c.atletaId === cobranca.atletaId && c.status === 'pendente');
+    const time = this.timeAtual.time();
+    const hoje = new Date();
     const texto = mensagemDeCobranca({
-      timeNome: this.timeAtual.time()?.nome ?? '',
+      timeNome: time?.nome ?? '',
       nome: contato.nome || cobranca.atletaNome,
-      cobrancas: pendentes.length > 0 ? pendentes : [cobranca],
+      itens: (pendentes.length > 0 ? pendentes : [cobranca]).map((c) => itemDaCobranca(c, hoje)),
       link: `${location.origin}/t/${timeId}/financeiro/minhas`,
       locale: this.locale,
+      modelo: time?.financeiro.mensagemCobranca,
+      chavePix: time?.financeiro.chavePix,
     });
     abrirWhatsApp(texto, contato.numero);
   }

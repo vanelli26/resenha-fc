@@ -11,6 +11,7 @@ import { Voltar } from '../../shared/voltar';
 import { AtletasService } from '../elenco/data/atletas.service';
 import { ConfigFinanceiraService } from './data/config-financeira.service';
 import { DespesasRecorrentes } from './despesas-recorrentes';
+import { MensagemCobrancaConfig } from './mensagem-cobranca-config';
 import { PlanosCobranca } from './planos-cobranca';
 
 const mesesDe = (inicio: number) =>
@@ -18,7 +19,7 @@ const mesesDe = (inicio: number) =>
 
 @Component({
   selector: 'app-config-financeira-page',
-  imports: [FormField, ButtonModule, InputNumberModule, SelectModule, Voltar, PlanosCobranca, DespesasRecorrentes],
+  imports: [FormField, ButtonModule, InputNumberModule, SelectModule, Voltar, PlanosCobranca, DespesasRecorrentes, MensagemCobrancaConfig],
   templateUrl: './config-financeira-page.html',
   styleUrl: './config-financeira-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

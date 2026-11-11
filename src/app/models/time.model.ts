@@ -84,6 +84,10 @@ export interface ConfigFinanceira {
   planos: PlanoCobranca[];
   vencimentos: Vencimentos;
   despesasRecorrentes: DespesaRecorrente[];
+  /** Chave Pix para receber as cobranças (vai na mensagem do WhatsApp). Ausente = sem Pix. */
+  chavePix?: string;
+  /** Modelo da mensagem de cobrança, com campos {nome}, {cobrancas}… Ausente = modelo padrão do app. */
+  mensagemCobranca?: string;
 }
 
 export const VENCIMENTOS_PADRAO: Vencimentos = { diaMensal: 10, diaSemestral: 10, mesS1: 1, mesS2: 7 };

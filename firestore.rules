@@ -20,7 +20,8 @@ rules_version = '2';
 //   (campo antigo `tema` só pode ser removido)
 //   financeiro: { planos: list 0..10 de {id [a-z0-9]{3,20} (≠ isento), nome 1..40, periodicidade: 'mensal'|'semestral'|'avulso', valorCentavos > 0},
 //                 vencimentos: {diaMensal, diaSemestral 1..31, mesS1 1..6, mesS2 7..12},
-//                 despesasRecorrentes: list 0..10 de {id, descricao, categoria, valorCentavos, diaVencimento} }
+//                 despesasRecorrentes: list 0..10 de {id, descricao, categoria, valorCentavos, diaVencimento},
+//                 chavePix? (1..77), mensagemCobranca? (1..1000, modelo do WhatsApp com {campos}) }
 //   (nasce sem planos; depois só a tesouraria altera, e só esse campo. Times antigos ainda podem ter o
 //    formato anterior {mensal, semestral, avulso, despesasRecorrentes}: é lido, e a próxima gravação converte.)
 //   esportes?: list 1..3 de 'campo' | 'society' | 'futsal' (ausente = só society; diretoria altera)
@@ -288,7 +289,9 @@ service cloud.firestore {
     function isValidFinanceiro(f) {
       return f is map
         && f.keys().hasAll(['planos', 'vencimentos', 'despesasRecorrentes'])
-        && f.keys().hasOnly(['planos', 'vencimentos', 'despesasRecorrentes'])
+        && f.keys().hasOnly(['planos', 'vencimentos', 'despesasRecorrentes', 'chavePix', 'mensagemCobranca'])
+        && textoOpcional(f, 'chavePix', 1, 77)
+        && textoOpcional(f, 'mensagemCobranca', 1, 1000)
         && planosValidos(f.planos)
         && f.vencimentos is map
         && f.vencimentos.keys().hasAll(['diaMensal', 'diaSemestral', 'mesS1', 'mesS2'])

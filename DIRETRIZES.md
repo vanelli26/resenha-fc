@@ -69,7 +69,7 @@ A tesouraria cadastra os **planos de cobrança** do time (até 10): nome (ex.: "
 - Baixa pede a data do pagamento (padrão hoje) e observação opcional (ex.: Pix); a receita entra no caixa nessa data.
 - **Forma de pagamento** (não gravada): deduzida do texto da observação (`formaDaObservacao`): Pix, Dinheiro, Cartão, **No campo** (pago direto no campo; "campo"/"campinho" tem prioridade), Outro ou Não informada (sem observação). Na baixa, botões Pix / Dinheiro / Cartão / No campo escrevem o rótulo na observação (texto sempre igual), que pode ser completada. Em Cobranças (por mês/semestre), o filtro "Forma" mostra só as pagas daquela forma, com quantidade e total recebido; ex.: "No campo" do mês = valor a descontar do aluguel.
 - **Cobrança rateada** (tesouraria, Financeiro › Gerar cobranças › Cobrança rateada, `/t/:timeId/financeiro/gerar/rateio`): descrição (até 40, vira o nome da cobrança e a categoria da receita na baixa), valor **total a dividir** (por pessoa: cada selecionado tem um contador de **pessoas**, 1 a 10, para acompanhantes, e paga as cotas dele; centavos que sobram vão para as primeiras cotas, por nome), **por pessoa** (valor × pessoas) ou **individual** (a tesouraria digita o valor de cada um), vencimento e quem participou (cadastro ativo: atletas, sócios e colaboradores, com ou sem conta). Grava cobranças `tipo: avulso` com a mesma referência `rateio` + 20 letras/números (sem evento; Rules já aceitam), exibidas como "{descrição} · rateio". Depois segue o fluxo normal (baixa, WhatsApp, Minhas cobranças).
-- **Cobrar pelo WhatsApp** (tesouraria, em Cobranças): cobrança pendente de quem tem telefone válido no cadastro (com ou sem conta) mostra o botão **WhatsApp**, que abre a conversa da pessoa (`wa.me/55…`; sem DDI, assume Brasil) com a mensagem pronta: time, todas as pendentes dela carregadas na tela (plano, competência, valor, vencimento, "em atraso"), total quando há mais de uma e o link de Minhas cobranças. Nada é gravado (sem registro de "cobrança enviada"); telefones lidos do cadastro uma vez por time (`shared/compartilhar.numeroWhatsApp`, `financeiro/mensagem-cobranca`).
+- **Cobrar pelo WhatsApp** (tesouraria, em Cobranças): cobrança pendente de quem tem telefone válido no cadastro (com ou sem conta) mostra o botão **WhatsApp**, que abre a conversa da pessoa (`wa.me/55…`; sem DDI, assume Brasil) com a mensagem pronta a partir do **modelo do time** (Configuração financeira › Mensagem de cobrança, tesouraria): campos `{nome}`, `{time}`, `{cobrancas}` (todas as pendentes dela carregadas na tela: plano, competência, valor, vencimento, "em atraso"), `{total}`, `{pix}` (chave Pix do time; sem chave, as linhas com `{pix}` saem) e `{link}` (Minhas cobranças). Sem modelo gravado vale o padrão do app; salvar igual ao padrão não grava. A prévia mostra um exemplo antes de salvar. Chave e modelo ficam em `times.financeiro` (legíveis por todo o time, como a chave Pix que vai na mensagem). Nada é gravado (sem registro de "cobrança enviada"); telefones lidos do cadastro uma vez por time (`shared/compartilhar.numeroWhatsApp`, `financeiro/mensagem-cobranca`).
 
 ### 2.6 Lançamentos (caixa)
 
@@ -179,6 +179,7 @@ times/{timeId}                           // timeId = slug (imutável; usado na U
     planos: [{ id, nome, periodicidade: "mensal" | "semestral" | "avulso", valorCentavos }]   // até 10
     vencimentos: { diaMensal, diaSemestral, mesS1, mesS2 }
     despesasRecorrentes: [{ id, descricao, categoria, valorCentavos, diaVencimento }]
+    chavePix?, mensagemCobranca?         // WhatsApp da cobrança (2.5); ausente = sem Pix / modelo padrão
   }                                      // formato antigo {mensal, semestral, avulso, ...} ainda lido (2.4)
 
 times/{timeId}/acessos/{uid}             // permissões do usuário no time
@@ -527,6 +528,7 @@ Seguir o que já existe antes de criar algo novo. Exemplos de referência entre 
 | 11/11/2026 | Botão WhatsApp nas cobranças pendentes de quem tem celular cadastrado: mensagem pronta para a conversa da pessoa, com todos os dados das pendentes dela e o link do app. Sem registro de envio. |
 | 11/11/2026 | Cobrança rateada (ex.: janta): total dividido igualmente ou valor por pessoa, entre qualquer cadastro ativo escolhido pela tesouraria (decisão do usuário). Sem tipo novo nem mudança nas Rules: `tipo: avulso` com referência `rateio` + código aleatório e `planoNome` = descrição. |
 | 11/11/2026 | Rateio com acompanhantes (decisão do usuário: as duas opções): contador de pessoas por selecionado nos modos total e por pessoa, e modo "Valor individual" com o valor digitado para cada um. Uma cobrança por cadastro (o acompanhante não tem cadastro). |
+| 11/11/2026 | Chave Pix e modelo da mensagem de cobrança do WhatsApp, editáveis pela tesouraria na Configuração financeira (`financeiro.chavePix` até 77, `financeiro.mensagemCobranca` até 1000, validados nas Rules). Campos fixos entre chaves; modelo padrão quando não personalizado. |
 
 ---
 

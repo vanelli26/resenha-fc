@@ -7,6 +7,9 @@ import { ConfigFinanceira } from '../../../models/time.model';
 /** Limites das Rules (validam item a item, sem laço). */
 export const MAX_DESPESAS_RECORRENTES = 10;
 export const MAX_PLANOS = 10;
+/** Chave Pix: e-mail (até 77), telefone, CPF/CNPJ ou chave aleatória (36). */
+export const MAX_CHAVE_PIX = 77;
+export const MAX_MENSAGEM_COBRANCA = 1000;
 
 /** ID de plano ou despesa recorrente: minúsculas e dígitos (entra em IDs como `rec_{id}_{AAAA-MM}`). */
 export function novoIdConfiguracao(): string {
@@ -30,6 +33,9 @@ export class ConfigFinanceiraService {
     const time = this.timeAtual.time();
     if (!time) throw new Error('Nenhum time selecionado.');
     const financeiro: ConfigFinanceira = { ...time.financeiro, ...parcial };
+    // Opcionais vazios saem do documento (o Firestore não aceita undefined).
+    if (!financeiro.chavePix) delete financeiro.chavePix;
+    if (!financeiro.mensagemCobranca) delete financeiro.mensagemCobranca;
     await updateDoc(doc(this.firestore, 'times', time.id), { financeiro });
     this.timeAtual.definirFinanceiro(financeiro);
   }
