@@ -40,10 +40,20 @@ import { itemDaCobranca, mensagemDeCobranca } from './mensagem-cobranca';
 import { NavegadorPeriodo } from './navegador-periodo';
 import { SituacaoCobranca, SituacaoCobrancaTag, situacaoDaCobranca } from './situacao-cobranca';
 
-/** Visão da lista: o que vence no mês/semestre escolhido, ou todas as pendentes (qualquer período). */
-type Visao = 'mes' | 'semestre' | 'aberto';
+/**
+ * Visão da lista: o que vence no mês/semestre escolhido, todas as pendentes (qualquer período)
+ * ou só as pendentes já vencidas.
+ */
+type Visao = 'mes' | 'semestre' | 'aberto' | 'vencidas';
 
-const ROTULO_VISAO: Record<Visao, string> = { mes: 'Por mês', semestre: 'Por semestre', aberto: 'Em aberto' };
+const ROTULO_VISAO: Record<Visao, string> = {
+  mes: 'Por mês',
+  semestre: 'Por semestre',
+  aberto: 'Em aberto',
+  vencidas: 'Vencidas',
+};
+/** Visões sem período (pendentes de qualquer competência). */
+const VISOES_SEM_PERIODO: readonly Visao[] = ['aberto', 'vencidas'];
 
 interface CobrancaVisao {
   cobranca: ComId<Cobranca>;
@@ -87,7 +97,7 @@ export class CobrancasPage {
   private readonly atletasService = inject(AtletasService);
   private readonly locale = inject(LOCALE_ID);
 
-  // Período e visão ficam na URL (?periodo=AAAA-MM | AAAA-S1 & visao=aberto): voltar do celular e links funcionam.
+  // Período e visão ficam na URL (?periodo=AAAA-MM | AAAA-S1 & visao=aberto|vencidas): voltar do celular e links funcionam.
   readonly periodo = input<string>();
   readonly visao = input<string>();
 
@@ -105,12 +115,13 @@ export class CobrancasPage {
     return visoes;
   });
   protected readonly opcoesVisao = computed(() => {
-    const visoes: Visao[] = [...this.visoesPeriodo(), 'aberto'];
+    const visoes: Visao[] = [...this.visoesPeriodo(), ...VISOES_SEM_PERIODO];
     return visoes.map((value) => ({ value, label: ROTULO_VISAO[value] }));
   });
 
   protected readonly visaoAtual = computed<Visao>(() => {
-    if (this.visao() === 'aberto') return 'aberto';
+    const visao = this.visao();
+    if (visao === 'aberto' || visao === 'vencidas') return visao;
     const doLink = ehReferenciaSemestral(this.periodo()) ? 'semestre' : ehReferenciaMensal(this.periodo()) ? 'mes' : null;
     return doLink && this.visoesPeriodo().includes(doLink) ? doLink : this.visoesPeriodo()[0];
   });
@@ -122,16 +133,18 @@ export class CobrancasPage {
     }
     return ehReferenciaMensal(periodo) ? periodo : referenciaMensal(new Date());
   });
-  /** Chave única do que está na tela: 'aberto' ou o período. */
-  private readonly filtro = computed(() => (this.visaoAtual() === 'aberto' ? 'aberto' : this.periodoAtual()));
+  /** Mês ou semestre (navegação de período e filtro de forma); as outras visões só têm pendentes. */
+  protected readonly porPeriodo = computed(() => !VISOES_SEM_PERIODO.includes(this.visaoAtual()));
+  /** Chave única do que está na tela: 'aberto', 'vencidas' ou o período. */
+  private readonly filtro = computed(() => (this.porPeriodo() ? this.periodoAtual() : this.visaoAtual()));
   protected readonly busca = signal('');
 
   /**
    * Filtro das pagas pela forma (deduzida da observação): ex.: total pago direto no campo, a descontar do aluguel.
-   * Não vale na visão "Em aberto" (só pendentes).
+   * Não vale nas visões "Em aberto" e "Vencidas" (só pendentes).
    */
   protected readonly formaFiltro = signal<FormaPagamento | null>(null);
-  protected readonly formaAtiva = computed(() => (this.visaoAtual() === 'aberto' ? null : this.formaFiltro()));
+  protected readonly formaAtiva = computed(() => (this.porPeriodo() ? this.formaFiltro() : null));
   protected readonly rotuloForma = ROTULO_FORMA_PAGAMENTO;
   protected readonly opcoesForma = [
     { label: 'Todas as formas', value: null },
@@ -152,6 +165,8 @@ export class CobrancasPage {
     const termo = this.busca().trim().toLocaleLowerCase('pt-BR');
     const forma = this.formaAtiva();
     return this.cobrancas()
+      // Canceladas não aparecem (não contam no "a receber" nem no recebido).
+      .filter((c) => c.status !== 'cancelado')
       .filter((c) => !termo || c.atletaNome.toLocaleLowerCase('pt-BR').includes(termo))
       .filter((c) => !forma || (c.status === 'pago' && formaDaObservacao(c.observacao) === forma))
       .map((c) => ({
@@ -221,7 +236,7 @@ export class CobrancasPage {
 
   /** Ao trocar entre mês e semestre, abre o período de hoje do novo tipo. */
   protected trocarVisao(visao: Visao | null): void {
-    if (visao === 'aberto') this.atualizarUrl({ visao: 'aberto' });
+    if (visao === 'aberto' || visao === 'vencidas') this.atualizarUrl({ visao });
     else if (visao === 'semestre') this.atualizarUrl({ visao: null, periodo: referenciaSemestral(new Date()) });
     else if (visao === 'mes') this.atualizarUrl({ visao: null, periodo: referenciaMensal(new Date()) });
   }
@@ -270,7 +285,7 @@ export class CobrancasPage {
 
   protected cancelar(cobranca: ComId<Cobranca>): void {
     this.confirmar(
-      `Cancelar a cobrança de ${cobranca.atletaNome}? Ela deixa de contar como pendente.`,
+      `Cancelar a cobrança de ${cobranca.atletaNome}? Ela deixa de contar como pendente e sai da lista.`,
       'Cancelar cobrança',
       () =>
         this.executar(
@@ -278,14 +293,6 @@ export class CobrancasPage {
           (timeId) => this.cobrancasService.definirCancelada(timeId, cobranca.id, true),
           'Cobrança cancelada',
         ),
-    );
-  }
-
-  protected reabrir(cobranca: ComId<Cobranca>): Promise<void> {
-    return this.executar(
-      cobranca.id,
-      (timeId) => this.cobrancasService.definirCancelada(timeId, cobranca.id, false),
-      'Cobrança reaberta',
     );
   }
 
@@ -353,7 +360,9 @@ export class CobrancasPage {
       const dados =
         filtro === 'aberto'
           ? await this.cobrancasService.listarEmAberto(timeId)
-          : await this.listarDoPeriodo(timeId, filtro);
+          : filtro === 'vencidas'
+            ? await this.cobrancasService.listarVencidas(timeId, inicioDeHoje())
+            : await this.listarDoPeriodo(timeId, filtro);
       // Descarta resposta atrasada (outro time ou outro filtro).
       if (this.timeAtual.timeId() === timeId && this.filtro() === filtro) this.cobrancas.set(dados);
     } catch (e) {
@@ -367,4 +376,10 @@ export class CobrancasPage {
     const { inicio, fim } = intervaloDoPeriodo(periodo);
     return this.cobrancasService.listarPorVencimento(timeId, inicio, fim);
   }
+}
+
+/** Vencida = pendente com vencimento antes de hoje (mesma regra do "atrasado" da situação). */
+function inicioDeHoje(): Date {
+  const hoje = new Date();
+  return new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
 }

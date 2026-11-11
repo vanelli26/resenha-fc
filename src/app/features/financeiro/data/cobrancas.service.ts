@@ -135,6 +135,23 @@ export class CobrancasService {
     return snap.docs.map(comId);
   }
 
+  /**
+   * Pendentes vencidas antes de `hoje` (início do dia), mais antigas primeiro.
+   * Índice composto (status, vencimento).
+   */
+  async listarVencidas(timeId: string, hoje: Date): Promise<ComId<Cobranca>[]> {
+    const snap = await getDocs(
+      query(
+        this.colecao(timeId),
+        where('status', '==', 'pendente'),
+        where('vencimento', '<', Timestamp.fromDate(hoje)),
+        orderBy('vencimento'),
+        limit(MAX_EM_ABERTO),
+      ),
+    );
+    return snap.docs.map(comId);
+  }
+
   /** Pendentes de qualquer competência (inclui as atrasadas). */
   async listarEmAberto(timeId: string): Promise<ComId<Cobranca>[]> {
     const snap = await getDocs(query(this.colecao(timeId), where('status', '==', 'pendente'), limit(MAX_EM_ABERTO)));

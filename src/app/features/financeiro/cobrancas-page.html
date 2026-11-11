@@ -18,10 +18,8 @@
     (ngModelChange)="trocarVisao($event)"
     ariaLabel="Visão"
   />
-  @if (visaoAtual() !== 'aberto') {
+  @if (porPeriodo()) {
     <app-navegador-periodo [periodo]="periodoAtual()" (mudou)="irParaPeriodo($event)" />
-  }
-  @if (visaoAtual() !== 'aberto') {
     <p-select
       class="filtros__forma"
       [options]="opcoesForma"
@@ -108,9 +106,6 @@
                 @case ('pago') {
                   <p-button label="Estornar" size="small" [loading]="emAndamento() === item.cobranca.id" [text]="true" severity="danger" [disabled]="processando()" (onClick)="estornar(item.cobranca)" />
                 }
-                @case ('cancelado') {
-                  <p-button label="Reabrir" size="small" [loading]="emAndamento() === item.cobranca.id" [text]="true" [disabled]="processando()" (onClick)="reabrir(item.cobranca)" />
-                }
               }
             </div>
           }
@@ -120,6 +115,9 @@
       <li class="texto-suave">@switch (visaoAtual()) {
           @case ('aberto') {
             Nenhuma cobrança em aberto.
+          }
+          @case ('vencidas') {
+            Nenhuma cobrança vencida.
           }
           @case ('semestre') {
             Nenhuma cobrança vencendo neste semestre.
